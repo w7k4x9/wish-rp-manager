@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.0.7
+// @version      2.0.8
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -59,7 +59,7 @@
   // Storage IDs, ELR contract, strict AI commit validation and rollback formats are preserved.
  let WUI=null;
 
-  const SCRIPT_VERSION = '2.0.7';
+  const SCRIPT_VERSION = '2.0.8';
   const EDITION = 'core';
   const RUNTIME_HOST = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   // Managers without synchronous GM storage (iOS Userscripts, Greasemonkey 4) cannot keep settings; say so instead of a raw ReferenceError.
@@ -7822,6 +7822,8 @@ function applyObserveRows(cog,speech,data,rp,cutoff,relationshipRows=[],relation
   if(code==='AI_MAX_TOKENS')return !rescued&&count<2?5000:0;
   // [auto-retry patch] AI 답 JSON이 깨진 경우(형식 보정 재요청까지 실패): 15초 뒤, 최대 2번 처음부터 다시 요청한다. 깨진 답은 저장하지 않는다.
   if(code==='AI_JSON_PARSE')return count<2?15000:0;
+  // [auto-retry patch 2] AI가 빈 답·미완료 답을 보냈거나, 답의 형식·참조 검사에서 거절된 경우도 15초 뒤 최대 2번 다시 요청한다.
+  if(['AI_EMPTY','AI_INCOMPLETE'].includes(code)||error?.answerFault===true||unifiedAnswerFault(error,error?.diagnostic?.stage||''))return count<2?15000:0;
   const transient=status
     ?[429,502,503,504,529].includes(status)
     :(['AI_NETWORK','AI_TIMEOUT','CRACK_NETWORK','CRACK_TIMEOUT'].includes(code)||/(?:\b(?:429|502|503|504|529)\b|네트워크 오류|network error|시간 초과|시간이 초과|제한 시간|AI_TIMEOUT|timeout)/i.test(text));
