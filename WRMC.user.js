@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.1.9
+// @version      2.2.0
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13230,6 +13230,112 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   }
 
   let wishContextBuildCache=null;
+  // 2.2.0 중국어로 보내기 (실험): 저장은 한국어 그대로, AI에게 보낼 때만 미리 번역해 둔 번체 중국어를 넣는다.
+  // 번역은 쉬는 시간에 조금씩(크롬 내장 번역기 · DeepL 무료 키 · Gemini 무료 키). 이름 · 대사 · 영어 · 호칭은 번역기에 넘기지 않고 그대로 끼운다.
+  // 번역 뒤 숫자 · 끼운 말이 다 남았는지 검사하고, 하나라도 빠지면 그 항목은 한국어로 보낸다. 보낼 때는 절대 기다리지 않는다.
+  const WishZh=(()=>{
+    const CFG_KEY='wish-zh-config',CACHE_KEY='wish-zh-cache-v1',KINDS=new Set(['log','lore','relationship','currentState']),MIN_CHARS=120,MAX_ENTRIES=9000;
+    const NOTE='- 일부 기억은 분량을 아끼려고 번체 중국어로 적었다. 인물 이름 · 애칭 · 대사 · 영어는 원문 그대로다. RP 응답은 언제나 한국어로 쓰고, 중국어 표현을 옮겨 쓰지 않는다.\n';
+    let cfg=null,cache=null,saveTimer=0,busy=false,translator=null,names=[],namesAt=0,stats={done:0,failed:0,last:'',error:''};
+    const pending=new Map();
+    function config(){if(!cfg){try{cfg={on:false,engine:'chrome',deeplKey:'',...JSON.parse(localStorage.getItem(CFG_KEY)||'{}')};}catch(_){cfg={on:false,engine:'chrome',deeplKey:''};}}return cfg;}
+    function setConfig(patch){cfg={...config(),...patch};try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}catch(_){}if(!cfg.on)pending.clear();}
+    function load(){if(cache)return cache;cache=new Map();try{const raw=GM_getValue(CACHE_KEY,null),obj=typeof raw==='string'?JSON.parse(raw):raw;if(obj&&typeof obj==='object')for(const [k,v] of Object.entries(obj))if(v&&typeof v==='object')cache.set(k,v);}catch(_){}return cache;}
+    function save(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{const c=load();if(c.size>MAX_ENTRIES){const keep=[...c].sort((a,b)=>(b[1].u||b[1].t||0)-(a[1].u||a[1].t||0)).slice(0,MAX_ENTRIES);cache=new Map(keep);}GM_setValue(CACHE_KEY,Object.fromEntries(load()));}catch(e){console.warn('[Wish] 번역 저장 실패',e);}},1500);}
+    const keyOf=s=>aiHashTiny(s)+':'+s.length;
+    const eligible=item=>{const k=injectionCadenceKind(item);return KINDS.has(k)&&String(item?.content||'').length>=MIN_CHARS;};
+    // 렌더 때 호출(동기): 번역이 있으면 바꿔 끼우고, 없으면 원문 그대로 두고 번역 대기열에 넣는다.
+    function apply(item){
+      const c=config();if(!c.on||!item||!eligible(item))return item;
+      const src=String(item.content),k=keyOf(src),hit=load().get(k);
+      if(hit&&hit.z){hit.u=Date.now();return {...item,content:hit.z};}
+      if(!hit||(hit.f&&Date.now()-(hit.t||0)>86400000)){if(pending.size<600)pending.set(k,src);}
+      return item;
+    }
+    function wrap(projection){return {...projection,item:x=>apply(projection.item(x))};}
+    function guideNote(){return config().on&&load().size?NOTE:'';}
+    // 끼울 말: 따옴표 안 · 영어 · 이름 · 애칭 · 압축 기록 표시. 번역기가 그대로 두는 영문 대문자 코드로 바꿨다 되돌린다.
+    function protect(src){
+      const spans=[],add=(re)=>{for(const m of src.matchAll(re))if(m[0].trim().length>1)spans.push([m.index,m.index+m[0].length]);};
+      add(/‘[^’\n]+’|“[^”\n]+”|「[^」\n]+」|『[^』\n]+』|"[^"\n]+"|(?<![A-Za-z])'[^'\n]+'/gu);
+      add(/\[Wish 압축 기록 (?:시작|끝)\]/g);add(/[A-Za-z][A-Za-z0-9_'’.:/-]*(?:[ \t]+[A-Za-z][A-Za-z0-9_'’.:/-]*)*/g);
+      for(const n of names)if(n.length>=2){let at=src.indexOf(n);while(at>=0){spans.push([at,at+n.length]);at=src.indexOf(n,at+n.length);}}
+      spans.sort((a,b)=>a[0]-b[0]||b[1]-a[1]);const merged=[];for(const s of spans){const last=merged[merged.length-1];if(last&&s[0]<last[1]){last[1]=Math.max(last[1],s[1]);}else merged.push([...s]);}
+      const map=[],code=i=>'QZ'+String.fromCharCode(65+Math.floor(i/26)%26)+String.fromCharCode(65+i%26);let out='',pos=0;
+      merged.forEach(([a,b],i)=>{out+=src.slice(pos,a)+' '+code(i)+' ';map.push([code(i),src.slice(a,b)]);pos=b;});out+=src.slice(pos);
+      return {text:out,map};
+    }
+    function restore(text,map){let out=String(text||'');for(const [c] of map)if(!out.includes(c))return null;
+      const lat=ch=>/[A-Za-z0-9]/.test(ch||'');
+      out=out.replace(/([ \t]*)(QZ[A-Z]{2})([ \t]*)/g,(m,a,c,b,off,str)=>(a&&lat(str[off-1])?' ':'')+c+(b&&lat(str[off+m.length])?' ':''));
+      for(const [c,v] of map)out=out.split(c).join(v);
+      return out.replace(/[ \t]+([，。、；：！？）」』”’])/g,'$1').replace(/([（「『“‘])[ \t]+/g,'$1').replace(/[ \t]{2,}/g,' ').trim();}
+    function check(src,zh){
+      if(!zh)return '끼운 말이 사라짐';
+      for(const n of src.match(/\d+(?:[.:]\d+)*/g)||[])if(!zh.includes(n))return '숫자 '+n+' 사라짐';
+      if(!/[一-鿿]/.test(zh))return '중국어가 아님';
+      if(zh.length>=src.length*0.92)return '충분히 짧지 않음';
+      return '';
+    }
+    async function loadNames(room){
+      if(Date.now()-namesAt<600000&&names.length)return;
+      const out=new Set(),add=v=>{const s=String(v||'').trim();if(s.length>=2&&/[가-힣]/.test(s))out.add(s);};
+      try{const cog=await getStoredCognitionRecord(apiChatIdOf(room));for(const a of cog?.actors||[]){add(a.name);for(const x of a.aliases||[])add(x);}}catch(_){}
+      for(const s of room?.slots||[])if(s.group==='character'){add(s.title);for(const x of s.aliases||[])add(x);}
+      for(const s of room?.speechRelations||[]){add(s.speaker);add(s.target);for(const x of String(s.address||'').split(/[\/;,·]/))add(x);}
+      names=[...out].sort((a,b)=>b.length-a.length);namesAt=Date.now();
+    }
+    async function chromeTranslator(gesture=false){
+      const T=RUNTIME_HOST.Translator||window.Translator;if(!T)throw Error('이 브라우저에는 크롬 내장 번역기가 없어요(컴퓨터 크롬 138 이상 필요).');
+      if(translator)return translator;
+      const opt={sourceLanguage:'ko',targetLanguage:'zh-Hant'},av=await T.availability(opt);
+      if(av==='unavailable')throw Error('크롬 내장 번역기가 한국어 → 번체 중국어를 지원하지 않아요.');
+      if(av!=='available'&&!gesture)throw Error('번역 모델을 아직 안 받았어요. 설정에서 [번역 모델 받기]를 눌러 주세요.');
+      translator=await T.create(opt);return translator;
+    }
+    async function translateBatch(list){
+      const c=config();
+      if(c.engine==='deepl'){
+        if(!c.deeplKey)throw Error('DeepL 키가 비어 있어요.');
+        const host=/:fx$/.test(c.deeplKey.trim())?'https://api-free.deepl.com':'https://api.deepl.com';
+        const data=await aiGmRequestJson({url:host+'/v2/translate',headers:{'Content-Type':'application/json',Authorization:'DeepL-Auth-Key '+c.deeplKey.trim()},body:{text:list,source_lang:'KO',target_lang:'ZH-HANT'},timeout:90000,label:'DeepL'});
+        return (data?.translations||[]).map(t=>t?.text||'');
+      }
+      if(c.engine==='gemini'){
+        const ai=loadAiSettings();if(!ai.apiKey)throw Error('AI 연결 설정에 Gemini API Key가 없어요.');
+        const out=[];
+        for(const text of list){
+          const body={systemInstruction:{parts:[{text:'You translate Korean RP memory notes into Traditional Chinese (zh-Hant). Keep every token like QZAB exactly as is. Keep all Arabic numerals exactly. Keep the note style terse. Output only the translation.'}]},contents:[{role:'user',parts:[{text}]}],generationConfig:{temperature:0}};
+          const data=await WishUsage.track({...ai,provider:'ai-studio',model:'gemini-3.5-flash-lite'},{operationLabel:'기억 번역'},()=>aiGmRequestJson({url:'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',headers:{'Content-Type':'application/json','x-goog-api-key':ai.apiKey},body,timeout:90000,label:'Gemini 번역'}),{provider:'ai-studio',model:'gemini-3.5-flash-lite'});
+          out.push((data?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim());
+        }
+        return out;
+      }
+      const tr=await chromeTranslator();const out=[];for(const text of list)out.push(await tr.translate(text));return out;
+    }
+    // 쉬는 시간에 몇 개씩: 크롬 4개 · DeepL 20개(5만 자 안) · Gemini 3개.
+    async function tick(room){
+      const c=config();if(!c.on||busy||!pending.size||!room)return;
+      if(document.hidden||backgroundWorkPending(apiChatIdOf(room)))return;
+      busy=true;
+      try{
+        await loadNames(room);
+        const cap=c.engine==='deepl'?20:c.engine==='gemini'?3:4,batch=[];let chars=0;
+        for(const [k,src] of pending){if(batch.length>=cap||chars+src.length>50000)break;batch.push([k,src]);chars+=src.length;}
+        const prepared=batch.map(([k,src])=>({k,src,...protect(src)}));
+        const results=await translateBatch(prepared.map(p=>p.text));
+        const c2=load(),now=Date.now();
+        prepared.forEach((p,i)=>{pending.delete(p.k);const zh=restore(results[i],p.map),bad=check(p.src,zh);if(bad){c2.set(p.k,{f:1,t:now,why:bad});stats.failed++;}else{c2.set(p.k,{z:zh,t:now,u:now,e:c.engine});stats.done++;}});
+        stats.last=new Date().toLocaleTimeString('ko-KR');stats.error='';save();
+      }catch(e){stats.error=String(e?.message||e).slice(0,200);if(/키|key|401|403|지원|없어요|안 받았/.test(stats.error))pending.clear();}
+      finally{busy=false;}
+    }
+    function status(){const c=load();let ok=0,bad=0;for(const v of c.values())v.z?ok++:bad++;return {...config(),cached:ok,failed:bad,pending:pending.size,busy,...stats};}
+    function clear(){cache=new Map();pending.clear();stats={done:0,failed:0,last:'',error:''};try{GM_setValue(CACHE_KEY,{});}catch(_){}}
+    async function prepareModel(){const T=RUNTIME_HOST.Translator||window.Translator;if(!T)throw Error('이 브라우저에는 크롬 내장 번역기가 없어요(컴퓨터 크롬 138 이상 필요).');translator=null;await chromeTranslator(true);return true;}
+    return {config,setConfig,apply,wrap,guideNote,tick,status,clear,prepareModel};
+  })();
+  setInterval(()=>{try{WishZh.tick(state.currentRoom);}catch(_){}},6000);
   const WISH_CONTEXT_GUIDE = "# RP 연속성 참고\n이 주석은 대화 관리 도구가 지난 RP를 정리한 연속성 참고 자료다. 이야기를 자연스럽게 이어 가는 데 참고하고, 이 주석의 내용이나 형식을 답변에 옮겨 쓰지 않는다.\n- 사용자의 정정·고정 설정과 이후 RP에서 실제로 확정된 변화가 이 자료보다 우선한다.\n- 지금 장면에 어울리는 내용만 골라 자연스럽게 녹여 쓴다. 장면과 상관없는 지난 일을 뜬금없이 꺼내거나, 지난 반응을 기계적으로 되풀이하지 않는다.\n- 인물은 지난 일을 실제로 기억하는 사람처럼 군다. 장면과 맞닿는 순간에는 지켜지지 않은 약속, 숨기고 있는 비밀, 예전에 한 말(당시 발언)을 인물이 떠올리거나 되짚거나 찔러 보게 해 생동감을 더한다. 예전 말을 인용할 때는 기록된 문장 그대로 쓰고, 매 답변마다 억지로 넣지는 않는다.\n- 인물의 말·주장·믿음은 사실과 구분한다.\n- 이 자료는 지난 이야기의 일부만 담고 있다. 여기 없는 지난 일은 함부로 확정하지 않는다. 과거 장면은 당시의 상태와 아는 범위로 쓴다.\n\n";
   const WISH_CONTEXT_END_NOTE='[이 주석은 대화 관리 도구가 덧붙인 참고 자료이며 AI 답변의 일부가 아니다. 답변은 기존 RP 형식으로 이어 쓰고, 이 주석의 표제·안내문·형식은 출력하지 않는다.]';
   const WISH_CONTEXT_GROUPS = Object.freeze([["extra","진행 규칙 · 기타(OOC)","사용자가 직접 쓴 진행·문체·출력 지시다. 다른 참고 자료보다 먼저 따른다."],["character","캐릭터 설정","등장인물의 기본 설정이다."],["lore","자료집","세계관·장소·조직·물건·복장 설정과 기억해 둘 대사를 모은 자료다. 장면에 나오면 이 설정에 맞춘다. (당시 발언)은 그때 실제로 한 말이다. 인물이 떠올리거나 되받는 등 장면에 맞게 활용한다."],["misc","기타 참고",""],["timeline","연표","지난 흐름을 시간 순서로 정리한 목차다."],["log","날짜로그","지난 사건을 날짜 순서대로 적은 기록이다."],["relationship","관계·감정선","인물이 상대를 어떻게 보는지 적은 것이다. A → B는 A가 B를 보는 마음이며, 반대 방향과 다를 수 있다."],["cognition","인지 경계","누가 무엇을 아는지 적은 것이다. 서술자가 아는 것과 인물이 아는 것을 구분한다."],["speech","현재 호칭·말투 · 화자 → 상대",""],["threads","서사 고리","아직 끝나지 않은 약속·목표·수수께끼 같은 일이다. 흐름에 맞을 때 다루고 억지로 끝내지 않는다. A→B 약속은 A가 B에게 한 약속이다."],["currentState","현재상태","지금 상황이다."]].map(row=>Object.freeze(row)));
@@ -13262,7 +13368,10 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
     else if(kind==='relationship')heading=heading.replace(/ · 관계·감정선$/,'');
     return '### '+safeForHtmlComment(heading)+'\n'+(kind==='lore'&&item.loreType==='key_quote'?'(당시 발언) ':'')+content;
   }
-  function contextGuideText(){return WISH_CONTEXT_GUIDE;}
+  // WishZh는 아래 const라 초기화 전에 불려도 안전하게.
+  function zhNote(){try{return WishZh.guideNote();}catch(_){return '';}}
+  function zhWrap(p){try{return WishZh.wrap(p);}catch(_){return p;}}
+  function contextGuideText(){return WISH_CONTEXT_GUIDE+zhNote();}
   // Echo end note (G-41): the block's end is this tail wherever it is built or counted; the end marker stays bare so the strip regexes and the carrier check still match old blocks.
   function contextTail(){return '\n'+WISH_CONTEXT_END_NOTE+'\n'+APP.markerEnd;}
   function contextRow(item,room=null){
@@ -13294,7 +13403,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   }
   function contextEnvelope(layout){return `${APP.markerStart} version="${APP.version}" id="${layout.envelopeId}" count="${layout.count}"\n`;}
   function contextBlockParts(items,room=null){
-    const projection=SecondaryRebuild.projector(room,{contextNotation:true});
+    const projection=zhWrap(SecondaryRebuild.projector(room,{contextNotation:true}));
     const active=(items||[]).filter(Boolean).map(projection.item).filter(i=>String(i.content||'').trim());
     if(!active.length)return {block:'',guideChars:0};
     const cached=wishContextBuildCache;
@@ -13312,7 +13421,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
 
   function createWishContextMeasure__perf(original = '',room=null) {
     // Lifetime: one synchronous fit/plan only; use the same sections/scopes as rendering.
-    const rows=new Map(),projection=SecondaryRebuild.projector(room,{contextNotation:true});
+    const rows=new Map(),projection=zhWrap(SecondaryRebuild.projector(room,{contextNotation:true}));
     const clean=stripOurContextBlock(String(original||'')).text.replace(/\s+$/,'');
     function row(item){
       const values=WISH_CONTEXT_FIELDS.map(key=>item[key]),cached=rows.get(item);
@@ -21970,6 +22079,13 @@ function mRelationships() {
       `<div class="w-grp" data-key="economy-settings">${apiOnly(W_TG('현재상태 바뀐 부분만 고치기','apiEconomy.delta',!V.ai.manual&&V.apiEconomy?.delta,'','변경된 원문 구간만 수정하고 나머지 문구는 보존합니다. 수정·추가·종료에 신규 RP 근거와 요청 토큰을 검증합니다. 애매한 편집은 원본을 유지하고 오류를 표시합니다. 날짜별 사건·자료·인지는 기존 증분 방식을 유지합니다.'))}${apiOnly(W_TG('색인으로 후보 고르기','apiEconomy.index',!V.ai.manual&&V.apiEconomy?.index,'','전체 후보가 50,000자를 초과할 때만 기존 선별 설정에 따라 사용합니다. 첫 선별에서 원문과 점수를 읽고 짧은 발췌 색인을 함께 준비하므로 첫 호출은 더 커질 수 있습니다. 다음 호출부터 같은 원문의 색인을 사용하며 실제 주입은 원문입니다. 자료 변경·색인 부적합·캐시 소실 때는 원문으로 돌아갑니다. 핵심 단서 누락 가능성은 실전 비교가 필요합니다.'))}${W_R('켜기 전 백업','아끼기를 켜기 전 기억 · 인물 · 자료를 파일로 받아요',btn('절약 적용 전 백업 받기','economyBackup',{cls:'mini',dis:!!V.ai.manual}))}</div>${W_FOOT(esc([V.ai.manual?manualOff:'모든 방 공통',V.apiEconomy?.status||''].filter(Boolean).join(' · ')))}`+
       W_SECH('5만 자가 넘칠 때 고르는 법 '+help(recallHelp),savedTag('recall'))+
       `<div class="w-grp" data-key="recall-settings"><div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-recall-mode">고르는 방식</label></span><span class="w-sub">평소엔 최근 · 관련 기억을 검색해서 넣어요</span></span><span class="w-acts">${selc('recall.mode',V.ai.manual?'local':mode,[['local','에리·키워드 결과만 사용'],['priority','AI로 후보 순서 재검토'],['both','AI로 관련성·순서 재검토'],['semantic','AI로 관련성만 재검토']],'m3-select',' id="wish-recall-mode" aria-label="선택된 기억 AI 재검토"'+(V.ai.manual?' disabled':''))}</span></div>${apiOnly(W_TG('AI로 관련성 재확인','recall.semantic',!V.ai.manual&&q.semantic,'','사용하도록 설정한 전체 후보가 원문·서식 포함 50,000자를 초과하면 AI 답이 도착한 뒤 보조 AI가 그 답과의 문맥 관련성을 미리 확인합니다. 제외 항목은 유지하며, 키워드가 일치하지 않는 후보도 상위 144개(색인으로 후보 선별을 켜면 384개)까지 평가할 수 있습니다. 이번 USER 입력으로 검색 점수가 오른 후보는 빼지 않습니다. 의미검색 색인이 있으면 전송 때 이번 입력의 검색 벡터를 요청하되 기다리지 않고, 미리 만든 직전 AI 답의 검색 벡터나 키워드로 순위를 정합니다.'))}${apiOnly(W_TG('AI로 우선순위 정하기','recall.selector',!V.ai.manual&&q.selector,'','직전 AI 답·미해결 약속·위험과 직접 연결된 후보부터 50,000자 안전선 안에 배치합니다. 이번 USER 입력으로 검색 점수가 오른 후보는 에리·키워드 자리를 지킵니다. 점수가 준비되지 않았거나 실패하면 에리·키워드 순위를 그대로 사용합니다.'))}</div>${W_FOOT((V.ai.manual?manualOff+' · 최근·키워드 검색만 사용':'모든 방 공통')+' · 넘칠 때만 AI가 골라요 · 보낼 때는 기다리지 않아요')}`+
+      (()=>{const z=WishZh.status(),eng=z.engine||'chrome';
+        return W_SECH('중국어로 보내기 (선택) '+help('[무엇]\n저장은 한국어 그대로 두고, AI에게 보낼 때만 미리 번역해 둔 번체 중국어를 넣어요. 같은 자리에 기억이 더 많이 들어가요.\n\n[번역하지 않는 것]\n인물 이름 · 애칭 · 대사(따옴표 안) · 영어는 원문 그대로 끼워요. 호칭·말투 · 떡밥 목록 · 캐릭터 설정 · 진행 규칙은 번역하지 않아요.\n\n[안전장치]\n번역 뒤 숫자 · 끼운 말이 다 남았는지 검사해서, 하나라도 빠지면 그 기억은 한국어로 보내요. 보낼 때는 번역을 기다리지 않아요(아직 번역 안 된 건 한국어).\n\n[번역 방식]\n크롬 내장: 무료 · 내 컴퓨터에서만 번역 · 컴퓨터 크롬 138 이상\nDeepL: 무료 키 월 50만 자 · 글이 DeepL로 감\nGemini: AI 설정의 Gemini 키 사용 · 무료 등급이면 무료 · 글이 구글로 감'))+
+        `<div class="w-grp" data-key="zh-settings"><div class="w-row">${W_RM('중국어로 보내기','끄면 지금처럼 한국어로만 보내요 · 기본은 꺼짐')}${W_SW(!!z.on,'zhToggle',null,'중국어로 보내기')}</div>`+
+        (z.on?`<div class="w-row">${W_RM('번역 방식',eng==='chrome'?'무료 · 내 컴퓨터에서만 번역':eng==='deepl'?'DeepL 무료 키 · 월 50만 자':'AI 설정의 Gemini 키')}<span class="w-seg" role="radiogroup" aria-label="번역 방식">${[['chrome','크롬 내장'],['deepl','DeepL'],['gemini','Gemini']].map(([k,l])=>`<button type="button" role="radio" aria-checked="${eng===k}" data-act="zhEngine" data-arg="${k}">${l}</button>`).join('')}</span></div>`+
+          (eng==='chrome'?W_R('번역 모델','처음 한 번 받아야 해요 · 버튼을 눌러 주세요',btn('번역 모델 받기','zhModel',{cls:'mini'})):'')+
+          (eng==='deepl'?`<div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-zh-deepl">DeepL 키</label></span><span class="w-sub">무료 키는 끝이 :fx</span></span><span class="w-acts"><input id="wish-zh-deepl" type="text" class="m3-keymask" data-bind="zh.deeplKey" value="${esc(z.deeplKey||'')}" placeholder="DeepL API 키"${NO_FILL} style="width:220px"></span></div>`:'')+
+          W_R('번역해 둔 기억',`${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.error?' · 문제: '+esc(z.error):''}`,btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
       W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시 두 가지를 덧붙입니다. 끄면 지금과 같습니다. 바꾸면 다음 전송부터 적용됩니다.'),savedTag('rpMemo'))+
       `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}</div>`+
       W_SECH('문제 해결')+
@@ -23379,7 +23495,7 @@ ${open ? `<div class="wp-err-body"><div class="wp-err-row"><span>원인</span><p
     kvOpen:()=>WishKoofr.open(),kvSettings:()=>WishKoofr.settings(),kvRefresh:()=>WishKoofr.refresh(),kvBackup:()=>WishKoofr.backup(),kvRestore:id=>WishKoofr.restore(id),kvTest:id=>WishKoofr.test(id),kvSave:id=>WishKoofr.save(id),kvDisconnect:()=>WishKoofr.disconnect(),kvSelect:id=>WishKoofr.select(id),kvPick:a=>WishKoofr.pick(a),kvRemove:id=>WishKoofr.remove(id),kvRoomPick:a=>WishKoofr.roomPick(a),kvRoomAccept:id=>WishKoofr.roomAccept(id),
     personDossier:arg=>openSheet('personDossier',{draft:{person:arg||personOptions()[0]?.[0]||'',category:'all',limit:40}}),
     recordsMore:id=>{const d=findDlg(id);if(d)d.draft.limit=(Number(d.draft.limit)||40)+40;},
-    usageLedger:localUsageOpen,logCalendar:localCalendarOpen,relationMap:localGraphOpen,memDiff:localDiffOpen,memDiffSeen:()=>{MemoryDiff.dismiss(state.currentRoom);},injWhy:a=>{S.injWhy=a;},usageTab:a=>{S.usageTab=['main','sub'].includes(a)?a:'all';},usageCat:a=>{S.usageCat=S.usageCat===a?'':a;},navReview:()=>{S.tab='cognition';S.cog='review';S.scrollTop=true;AD.onNav&&AD.onNav('cognition','review');},navMem:a=>{S.tab='memory';S.mem=a;S.scrollTop=true;S.tlLanesAll=null;AD.onNav&&AD.onNav('memory',a);},macRun:()=>{S.macRun=!S.macRun;},macRunPick:(a,el)=>{S.macRun=false;return run(a,undefined,el);},flipSw:(key,el)=>setKey(key,el.getAttribute('aria-checked')!=='true'),macTheme:a=>{try{localStorage.setItem('wish-ui-theme',a);}catch(_){}wishApplyTheme();},tourToggle:()=>{if(S.tourRun){tourEnd();return;}S.tourSheet=!S.tourSheet;},tourClose:()=>{S.tourSheet=false;},tourStart:a=>tourStart(a),tourReset:()=>{const k=tourScreen(),st=tourState();st.done[k]=[];tourSave();tourStart(0);},tourOther:a=>{const g=TOUR_GO[a];if(!g)return;BUILTIN[g[0]](g[1]);const st=tourState();st.seen[a]=true;tourSave();S.tourSheet=true;},tourAuto:()=>{const st=tourState();st.autoOpen=!st.autoOpen;tourSave();},macMore:a=>{S.macMore={...(S.macMore||{}),[a]:!(S.macMore||{})[a]};},capUnit:()=>{S.capKb=!S.capKb;try{localStorage.setItem('wish-m3-cap-unit',S.capKb?'kb':'chars');}catch(_){}},thView:a=>{S.thView=a==='closed'?'closed':'open';},tlBand:id=>{S.tlSel={kind:'band',id};S.tlScroll=true;},tlBar:a=>{const k=a.lastIndexOf('|');S.tlSel={kind:'bar',lane:a.slice(0,k),id:a.slice(k+1)};S.tlScroll=true;},tlLanes:id=>{tlMoreLanes(id);},tlROpen:id=>tlToggleRound(id),
+    usageLedger:localUsageOpen,logCalendar:localCalendarOpen,relationMap:localGraphOpen,memDiff:localDiffOpen,memDiffSeen:()=>{MemoryDiff.dismiss(state.currentRoom);},injWhy:a=>{S.injWhy=a;},zhToggle:()=>{const c=WishZh.config();WishZh.setConfig({on:!c.on});},zhEngine:a=>{WishZh.setConfig({engine:['chrome','deepl','gemini'].includes(a)?a:'chrome'});},zhModel:async()=>{try{await WishZh.prepareModel();toast('번역 모델을 받았어요. 이제 쉬는 시간에 조금씩 번역해요.','ok');}catch(e){toast(String(e?.message||e),'warn',8000);}},zhClear:()=>{WishZh.clear();},usageTab:a=>{S.usageTab=['main','sub'].includes(a)?a:'all';},usageCat:a=>{S.usageCat=S.usageCat===a?'':a;},navReview:()=>{S.tab='cognition';S.cog='review';S.scrollTop=true;AD.onNav&&AD.onNav('cognition','review');},navMem:a=>{S.tab='memory';S.mem=a;S.scrollTop=true;S.tlLanesAll=null;AD.onNav&&AD.onNav('memory',a);},macRun:()=>{S.macRun=!S.macRun;},macRunPick:(a,el)=>{S.macRun=false;return run(a,undefined,el);},flipSw:(key,el)=>setKey(key,el.getAttribute('aria-checked')!=='true'),macTheme:a=>{try{localStorage.setItem('wish-ui-theme',a);}catch(_){}wishApplyTheme();},tourToggle:()=>{if(S.tourRun){tourEnd();return;}S.tourSheet=!S.tourSheet;},tourClose:()=>{S.tourSheet=false;},tourStart:a=>tourStart(a),tourReset:()=>{const k=tourScreen(),st=tourState();st.done[k]=[];tourSave();tourStart(0);},tourOther:a=>{const g=TOUR_GO[a];if(!g)return;BUILTIN[g[0]](g[1]);const st=tourState();st.seen[a]=true;tourSave();S.tourSheet=true;},tourAuto:()=>{const st=tourState();st.autoOpen=!st.autoOpen;tourSave();},macMore:a=>{S.macMore={...(S.macMore||{}),[a]:!(S.macMore||{})[a]};},capUnit:()=>{S.capKb=!S.capKb;try{localStorage.setItem('wish-m3-cap-unit',S.capKb?'kb':'chars');}catch(_){}},thView:a=>{S.thView=a==='closed'?'closed':'open';},tlBand:id=>{S.tlSel={kind:'band',id};S.tlScroll=true;},tlBar:a=>{const k=a.lastIndexOf('|');S.tlSel={kind:'bar',lane:a.slice(0,k),id:a.slice(k+1)};S.tlScroll=true;},tlLanes:id=>{tlMoreLanes(id);},tlROpen:id=>tlToggleRound(id),
     secondaryExpand:arg=>{const [id,key]=arg.split('|'),d=findDlg(id);if(d&&!d.busy){d.draft.open||={};d.draft.open[key]=!d.draft.open[key];}},
     secondaryMore:id=>{const d=findDlg(id);if(d&&!d.busy)d.draft.limit=(Number(d.draft.limit)||30)+30;},
     secondaryPick:arg=>{const [id,mode]=arg.split('|');SecondaryRebuild.selectReviewRows(findDlg(id),mode);},
@@ -24318,6 +24434,7 @@ async function manualApplyFrom(room,text,dlgId,confirmed=''){
   return failed(say);
  }
 }
+WUI_ADAPTER.bind['zh.deeplKey']=v=>{WishZh.setConfig({deeplKey:String(v||'').trim()});};
 WUI_ADAPTER.bind['relationships.on']=v=>WishRelationships.mutate(state.currentRoom,r=>{r.relationshipConfig={enabled:!!v};});
 for(const [path,key] of Object.entries({'state.inject':'slot-enable','logs.inject':'slot-enable','char.enabled':'slot-enable','extra.enabled':'slot-enable','pack.active':'lore-pack-active','fact.mode':'cog-injection-mode','speech.on':'speech-enabled'}))WUI_ADAPTER.bind[path]=async(v,id)=>{const arg=path==='state.inject'?'currentState':path==='logs.inject'?'logSummary':id||'';if(path==='pack.active'&&v===true){const pack=(state.v2LorePacks||[]).find(p=>String(p.scopeId)===String(id));if(pack?.ownerChatId&&String(pack.ownerChatId)!==String(state.currentRoom?.chatId||''))throw Error('다른 방 소유 자료집은 직접 공유하지 않습니다. 자료 관리 → 다른 방 자료 복사하기에서 독립 사본으로 가져와 주세요.');}const selector='[data-v2-'+key+(arg?'="'+arg+'"':'')+']';return WUIInvoke(key,arg,{[selector]:v});};
 for(const [path,kind,slotId] of [['state.inject','currentState','currentState'],['pol.state','currentState','currentState'],['logs.inject','log','logSummary'],['pol.log','log','logSummary'],['lore.enabled','lore',''],['pol.lore','lore','']])WUI_ADAPTER.bind[path]=async value=>{
