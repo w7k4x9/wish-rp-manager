@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.1.7
+// @version      2.1.8
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -17125,6 +17125,11 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       const k=pendingItemIdentity(item);if(!k||seen.has(k))continue;seen.add(k);
       if(String(item.content||'').trim())pool.push(item);
     }
+    // 2.1.8 떡밥 자리: 메인이 꼭 넣는 칸(현재상태 · 호칭 · 인지 …)으로 꽉 차서 서사 고리가 줄었거나 빠졌으면, 서브 맨 앞에 전체 목록을 넣는다.
+    try{
+      const inMain=(ctx.active||[]).find(i=>injectionCadenceKind(i)==='threads'),full=threadsPendingItem(safeMemoryThreadsRoom(room));
+      if(full&&String(full.content||'').trim()&&(!inMain||String(inMain.content||'').length<String(full.content).length))pool.unshift({...full,reason:'메인 자리 부족 · 서브에 전체 목록'});
+    }catch(error){console.debug('[Wish] overflow threads skipped',error);}
     if(!targetId||!pool.length){delete next.overflow;delete next.overflowError;return;}
     const live=await fetchMessage(rid,targetId);
     if(!live||messageRoleOf(live)!=='assistant'){delete next.overflow;return;}
