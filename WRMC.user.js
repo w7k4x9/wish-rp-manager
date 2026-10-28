@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.0.11
+// @version      2.0.12
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -59,7 +59,7 @@
   // Storage IDs, ELR contract, strict AI commit validation and rollback formats are preserved.
  let WUI=null;
 
-  const SCRIPT_VERSION = '2.0.11';
+  const SCRIPT_VERSION = '2.0.12';
   const EDITION = 'core';
   const RUNTIME_HOST = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   // Managers without synchronous GM storage (iOS Userscripts, Greasemonkey 4) cannot keep settings; say so instead of a raw ReferenceError.
@@ -108,6 +108,9 @@
     return;
   }
   try { sessionStorage.removeItem(RELOAD_GUARD_KEY); } catch (_) {}
+  // 2.0.12 진단: 동기 구간 시간(함수별 횟수·합계·최대). 콘솔에서 __WishPerf() 로 확인.
+  var __WPF={};function __wpfAdd(k,ms){const m=__WPF[k]||(__WPF[k]={n:0,total:0,max:0});m.n++;m.total+=ms;if(ms>m.max)m.max=ms;}
+  try{RUNTIME_HOST.__WishPerf=()=>Object.entries(__WPF).map(([k,v])=>[k,v.n,Math.round(v.total),Math.round(v.max)]).sort((a,b)=>b[3]-a[3]);RUNTIME_HOST.__WishPerfReset=()=>{for(const k in __WPF)delete __WPF[k];};}catch(_){}
   const runtimeRecord = { version:SCRIPT_VERSION, edition:EDITION, loadedAt:Date.now(), active:true };
   try { Object.defineProperty(RUNTIME_HOST, RUNTIME_KEY, { value: EDITION + '@' + SCRIPT_VERSION, configurable:true, enumerable:false, writable:true }); } catch (_) {}
   try { document.documentElement?.setAttribute(RUNTIME_ATTR, EDITION + '@' + SCRIPT_VERSION); } catch (_) {}
@@ -689,7 +692,9 @@
     return button;
   }
 
-  function refreshMessageInjectionMagnifier() {
+  function refreshMessageInjectionMagnifier(){const __t=performance.now();try{return refreshMessageInjectionMagnifier__perf.apply(this,arguments);}finally{__wpfAdd('refreshMessageInjectionMagnifier',performance.now()-__t);}}
+
+  function refreshMessageInjectionMagnifier__perf() {
     ensureMessageInjectionInspectorStyles();
     const room = state.currentRoom;
     const p = room?.pending;
@@ -734,8 +739,11 @@
       // 2.6.5: 갱신이 이미 예약됐거나 표시할 주입이 없으면 변경 목록을 훑지 않습니다. (결과는 기존과 동일)
       if(state.messageInspectorTimer!==null&&state.messageInspectorTimer!==undefined)return;
       if(!(state.currentRoom?.pending?.messageId||document.querySelector('.wish-rp-message-injection-look')))return;
+      // 2.0.12: 입력창 안의 변화(타이핑)는 메시지 목록이 아니므로 보지 않습니다. 글자마다 전체 메시지를 다시 찾던 버벅임을 막습니다.
+      const typing=el=>!!el?.closest?.('textarea,input,[contenteditable=""],[contenteditable="true"],[role="textbox"],form');
       const relevant=mutations.some(m=>{
         if(wishInspectorOwnNode(m.target))return false;
+        if(typing(m.target?.nodeType===1?m.target:m.target?.parentElement))return false;
         const nodes=[...(m.addedNodes||[]),...(m.removedNodes||[])].filter(n=>!wishInspectorOwnNode(n));
         if(!nodes.length)return false;
         const el=m.target?.nodeType===1?m.target:m.target?.parentElement;
@@ -1017,7 +1025,8 @@
   }
 
   const legacyCheckedLog=new WeakMap(),normalizedLogIndexes=new WeakSet();
-  function normalizeRoomSlots(room) {
+  function normalizeRoomSlots(){const __t=performance.now();try{return normalizeRoomSlots__perf.apply(this,arguments);}finally{__wpfAdd('normalizeRoomSlots',performance.now()-__t);}}
+  function normalizeRoomSlots__perf(room) {
     const existing = Array.isArray(room.slots) ? room.slots : [];
     const byId = new Map(existing.filter(Boolean).map(slot => [String(slot.id || ''), slot]));
 
@@ -1294,7 +1303,9 @@
       .replace(/-->/g, '--\u200B>');
   }
 
-  function stripAutomationNoise(text, preserveLineBreaks = false, preserveStatusFences = false) {
+  function stripAutomationNoise(){const __t=performance.now();try{return stripAutomationNoise__perf.apply(this,arguments);}finally{__wpfAdd('stripAutomationNoise',performance.now()-__t);}}
+
+  function stripAutomationNoise__perf(text, preserveLineBreaks = false, preserveStatusFences = false) {
     let src = String(text || '');
     src = stripOurContextBlock(src).text;
     src = stripSessionSetupBlock(src).text;
@@ -3503,7 +3514,8 @@ const WLOG=(()=>{
   }
 
   // One policy for carriers, cognition, memory and rebuilds. API lists are newest-first.
-  function stableFrame(newestFirst) {
+  function stableFrame(){const __t=performance.now();try{return stableFrame__perf.apply(this,arguments);}finally{__wpfAdd('stableFrame',performance.now()-__t);}}
+  function stableFrame__perf(newestFirst) {
     const messages=(newestFirst||[]).filter(m=>['user','assistant'].includes(messageRoleOf(m)));
     const ids=messages.map(m=>String(messageIdOf(m)||''));
     if(ids.some(x=>!x)||new Set(ids).size!==ids.length)throw new Error('현재 대화 경로의 메시지 ID가 비어 있거나 중복됐습니다.');
@@ -3555,7 +3567,8 @@ const WLOG=(()=>{
   // the others are off the line; any other group stays as it is. A parentless message older than that point is never left out (a
   // two-message opening and a rerolled opening look the same), nor is a message without a turnId, so a list without turn fields, or
   // with turnId but no parentTurnId, stays as it is. list: oldest first, as fetchAllRoomMessages returns it.
-  function rerollLeftOutIds(list){
+  function rerollLeftOutIds(){const __t=performance.now();try{return rerollLeftOutIds__perf.apply(this,arguments);}finally{__wpfAdd('rerollLeftOutIds',performance.now()-__t);}}
+  function rerollLeftOutIds__perf(list){
     const ms=(list||[]).filter(m=>['user','assistant'].includes(messageRoleOf(m))),tid=m=>String(m?.turnId||''),pid=m=>String(m?.parentTurnId||'');
     const n=new Map();for(const m of ms)if(tid(m))n.set(tid(m),(n.get(tid(m))||0)+1);
     const one=m=>!!tid(m)&&n.get(tid(m))===1,byTurn=new Map(ms.filter(one).map(m=>[tid(m),m])),line=new Set(),out=new Set();
@@ -3579,7 +3592,8 @@ const WLOG=(()=>{
       const raw=messageTextOf(m),h=wishSourceManifestCache.get(o);if(h)wishSourceManifestCache.set(m,h.map(e=>e&&e.text===raw?{...e,text:raw}:undefined));
       const t=automationTurnTextCache.get(o);if(t&&t.raw===raw)automationTurnTextCache.set(m,{...t,raw,text:t.text===t.raw?raw:t.text});}
   }
-  function sourceManifestOf(messages,{preserveStatusFences=false}={}) {
+  function sourceManifestOf(){const __t=performance.now();try{return sourceManifestOf__perf.apply(this,arguments);}finally{__wpfAdd('sourceManifestOf',performance.now()-__t);}}
+  function sourceManifestOf__perf(messages,{preserveStatusFences=false}={}) {
     return messages.map(m=>{
       const id=String(messageIdOf(m)),role=messageRoleOf(m),text=messageTextOf(m),mode=preserveStatusFences?1:0;
       const cacheable=m!==null&&typeof m==='object',cached=cacheable?wishSourceManifestCache.get(m):null;
@@ -4027,7 +4041,8 @@ const ExternalReplay=(()=>{
       },pair),
     };
   }
-  async function validateMemoryBranch(room,frame) {
+  function validateMemoryBranch(){const __t=performance.now();try{return validateMemoryBranch__perf.apply(this,arguments);}finally{__wpfAdd('validateMemoryBranch',performance.now()-__t);}}
+  async function validateMemoryBranch__perf(room,frame) {
     if(ExternalReplay.pending(apiChatIdOf(room)))return false;const replayEpoch=ExternalReplay.revision(apiChatIdOf(room)),rid=String(apiChatIdOf(room));
     // Deleting the newest turn can move an unchanged processed turn back into the
     // unconfirmed tail. Compare IDs with the whole path; ordinary prose edits are allowed.
@@ -4197,7 +4212,8 @@ const ExternalReplay=(()=>{
   function safeMemoryThreadsRoom(room) {
     return room.memoryBranchBlocked?{...room,threads:WishThreads.normalizeLoose(room.threads).filter(t=>t.origin==='manual')}:room;
   }
-  function safeMemoryItems(room,items) {
+  function safeMemoryItems(){const __t=performance.now();try{return safeMemoryItems__perf.apply(this,arguments);}finally{__wpfAdd('safeMemoryItems',performance.now()-__t);}}
+  function safeMemoryItems__perf(room,items) {
     if(!room.memoryBranchBlocked)return items;
     const tied=id=>!!(room.aiSourceManifests?.[id]||room.aiUpdateCursors?.[id]);let threads,timeline;
     return items.flatMap(i=>{
@@ -9948,7 +9964,8 @@ const WishImportPeople=(()=>{
 
   // A date-log block's date label as the log lists show it.
   function datedLogLabel(b){return b.isUnknown?'날짜 미상':(b.fullDate||[b.month+'월',b.day+'일'].join(' '));}
-  function parseDatedLogBlocks(text) {
+  function parseDatedLogBlocks(){const __t=performance.now();try{return parseDatedLogBlocks__perf.apply(this,arguments);}finally{__wpfAdd('parseDatedLogBlocks',performance.now()-__t);}}
+  function parseDatedLogBlocks__perf(text) {
     const src = normalizeLineBreaks(text);
     // 기본 양력형·ISO·연도-only·공인 연호뿐 아니라 명시적인 상대시점/작품 고유 달력도 보존한다.
     // 임의 [소제목-제목] 오인식을 줄이기 위해 자유형 날짜는 전각 구분자이거나 시간 표현일 때만 허용한다.
@@ -10462,7 +10479,9 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
     };
   }
 
-  function collectLogRecallCandidates(room, contextText = '', semanticScores = null, relatedCandidateLimit = null, includeUnmatched = false, options = {}) {
+  function collectLogRecallCandidates(){const __t=performance.now();try{return collectLogRecallCandidates__perf.apply(this,arguments);}finally{__wpfAdd('collectLogRecallCandidates',performance.now()-__t);}}
+
+  function collectLogRecallCandidates__perf(room, contextText = '', semanticScores = null, relatedCandidateLimit = null, includeUnmatched = false, options = {}) {
     const slot = (room.slots || []).find(s => s.id === 'logSummary');
     if (!slot?.enabled || !String(slot.content || '').trim()) return [];
     const blocks = parseDatedLogBlocks(slot.content);
@@ -10804,7 +10823,9 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
 
   function updateSaveStatusUi(status=state.saveStatus){state.saveStatus=status;WUI && WUI.paint();}
 
-  async function saveRoom(room) {
+  function saveRoom(){const __t=performance.now();try{return saveRoom__perf.apply(this,arguments);}finally{__wpfAdd('saveRoom',performance.now()-__t);}}
+
+  async function saveRoom__perf(room) {
     const key=String(room.chatId),previous=storageWrites.get(key)||Promise.resolve();
     const task=previous.catch(()=>{}).then(()=>new Promise((resolve,reject)=>{
       const tx=state.db.transaction(APP.storeName,'readwrite'),st=tx.objectStore(APP.storeName),q=st.get(key);let issue,next;
@@ -12171,7 +12192,9 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
     return (room.slots || []).filter(s => s.enabled && String(s.content || '').trim());
   }
 
-  function snapshotSelectedItems(room, contextText = null, contextBudget = null) {
+  function snapshotSelectedItems(){const __t=performance.now();try{return snapshotSelectedItems__perf.apply(this,arguments);}finally{__wpfAdd('snapshotSelectedItems',performance.now()-__t);}}
+
+  function snapshotSelectedItems__perf(room, contextText = null, contextBudget = null) {
     const ctx = contextText == null ? String(room.autoRecallContextText || '') : String(contextText || '');
     const out = [];
     const cognitionBridge = cogBridge();
@@ -12213,7 +12236,8 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
 
   // Query-free inventory for the exact all-fit check. Over-budget previews keep
   // the existing bounded local retrieval; no provider is called while typing.
-  function unrankedLoreRecallItems(room) {
+  function unrankedLoreRecallItems(){const __t=performance.now();try{return unrankedLoreRecallItems__perf.apply(this,arguments);}finally{__wpfAdd('unrankedLoreRecallItems',performance.now()-__t);}}
+  function unrankedLoreRecallItems__perf(room) {
     if(room?.loreConfig?.enabled===false)return [];
     const rows=[];
     for(const pack of activeLorePacks(room))for(const entry of pack.entries||[]){
@@ -12385,7 +12409,8 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
   // options.wholeRequired(items) (a send reading the recent messages for names): true where those messages add an item to this pick.
   // Then, where the 꼭 넣는 칸 with 서사 고리 whole fit both limits, the limit stops at them, so the optional items give way and
   // 서사 고리 is not shortened for what only those messages name. Where they add nothing, the rounds run as without them.
-  async function chooseAllFitItemsWithinBytes(room,items,original,query,options,build,budget=APP.carrierByteBudget) {
+  function chooseAllFitItemsWithinBytes(){const __t=performance.now();try{return chooseAllFitItemsWithinBytes__perf.apply(this,arguments);}finally{__wpfAdd('chooseAllFitItemsWithinBytes',performance.now()-__t);}}
+  async function chooseAllFitItemsWithinBytes__perf(room,items,original,query,options,build,budget=APP.carrierByteBudget) {
     // RP 메모: the text and its bytes are read with the reserve the pick kept (reserved: the memos go on the carrier text), as the
     // pick's limit was; the memos never decide the mode (J-0) and never stop the send (J-2 ①): all fit only without them, or over the
     // budget at the last round only with them, drops the reserve. Without a reserve every read is today's.
@@ -12427,7 +12452,8 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
     const kind=injectionCadenceKind(item);
     return kind!=='timeline'&&((item?.quickChoice?.version===2&&item.quickChoice.action==='include')||!['log','lore','relationship'].includes(kind)||['pinned-log','manual-log','pinned-lore'].includes(item.autoType));
   }
-  function allFitSourceStamp(room) {
+  function allFitSourceStamp(){const __t=performance.now();try{return allFitSourceStamp__perf.apply(this,arguments);}finally{__wpfAdd('allFitSourceStamp',performance.now()-__t);}}
+  function allFitSourceStamp__perf(room) {
     const finish=typeof WishPerformance==='undefined'?()=>{}:WishPerformance.start('sourceStamp');
     try {
     return [WishEconomy.stamp(room),hybridRecallInputStamp(room),memoryBasis(room),JSON.stringify([room.pending?.items,room.pending?.quickRemovedItems,room.pending?.quickIncludes,room.pending?.cognitionOverrides])].join('\u0000');
@@ -12494,7 +12520,8 @@ function rememberSpeechFit(room,names,sceneText){
 }
 // The steps of the required fit for these required items, in order. at(k): the same items after the first k steps (same length
 // and order; a changed item is a copy marked requiredFit). No step lengthens the carrier. Without usable forms, or on any failure, there are no steps.
-function requiredFitPlan(room,required){
+function requiredFitPlan(){const __t=performance.now();try{return requiredFitPlan__perf.apply(this,arguments);}finally{__wpfAdd('requiredFitPlan',performance.now()-__t);}}
+function requiredFitPlan__perf(room,required){
   try{return requiredFitSteps(room,required);}catch(error){console.debug('[Wish] required fit skipped',error);return {steps:[],at:()=>required};}
 }
 function requiredFitSteps(room,required){
@@ -12876,7 +12903,8 @@ function recallBScores(data,n){
   const seen=new Set();
   return data.scores.map(row=>{if(!Array.isArray(row)||row.length!==3||!Number.isInteger(row[0])||row[0]<0||row[0]>=n||seen.has(row[0])||!Number.isInteger(row[1])||row[1]<0||row[1]>100||typeof row[2]!=='boolean')throw Error('유효하지 않은 AI 후보 선별');seen.add(row[0]);return [row[0],{relevance:row[1],related:row[2]}];});
 }
-async function chooseAllFitItems(room, items, original, query='', options={}) {
+function chooseAllFitItems(){const __t=performance.now();try{return chooseAllFitItems__perf.apply(this,arguments);}finally{__wpfAdd('chooseAllFitItems',performance.now()-__t);}}
+async function chooseAllFitItems__perf(room, items, original, query='', options={}) {
     const finish=typeof WishPerformance==='undefined'?()=>{}:WishPerformance.start(options.prefetch?'recallPrefetchSelection':'selection');
     try {
   const requested=Number(options.limit),limit=Number.isFinite(requested)&&requested>0?Math.min(allFitLimit(room),Math.floor(requested)):allFitLimit(room);
@@ -13083,13 +13111,17 @@ async function chooseAllFitItems(room, items, original, query='', options={}) {
     return injectionEveryForItem(room, item, normalize) > 0;
   }
 
-  function filterItemsByInjectionCadence(room, items, cadenceTurn = 0) {
+  function filterItemsByInjectionCadence(){const __t=performance.now();try{return filterItemsByInjectionCadence__perf.apply(this,arguments);}finally{__wpfAdd('filterItemsByInjectionCadence',performance.now()-__t);}}
+
+  function filterItemsByInjectionCadence__perf(room, items, cadenceTurn = 0) {
     let normalized=false;
     const once=()=>{if(!normalized){normalizeRoomSlots(room);normalized=true;}};
     return (items||[]).filter(item=>injectionCadenceAllows(room,item,cadenceTurn,once));
   }
 
-  function pendingCadenceTurn(pending, frame, anticipateUser = false) {
+  function pendingCadenceTurn(){const __t=performance.now();try{return pendingCadenceTurn__perf.apply(this,arguments);}finally{__wpfAdd('pendingCadenceTurn',performance.now()-__t);}}
+
+  function pendingCadenceTurn__perf(pending, frame, anticipateUser = false) {
     const startId = String(pending?.cadenceStartUserId || pending?.turnStartUserId || frame?.latestUserId || '');
     if (!startId) return 0;
     return countItemUserTurns({turnStartUserId:startId}, frame, pending, anticipateUser);
@@ -13266,9 +13298,12 @@ async function chooseAllFitItems(room, items, original, query='', options={}) {
     wishContextBuildCache={version:APP.version,room,expression:room?.expressionRebuild,stamp:SecondaryRebuild.stamp(room),rows:active.map(i=>WISH_CONTEXT_FIELDS.map(k=>i[k])),parts};
     return parts;
   }
-  function buildContextBlockFromItems(items,room=null){return contextBlockParts(items,room).block;}
+  function buildContextBlockFromItems(){const __t=performance.now();try{return buildContextBlockFromItems__perf.apply(this,arguments);}finally{__wpfAdd('buildContextBlockFromItems',performance.now()-__t);}}
+  function buildContextBlockFromItems__perf(items,room=null){return contextBlockParts(items,room).block;}
 
-  function createWishContextMeasure(original = '',room=null) {
+  function createWishContextMeasure(){const __t=performance.now();try{return createWishContextMeasure__perf.apply(this,arguments);}finally{__wpfAdd('createWishContextMeasure',performance.now()-__t);}}
+
+  function createWishContextMeasure__perf(original = '',room=null) {
     // Lifetime: one synchronous fit/plan only; use the same sections/scopes as rendering.
     const rows=new Map(),projection=SecondaryRebuild.projector(room,{contextNotation:true});
     const clean=stripOurContextBlock(String(original||'')).text.replace(/\s+$/,'');
@@ -13536,7 +13571,8 @@ async function chooseAllFitItems(room, items, original, query='', options={}) {
     function hasMessage(room,id){const rid=String(apiChatIdOf(room)),record=records.get(rid);if(!record||!record.verifiedAt||record.scope!==scope(rid)||ExternalReplay.pending(rid))return null;return record.ids.has(String(id));}
     return {hasMessage,begin,seed,read,invalidate,expire,warm,changed,install};
   })();
-  async function observeFullRoomHistory(room,head=null,options){return WishHistory.read(room,head,options);}
+  function observeFullRoomHistory(){const __t=performance.now();try{return observeFullRoomHistory__perf.apply(this,arguments);}finally{__wpfAdd('observeFullRoomHistory',performance.now()-__t);}}
+  async function observeFullRoomHistory__perf(room,head=null,options){return WishHistory.read(room,head,options);}
   // 원문 찾기: the RP message a memory item's stored quote came from. Read-only, nothing is saved. The message id stored on a
   // thread or relationship marks the end of the 정리 묶음 that wrote it, not the quoted message, so the quote itself is looked up
   // in the current branch: markdown marks, spacing and quote-mark style are ignored, the words are not. A quote that is not
@@ -13641,7 +13677,8 @@ async function chooseAllFitItems(room, items, original, query='', options={}) {
   // times out costs one timeout per read as before; any other failure only the read it happened in.
   const CRACK_LIST_PAGE=500,CRACK_LIST_PAGE_SAFE=50,CRACK_LIST_SLOW_MS=600000;let crackListPage=CRACK_LIST_PAGE,crackListSlowUntil=0;
   const crackListLimit=()=>Date.now()<crackListSlowUntil?CRACK_LIST_PAGE_SAFE:crackListPage;
-  async function fetchAllRoomMessages(chatId, onProgress = null, control = null) {
+  function fetchAllRoomMessages(){const __t=performance.now();try{return fetchAllRoomMessages__perf.apply(this,arguments);}finally{__wpfAdd('fetchAllRoomMessages',performance.now()-__t);}}
+  async function fetchAllRoomMessages__perf(chatId, onProgress = null, control = null) {
     const finish=typeof WishPerformance==='undefined'?()=>{}:WishPerformance.start('fullRead');
     try {
     const rid = encodeURIComponent(String(chatId || ''));
@@ -15186,7 +15223,9 @@ ${AI_JSON_TEXT_RULE}
     return {slotId:'__speech',sourceSlotId:'__speech',sourceKey:'current-speech',title:'현재 호칭·말투 — 과거 규칙보다 우선',group:'speech',content,totalTurns:0,usedTurns:0,autoType:'current-speech',recallReason:'화자→상대별 현재값 · 매턴 우선'};
   }
 
-  function replaceSpeechPendingItem(room) {
+  function replaceSpeechPendingItem(){const __t=performance.now();try{return replaceSpeechPendingItem__perf.apply(this,arguments);}finally{__wpfAdd('replaceSpeechPendingItem',performance.now()-__t);}}
+
+  function replaceSpeechPendingItem__perf(room) {
     if(!room?.pending)return 0;
     room.pending.items=(Array.isArray(room.pending.items)?room.pending.items:[]).filter(item=>item?.slotId!=='__speech'&&item?.sourceSlotId!=='__speech'&&item?.group!=='speech');
     const item=currentSpeechPendingItem(room);
@@ -15196,12 +15235,14 @@ ${AI_JSON_TEXT_RULE}
 
   // 서사 고리 short list as one always-included item. Its identity never depends on the text, so a session exclusion keeps
   // applying after edits; a switched-off area still gets the item and the area filter removes it (same as 인지).
-  function threadsPendingItem(room,cap){
+  function threadsPendingItem(){const __t=performance.now();try{return threadsPendingItem__perf.apply(this,arguments);}finally{__wpfAdd('threadsPendingItem',performance.now()-__t);}}
+  function threadsPendingItem__perf(room,cap){
     const view=WishThreads.injection(room,{cap});if(!view.text)return null;
     return {slotId:'__threads',sourceSlotId:'__threads',sourceKey:'open-threads',title:'서사 고리',group:'threads',content:view.text,
       totalTurns:0,usedTurns:0,autoType:'threads',recallReason:'열린 서사 고리 · 매턴',reason:cap?'자리 부족 · '+cap.toLocaleString()+'자로 줄임 · '+view.summary:view.summary};
   }
-  function replaceThreadsPendingItem(room){
+  function replaceThreadsPendingItem(){const __t=performance.now();try{return replaceThreadsPendingItem__perf.apply(this,arguments);}finally{__wpfAdd('replaceThreadsPendingItem',performance.now()-__t);}}
+  function replaceThreadsPendingItem__perf(room){
     if(!room?.pending)return 0;
     const items=(Array.isArray(room.pending.items)?room.pending.items:[]).filter(i=>injectionCadenceKind(i)!=='threads'),item=threadsPendingItem(room);
     if(item){item.turnStartUserId=String(room.pending.latestUserId||room.pending.turnStartUserId||'');
@@ -15216,7 +15257,8 @@ ${AI_JSON_TEXT_RULE}
   let unrankedLogsRead=null;
   function unrankedLogsInputs(room){const slot=(room?.slots||[]).find(s=>s.id==='logSummary');return [room,slot,!!slot?.enabled,slot?.content,slot?.title,slot?.retentionTurns,!!room?.autoLogRecallEnabled,room?.autoLogRecentBlocks,JSON.stringify([room?.autoLogPinnedKeys,room?.autoLogExcludedKeys,room?.manualLogSelectedKeys])];}
   function keepUnrankedLogs(room,items){unrankedLogsRead={inputs:unrankedLogsInputs(room),items};return items;}
-  function takeUnrankedLogs(room){
+  function takeUnrankedLogs(){const __t=performance.now();try{return takeUnrankedLogs__perf.apply(this,arguments);}finally{__wpfAdd('takeUnrankedLogs',performance.now()-__t);}}
+  function takeUnrankedLogs__perf(room){
     const kept=unrankedLogsRead;unrankedLogsRead=null;
     const now=kept?unrankedLogsInputs(room):null;
     return kept&&kept.inputs.every((v,k)=>v===now[k])?kept.items:collectLogRecallCandidates(room,'',null,Number.MAX_SAFE_INTEGER,true,{rankRelated:false});
@@ -15224,7 +15266,8 @@ ${AI_JSON_TEXT_RULE}
   // 연표 as one selected item of the pick that must choose (refreshHybridRecall gather(true)). Its identity never depends on the text, so a
   // session exclusion keeps applying; a blocked branch (memoryBranchBlocked) reads the user's cards only, without the scene, so
   // safeMemoryItems finds the same text and keeps the same object.
-  function timelinePendingItem(room,{stage=''}={}){
+  function timelinePendingItem(){const __t=performance.now();try{return timelinePendingItem__perf.apply(this,arguments);}finally{__wpfAdd('timelinePendingItem',performance.now()-__t);}}
+  function timelinePendingItem__perf(room,{stage=''}={}){
     const view=WishTimeline.injection(room,{stage:room?.memoryBranchBlocked?'':stage,more:true});if(!view.text)return null;
     return {slotId:'__timeline',sourceSlotId:'__timeline',sourceKey:'timeline',title:'연표',group:'timeline',content:view.text,
       totalTurns:0,usedTurns:0,autoType:'timeline',recallReason:'연표 · 한도를 넘을 때',reason:view.summary,...(view.more?{contentMore:view.more}:{})};
@@ -15574,7 +15617,9 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
     return vector;
   }
 
-  function semanticLogScores(room, blocks, queryVector) {
+  function semanticLogScores(){const __t=performance.now();try{return semanticLogScores__perf.apply(this,arguments);}finally{__wpfAdd('semanticLogScores',performance.now()-__t);}}
+
+  function semanticLogScores__perf(room, blocks, queryVector) {
     const result = new Map();
     if (!queryVector) return result;
     const byKey = new Map((room.logSemanticIndex || []).map(row => [String(row.key),row]));
@@ -15616,7 +15661,9 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
     return best;
   }
 
-  function scoreLoreEntries(room, queryText, semanticVector = null, includeUnmatched = false) {
+  function scoreLoreEntries(){const __t=performance.now();try{return scoreLoreEntries__perf.apply(this,arguments);}finally{__wpfAdd('scoreLoreEntries',performance.now()-__t);}}
+
+  function scoreLoreEntries__perf(room, queryText, semanticVector = null, includeUnmatched = false) {
     const query = stripAutomationNoise(String(queryText || ''), true).toLowerCase();
     const queryTokens = tokenizeRecallText(query);
     const threshold = Number(room?.loreConfig?.semanticThreshold || APP.loreSemanticThreshold);
@@ -15720,7 +15767,9 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
 
   (typeof unsafeWindow!=='undefined'?unsafeWindow:window).addEventListener('wish:ai-settings-updated',()=>{allFitRankCache.clear();recallScoreStoreClear();});
 
-  function hybridRecallInputStamp(room){
+  function hybridRecallInputStamp(){const __t=performance.now();try{return hybridRecallInputStamp__perf.apply(this,arguments);}finally{__wpfAdd('hybridRecallInputStamp',performance.now()-__t);}}
+
+  function hybridRecallInputStamp__perf(room){
     // This is an exact comparison of inputs, not a guessed revision number.
     const p=room.pending;
     const itemValue=item=>[item.slotId,item.sourceSlotId,item.sourceKey,item.title,item.group,item.content,item.autoType];
@@ -15736,7 +15785,9 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
       activeLorePacks(room).map(pack=>[pack.scopeId,pack.name,(pack.entries||[]).map(entry=>{const {embedding,...content}=entry;return content;})])]);
   }
 
-  function assertRequiredRecallBudget(room,items,original,fit=true){
+  function assertRequiredRecallBudget(){const __t=performance.now();try{return assertRequiredRecallBudget__perf.apply(this,arguments);}finally{__wpfAdd('assertRequiredRecallBudget',performance.now()-__t);}}
+
+  function assertRequiredRecallBudget__perf(room,items,original,fit=true){
     const all=(items||[]).filter(i=>allFitRequired(i)&&injectionCadenceKind(i)!=='threads'),limit=allFitLimit(room),build=xs=>buildInjectedMessage(original,buildContextBlockFromItems(xs,room));
     // Over the limit or the byte budget, 인지·호칭 are read at their shortest forms (required fit): only what no step can shorten
     // stops the send. Within both nothing changes. fit=false reads them whole: refreshHybridRecall passes it while the anchors can
@@ -15750,7 +15801,8 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
   }
   // The 꼭 넣는 칸 of these items, read as the items hold them (서사 고리, 인지, 호칭 whole), over the limit or the byte budget: where a
   // pick would shorten them or stop. An 앵커 held whole measures no shorter than the form a pick gives it (loreAnchorLevels).
-  function requiredWholeOver(room,items,original,limit=allFitLimit(room),budget=APP.carrierByteBudget,boundOnly=false,reserve=null){
+  function requiredWholeOver(){const __t=performance.now();try{return requiredWholeOver__perf.apply(this,arguments);}finally{__wpfAdd('requiredWholeOver',performance.now()-__t);}}
+  function requiredWholeOver__perf(room,items,original,limit=allFitLimit(room),budget=APP.carrierByteBudget,boundOnly=false,reserve=null){
     const required=(items||[]).filter(allFitRequired),cards=required.filter(item=>item.group==='character'),lim=limit-(reserve?reserve.len:0);
     // Cards that pass the limit by their text alone need no build: each goes in as a section holding at least its text as projected.
     const clean=stripOurContextBlock(String(original||'')).text.replace(/\s+$/,'').length,least=projected=>cards.reduce((n,item)=>n+String((projected?projected(item):item)?.content||'').trim().length,clean);
@@ -15801,7 +15853,9 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
     error.code='WISH_RECALL_STALE';return error;
   }
 
-  async function refreshHybridRecall(room,queryText,{allowAi=false,allowSemanticNetwork=true,carrierSource=null,onProgress=null,prefetch=null,sceneOver=null,recall=null,memo}={}) {
+  function refreshHybridRecall(){const __t=performance.now();try{return refreshHybridRecall__perf.apply(this,arguments);}finally{__wpfAdd('refreshHybridRecall',performance.now()-__t);}}
+
+  async function refreshHybridRecall__perf(room,queryText,{allowAi=false,allowSemanticNetwork=true,carrierSource=null,onProgress=null,prefetch=null,sceneOver=null,recall=null,memo}={}) {
     const finish=typeof WishPerformance==='undefined'?()=>{}:WishPerformance.start(prefetch?'recallPrefetch':'candidateRefresh');
     try {
     const pending=room?.pending;if(!pending)return {logs:0,lore:0,semanticUsed:false,reviewMethod:'local'};
@@ -16972,7 +17026,8 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
   // the list text and a single read are the same and nothing changed meanwhile; one try per text (in memory, never stored). A refused
   // write leaves the page's UTF-16LE choice and its kept refusal as they were.
   const copyCleanTried=new Map();
-  async function cleanLatestCopy(room,frame,epochs){
+  function cleanLatestCopy(){const __t=performance.now();try{return cleanLatestCopy__perf.apply(this,arguments);}finally{__wpfAdd('cleanLatestCopy',performance.now()-__t);}}
+  async function cleanLatestCopy__perf(room,frame,epochs){
     const rid=String(apiChatIdOf(room)),p=room.pending,m=frame?.latest;
     if(!p?.verified||!p.messageId||!m||!frame.carrier||String(messageIdOf(frame.carrier))!==String(p.messageId))return false;
     const id=String(messageIdOf(m)),text=messageTextOf(m);
@@ -17111,7 +17166,9 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     };
   }
 
-  function ensureDirectReleasePendingItems(room,pending) {
+  function ensureDirectReleasePendingItems(){const __t=performance.now();try{return ensureDirectReleasePendingItems__perf.apply(this,arguments);}finally{__wpfAdd('ensureDirectReleasePendingItems',performance.now()-__t);}}
+
+  function ensureDirectReleasePendingItems__perf(room,pending) {
     if(!room||!pending)return {added:0};
     migrateQuickInjectionState(pending);
     const isSlot=i=>i.slotId==='currentState'||['character','extra'].includes(i.group);
@@ -17370,7 +17427,9 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     return { detected, added, reset };
   }
 
-  function refreshAutoRecentLogsToPending(room) {
+  function refreshAutoRecentLogsToPending(){const __t=performance.now();try{return refreshAutoRecentLogsToPending__perf.apply(this,arguments);}finally{__wpfAdd('refreshAutoRecentLogsToPending',performance.now()-__t);}}
+
+  function refreshAutoRecentLogsToPending__perf(room) {
     if (!room.pending || !room.autoLogRecallEnabled) return 0;
     const slot = (room.slots || []).find(s => s.id === 'logSummary');
     if (!slot?.enabled || !String(slot.content || '').trim()) return 0;
@@ -17468,7 +17527,9 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     return added;
   }
 
-  async function refreshAutomaticMemories(room, recentMessages, freshMessages = null, options = {}) {
+  function refreshAutomaticMemories(){const __t=performance.now();try{return refreshAutomaticMemories__perf.apply(this,arguments);}finally{__wpfAdd('refreshAutomaticMemories',performance.now()-__t);}}
+
+  async function refreshAutomaticMemories__perf(room, recentMessages, freshMessages = null, options = {}) {
     if(ExternalReplay.pending(apiChatIdOf(room)))return {detected:[],added:0,reset:0,logAdded:0,loreAdded:0,freshCount:0};
     const committed=stableFrame(recentMessages).stable;
     const fresh = newMessagesSinceLastScan(room, committed);
@@ -17544,7 +17605,9 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     return {changed:!!(rebased||expired),rebased,expired};
   }
 
-  function countItemUserTurns(item,frame,pending,anticipateUser=false) {
+  function countItemUserTurns(){const __t=performance.now();try{return countItemUserTurns__perf.apply(this,arguments);}finally{__wpfAdd('countItemUserTurns',performance.now()-__t);}}
+
+  function countItemUserTurns__perf(item,frame,pending,anticipateUser=false) {
     let base=String(item?.turnStartUserId||'');
     if(!base){
       base=String(frame?.latestUserId||'');
@@ -17561,14 +17624,16 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     return Math.max(0,frame.userIds.length-(index+1)-1+(anticipateUser?1:0));
   }
   // The recent messages the recall reads between sends, from a newest-first frame (also 인지 골라서's scene outside a send).
-  function recentSceneText(frame){return frame.messages.slice(0,APP.autoScanMessageLimit).map(m=>stripAutomationNoise(messageTextOf(m),true)).reverse().join('\n\n').slice(-12000);}
+  function recentSceneText(){const __t=performance.now();try{return recentSceneText__perf.apply(this,arguments);}finally{__wpfAdd('recentSceneText',performance.now()-__t);}}
+  function recentSceneText__perf(frame){return frame.messages.slice(0,APP.autoScanMessageLimit).map(m=>stripAutomationNoise(messageTextOf(m),true)).reverse().join('\n\n').slice(-12000);}
   // The text names are found in (character cards under 자동 감지, relationship rows): the recall's text, and while an injection
   // runs, the recent messages the last send or reroll read (nameSceneByChatId, set and dropped by reconcileStableCarrier, not
   // saved). With no such text (another reason since, a reload, no injection) it is the recall's text alone, as before.
   function nameDetectionText(room){const s=room?.pending?state.nameSceneByChatId.get(String(room.chatId))||'':'',q=String(room?.autoRecallContextText||'');return s?q+'\n\n'+s:q;}
   // (C) rooms whose last reconcile took the full-history step below (page memory, at most 8): only these are warmed by the tick.
   const fullHistoryWanted=new Set();
-  async function reconcileStableCarrier(room,reason='update',knownFrame=null,control=null) {
+  function reconcileStableCarrier(){const __t=performance.now();try{return reconcileStableCarrier__perf.apply(this,arguments);}finally{__wpfAdd('reconcileStableCarrier',performance.now()-__t);}}
+  async function reconcileStableCarrier__perf(room,reason='update',knownFrame=null,control=null) {
     control?.assertActive?.();
     if(reason==='poll'&&WishDisplayDrain.pending(apiChatIdOf(room)))return {deferred:true};
     const requestQuery=String(state.recallDraftByApiChatId.get(String(apiChatIdOf(room)))||'').slice(-12000);
@@ -18117,7 +18182,9 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     return false;
   }
 
-  function sanitizeRenderedContextBlocks(root = document.body) {
+  function sanitizeRenderedContextBlocks(){const __t=performance.now();try{return sanitizeRenderedContextBlocks__perf.apply(this,arguments);}finally{__wpfAdd('sanitizeRenderedContextBlocks',performance.now()-__t);}}
+
+  function sanitizeRenderedContextBlocks__perf(root = document.body) {
     if (!root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_COMMENT);
     const starts = [], comments = [];
@@ -23419,7 +23486,8 @@ function WUITurnCount(room) {
  if(cursor&&index<0)return {...fallback,countError:'기억 기준 메시지를 확인 중입니다.'};
  return {committed:stable.slice(index+1).filter(x=>messageRoleOf(x)==='user').length,countError:snapshot.error||''};
 }
-async function WUIRefreshTurnCount(room, force=false, knownHead=null) {
+function WUIRefreshTurnCount(){const __t=performance.now();try{return WUIRefreshTurnCount__perf.apply(this,arguments);}finally{__wpfAdd('WUIRefreshTurnCount',performance.now()-__t);}}
+async function WUIRefreshTurnCount__perf(room, force=false, knownHead=null) {
  if(!room || state.currentRoom!==room||backgroundWorkPending(apiChatIdOf(room)))return;const replayEpoch=ExternalReplay.revision(apiChatIdOf(room));
  let snapshot=WUITurnSnapshots.get(room);
  if(!snapshot){snapshot={at:0};WUITurnSnapshots.set(room,snapshot);}
