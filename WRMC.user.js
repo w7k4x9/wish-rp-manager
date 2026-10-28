@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.0.8
+// @version      2.0.9
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -59,7 +59,7 @@
   // Storage IDs, ELR contract, strict AI commit validation and rollback formats are preserved.
  let WUI=null;
 
-  const SCRIPT_VERSION = '2.0.8';
+  const SCRIPT_VERSION = '2.0.9';
   const EDITION = 'core';
   const RUNTIME_HOST = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   // Managers without synchronous GM storage (iOS Userscripts, Greasemonkey 4) cannot keep settings; say so instead of a raw ReferenceError.
@@ -15950,6 +15950,7 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
     const carry=item=>{const old=previous.get(pendingItemIdentity(item));return {...item,totalTurns:0,usedTurns:0,turnStartUserId:old?.turnStartUserId||pending.latestUserId||pending.turnStartUserId};};
     const recalled=[...selection.items.filter(item=>injectionCadenceKind(item)==='timeline'),...logs,...lore,...inactive].map(carry);
     pending.items=[...selectedBase,...recalled];delete pending.recallNeedsRefresh;
+    rememberOverflowPool(room,normalPlan,selection);
     pending.recallPlan={inventoryHash:aiHashTiny(inventory),inventoryChars:inventory.length,method:selection.method,rankedKeys:selection.rankedKeys||selection.items.filter(i=>!allFitRequired(i)).map(pendingItemIdentity),...(selection.rankedKeysOver?{rankedKeysOver:selection.rankedKeysOver}:{}),...(standby.length?{standby:standby.map(carry)}:{}),queryHash:retained?previousPlan.queryHash:aiHashTiny(query),fullTotal:selection.fullTotal,total:selection.total,omitted:selection.omitted,limit:selection.limit,retained:!!retained,...(selection.byteLimited?{byteLimited:true}:{})};
     room.lastLoreSearch={at:Date.now(),queryHash:aiHashTiny(query),semanticUsed:!!vector,semanticError,matchedLore:lore.length,
       matchedLogs:logs.filter(item=>item.autoType==='related-log').length,reviewMethod:review.method,reviewError:review.error,
@@ -16995,6 +16996,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       const id=String(candidate.messageId||'');if(id&&id!==kept&&!byId.has(id))byId.set(id,candidate);
       if(candidate.previousCarrierCleanup)queue.push(candidate.previousCarrierCleanup);
       if(candidate.reroll?.previousPending)queue.push(candidate.reroll.previousPending);
+      if(candidate.overflow?.messageId)queue.push({messageId:String(candidate.overflow.messageId)});
       for(const extra of Array.isArray(candidate.cleanupCarrierMessageIds)?candidate.cleanupCarrierMessageIds:[])queue.push({messageId:String(extra||'')});
     }
     if(!byId.size)return {restored:false,reason:'waiting',results:[]};
@@ -17002,6 +17004,87 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     for(const candidate of byId.values())results.push(await restoreCarrierOnly(room,candidate));
     const restored=results.some(result=>result.restored),missing=results.some(result=>result.reason==='message_missing');
     return {restored,reason:restored?'ok':missing?'message_missing':results[0]?.reason||'already_clean',results};
+  }
+
+  // 2.0.9 보조 주입 (overflow carrier). 크랙 PATCH는 메시지 하나에 약 100KB(한글 약 5만 자)까지라, 주 carrier 하나로는 5만 자가 한계입니다.
+  // 주 carrier(USER 직전 AI 답변)가 검증된 뒤, 그 전 AI 답변(현재 대화 줄 위의 버전)에 주 블록에 못 담은 다음 순위 기억을 같은 형식의
+  // 숨김 블록으로 붙입니다. 같은 마커를 쓰므로 기억 정리·원문 읽기·화면 숨김·고아 정리는 이 블록도 똑같이 걷어 냅니다.
+  // 주 주입보다 항상 나중에, 서버 본문을 직접 읽고 확인한 뒤 씁니다. 실패하면 주 주입은 그대로 두고 다음 확인 때 다시 시도합니다.
+  const overflowPools=new Map();
+  const OVERFLOW_NOTE="※ 보조 참고: 아래는 더 최근 AI 답변 끝의 주 참고 주석에 다 담지 못한 추가 기억이다. 두 주석은 함께 하나의 참고 자료다. 겹치거나 어긋나면 최근 쪽 주석과 이후 RP에서 확정된 내용이 우선한다.\n\n";
+  function overflowCarrierEnabled(){try{return localStorage.getItem('wish-overflow-carrier-off')!=='1';}catch(_){return true;}}
+  function rememberOverflowPool(room,normalPlan,selection){
+    try{
+      const key=String(room?.chatId||'');if(!key)return;
+      if(!selection||selection.method==='all-fit'){overflowPools.delete(key);return;}
+      const chosen=new Set(selection.items||[]),byKey=new Map((normalPlan||[]).map(i=>[pendingItemIdentity(i),i])),out=[];let chars=0;
+      for(const k of selection.rankedKeys||[]){
+        const item=byKey.get(k);if(!item||chosen.has(item)||allFitRequired(item))continue;
+        const whole=typeof RecallSeat!=='undefined'&&RecallSeat.whole?RecallSeat.whole(item):item;
+        const len=String(whole?.content||'').length;if(!len)continue;
+        out.push({...whole,totalTurns:0,usedTurns:0});chars+=len;if(chars>240000)break;
+      }
+      if(out.length)overflowPools.set(key,out);else overflowPools.delete(key);
+    }catch(error){console.debug('[Wish] overflow pool skipped',error);}
+  }
+  // The AI answer before the carrier on the chat's line: past the carrier, the USER that answered it, then the version that USER continued from.
+  function overflowTargetOf(frame,carrierId){
+    const ms=frame?.messages||[],id=m=>String(messageIdOf(m)||''),ci=ms.findIndex(m=>id(m)===String(carrierId||''));
+    if(ci<0)return null;
+    const ui=ms.findIndex((m,i)=>i>ci&&messageRoleOf(m)==='user');if(ui<0)return null;
+    const first=ms.find((m,i)=>i>ui&&messageRoleOf(m)==='assistant');if(!first)return null;
+    return continuedCarrierVersion(ms,ui,first)||first;
+  }
+  function overflowBlockOf(items,room){
+    const block=buildContextBlockFromItems(items,room);
+    return block?block.replace(WISH_CONTEXT_GUIDE,()=>WISH_CONTEXT_GUIDE+OVERFLOW_NOTE):'';
+  }
+  async function syncOverflowCarrier(room,next,frame,ctx){
+    const rid=apiChatIdOf(room),prev=next.overflow&&next.overflow.messageId?next.overflow:null,mainId=String(next.messageId||'');
+    let targetId='';
+    if(overflowCarrierEnabled()&&ctx.carrierId){const t=overflowTargetOf(frame,ctx.carrierId);targetId=String(messageIdOf(t)||'');}
+    if(targetId&&(targetId===mainId||targetId===String(room.sessionSetup?.messageId||'')))targetId='';
+    const stored=overflowPools.get(String(room.chatId));
+    // After a page reload the ranked pool is gone until the next send: an overflow already on the same target stays as it is.
+    if(!stored&&prev&&prev.messageId===targetId){delete next.overflowError;return;}
+    if(prev&&prev.messageId!==targetId&&prev.messageId!==mainId){
+      try{await restoreCarrierOnly(room,{messageId:prev.messageId});}
+      catch(error){next.cleanupCarrierMessageIds=[...new Set([...(Array.isArray(next.cleanupCarrierMessageIds)?next.cleanupCarrierMessageIds:[]),prev.messageId])];}
+    }
+    const used=new Set((ctx.active||[]).map(pendingItemIdentity)),pool=[],seen=new Set(used);
+    for(const item of [...(ctx.candidates||[]),...(ctx.standby||[]),...(stored||[])]){
+      if(!item||allFitRequired(item))continue;
+      const k=pendingItemIdentity(item);if(!k||seen.has(k))continue;seen.add(k);
+      if(String(item.content||'').trim())pool.push(item);
+    }
+    if(!targetId||!pool.length){delete next.overflow;delete next.overflowError;return;}
+    const live=await fetchMessage(rid,targetId);
+    if(!live||messageRoleOf(live)!=='assistant'){delete next.overflow;return;}
+    const rawText=messageTextOf(live),own=messageOwnText(rawText);
+    if(!own.trim()){delete next.overflow;return;}
+    const limit=allFitLimit(room)-OVERFLOW_NOTE.length-200,measure=createWishContextMeasure(own,room),chosen=[];
+    for(const item of pool){if(measure.totalLength([...chosen,item])<=limit)chosen.push(item);}
+    const build=xs=>{const block=overflowBlockOf(xs,room);return {block,text:buildInjectedMessage(own,block)};};
+    let byteBudget=APP.carrierByteBudget,built=build(chosen);
+    const shrink=()=>{while(chosen.length&&(built.text.length>allFitLimit(room)||carrierBodyBytes(built.text)>byteBudget)){chosen.pop();built=build(chosen);}};
+    shrink();
+    if(!chosen.length||!built.block){delete next.overflow;return;}
+    if(rawText!==built.text){
+      let v;
+      try{v=await patchMessage(rid,targetId,built.text,rawText);}
+      catch(error){
+        if(!(isServerPatch413(error)||error?.code==='WISH_CARRIER_UTF8_REFIT'))throw error;
+        byteBudget=Math.floor(Math.min(APP.carrierByteBudget,carrierBodyBytes(built.text))*0.85);shrink();
+        if(!chosen.length)throw error;
+        v=await patchMessage(rid,targetId,built.text,typeof error?.serverText==='string'?error.serverText:rawText);
+      }
+      if(!v?.verified)throw Error('보조 주입을 서버에서 확인하지 못했습니다.');
+      if(!prev||prev.messageId!==targetId)console.info('[Wish] 보조 주입 확인',targetId,built.block.length);
+    }
+    const keys=chosen.map(pendingItemIdentity),same=prev&&prev.messageId===targetId&&rawText===built.text&&JSON.stringify(prev.keys)===JSON.stringify(keys);
+    const titles=chosen.map(i=>String(i.title||'').trim()||String(i.content||'').trim().split('\n')[0]).filter(Boolean).slice(0,3).map(t=>t.slice(0,60));
+    next.overflow={messageId:targetId,keys,chars:built.block.length,count:chosen.length,titles,at:same?Number(prev.at)||Date.now():Date.now()};
+    delete next.overflowError;
   }
 
   function clonePendingItems(items) {
@@ -17522,7 +17605,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     repairPendingTurnAnchors(room,p,frame,reason);
     if(p.policy!=='stable-user-v1'){
       await restorePendingCarriers(room,p);
-      p.messageId='';p.policy='stable-user-v1';p.turnStartUserId=frame.latestUserId;delete p.reroll;delete p.previousCarrierCleanup;
+      p.messageId='';p.policy='stable-user-v1';p.turnStartUserId=frame.latestUserId;delete p.reroll;delete p.previousCarrierCleanup;delete p.overflow;
       for(const item of p.items||[]){item.turnStartUserId=frame.latestUserId;item.usedTurns=0;}
     }
     await validateMemoryBranch(room,frame);
@@ -17659,7 +17742,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     let active=filterItemsByInjectionCadence(room,safeMemoryItems(room,timelineNow(activePendingItems(projected))),cadenceTurn);
     if(!newId || !active.length){
       await restorePendingCarriers(room,p);
-      p.messageId='';p.verified=false;p.verifiedAt=0;p.observedHead='';p.awaitingCarrier=!newId;p.contextBlock='';delete p.previousCarrierCleanup;delete p.reroll;
+      p.messageId='';p.verified=false;p.verifiedAt=0;p.observedHead='';p.awaitingCarrier=!newId;p.contextBlock='';delete p.previousCarrierCleanup;delete p.reroll;delete p.overflow;
       const completed=!!newId&&!actuallyRemaining.length&&reason!=='before-send'&&reason!=='before-reroll';
       if(completed)room.pending=null;
       await saveRoom(room);clearPendingBackup(room.chatId);
@@ -17809,6 +17892,9 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
         catch(error){console.warn('[Wish] start-setup block retirement deferred to a later poll',error);}
       }
     }
+    // 2.0.9 보조 주입: 주 carrier가 검증된 뒤, 그 전 AI 답변에 50k에 못 담은 다음 순위 기억을 따로 붙입니다. 실패해도 주 주입은 그대로입니다.
+    try{await syncOverflowCarrier(room,next,frame,{carrierId:newId,active,candidates:candidateItems,standby});}
+    catch(error){console.warn('[Wish] 보조 주입 보류',error);next.overflowError=String(error?.message||error).slice(0,300);}
     if(pollPrint&&raw===injected&&!setupChanged&&room._rev===pollRev&&pollPrint===pollState(next)){sanitizeRenderedContextSoon();scheduleMessageInjectionMagnifier(40);return {active:active.length,cleared:false,unchanged:true};}
     savePendingBackup(room.chatId,next);await saveRoom(room);sanitizeRenderedContextSoon();
     scheduleMessageInjectionMagnifier(40);
@@ -18248,6 +18334,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       return '주입 설정에서 제외';
     }
     const selection=p?.selection;
+    if(Array.isArray(p?.overflow?.keys)&&p.overflow.keys.includes(pendingItemIdentity(item)))return '보조 주입 · 그 전 AI 답변에 들어감';
     if(Array.isArray(selection?.keys)&&!selection.keys.includes(pendingItemIdentity(item))){
       if(selection.threadsOut&&injectionCadenceKind(item)==='threads')return '자리 부족 · 이번 턴 빠짐';
       if(Number(selection.fullTotal)>Number(selection.limit||allFitLimit(room))&&Number(selection.omitted)>0)return (String(selection.method||'').startsWith('ai')?'AI 후보 선별':'로컬 한도 선별')+'에서 제외 · 선별 전 '+Number(selection.fullTotal).toLocaleString()+'자';
@@ -21033,6 +21120,7 @@ function createWishUI(AD) {
     ${capMeter()}
     <div class="m3-legend">${GKEYS.filter(k => g[k]).map(k => `<span style="--m3-c:${COL[k]}"><b></b>${KLABEL[k]}${k==='guide'?help('[공통 안내]\nAI가 기억을 참고하는 방법과 인지 경계를 설명하는 안내문입니다.\n\n[제목·구분 서식]\n각 항목의 제목·줄바꿈·숨김 표시입니다. 기억 본문과 별도로 실제 주입 길이에 포함됩니다.'):''}<em>${fmt(g[k])}</em></span>`).join('')}</div>
     <p class="m3-muted" data-key="selection-threshold">${tot>max?fmt(max)+'자 초과 · 갱신 시 최종 맞춤 필요 · 확정 주입량 아님':!I.matchesSaved?'최근·관련 후보 계산 완료 · 갱신 시 최종 계산':Number(I.selection?.fullTotal)>max?'하이브리드 후보 '+fmt(I.selection.fullTotal)+'자 → '+(I.verified?'확인된 주입 ':'확인 대기 ')+fmt(tot)+'자 · '+(method.includes('server-backoff')?'서버 500 후 45,000자 안전 축소':method.includes('server-413')?'서버 용량 한도(413) 후 축소':I.selection?.byteLimited?'서버 용량 한도 맞춤':'로컬 안전선 맞춤')+' · 제외 '+Number(I.selection.omitted||0)+'개':Number(I.selection?.omitted)>0?(method.includes('server-413')?'서버 용량 한도(413) 후 축소':I.selection?.byteLimited?'서버 용량 한도 맞춤':'저장된 안전선 맞춤')+' · 제외 '+Number(I.selection.omitted)+'개':'최근·관련 기억 선택 완료 · '+fmt(max)+'자 안전선 이내'}${I.matchesSaved&&I.selection?.threadsOut?' · 서사 고리는 자리가 모자라 이번 턴 빠짐':''}${!I.hasOriginal?' · AI 원문 합산 전 예상':''}</p>
+    ${I.overflow?`<p class="m3-muted" data-key="overflow-carrier">＋ 보조 주입(그 전 AI 답변) ${fmt(I.overflow.chars)}자 · 다음 순위 기억 ${fmt(I.overflow.count)}개 추가${I.overflow.titles?.length?'<br>예: '+I.overflow.titles.map(t=>esc(t)).join(' / '):''}</p>`:I.overflowError?`<p class="m3-muted" data-key="overflow-carrier">보조 주입 보류 · ${esc(I.overflowError.slice(0,120))}</p>`:''}
     ${I.review&&!(I.review.reason==='within-limit')?`<p class="m3-muted" data-key="recall-last-decision">마지막 주입 계산${Number.isFinite(I.review.total)?' '+fmt(I.review.total)+'자 / '+fmt(I.review.limit||max)+'자':''} · ${esc(({'room-limit':'방 설정 한도에 맞춰 로컬 선별','byte-limit':'서버 용량 한도에 맞춰 로컬 선별','no-carrier':'원문 확인 전 — 생성형 선별 안 함','disabled':'재검토 꺼짐','too-few-candidates':'추가 평가 대상 부족 — 로컬 사용','no-provider':'AI 연결 없음 — 로컬 사용','prepared-result':'동일 조건의 준비 결과 사용 — 추가 호출 없음','before-send-or-local':'로컬 검색 결과 사용 — 새 AI 요청 없음','previous-failure':'직전 평가 실패 — 재호출 없이 로컬 사용','ai-failure':'AI 평가 실패 — 로컬 사용','over-limit':'한도 초과 — 미리 받은 AI 점수 반영'})[I.review.reason]||'이전 계산 기록')}<br>입력 중 검색 호출 없음 · AI 원문·안내문 포함 한도 이내면 전체 사용 · 초과할 때만 선별 · 자동 기억 정리는 별도입니다.</p>`:''}
     </section>`;
   }
@@ -23503,7 +23591,7 @@ function WUIInjectionView(room, candidates) {
  const verified=matchesSaved&&pending?.verified===true&&!pending?.lastSyncError&&total<=allFitLimit(room);
  // KB view: a verified carrier counts in the encoding it went in; otherwise in the one the next PATCH would use.
  const body=carrierBody(carrierText,verified?pending.carrierEncoding:'');
- return {legacyExclusions:Number(pending?.quickLegacyRemovedItems?.length||0),armed:!!pending,verified,firstTurn:!!pending?.messageId&&String(pending.messageId)===String(pending.baselineAssistantId||''),total,bytes:body.bytes,encoding:body.encoding,max:allFitLimit(room),groups,items:plan,hasCarrier:!!pending?.messageId,hasOriginal,matchesSaved,selection:matchesSaved?pending.selection||null:null,review:room.lastLoreSearch?{method:room.lastLoreSearch.reviewMethod,reason:room.lastLoreSearch.reviewReason,total:room.lastLoreSearch.reviewBaseTotal,limit:room.lastLoreSearch.reviewLimit,at:room.lastLoreSearch.at}:null,...pendingSyncIssue(pending)};
+ return {legacyExclusions:Number(pending?.quickLegacyRemovedItems?.length||0),overflow:pending?.overflow?.messageId?{chars:Number(pending.overflow.chars)||0,count:Number(pending.overflow.count)||0,titles:Array.isArray(pending.overflow.titles)?pending.overflow.titles:[]}:null,overflowError:String(pending?.overflowError||''),armed:!!pending,verified,firstTurn:!!pending?.messageId&&String(pending.messageId)===String(pending.baselineAssistantId||''),total,bytes:body.bytes,encoding:body.encoding,max:allFitLimit(room),groups,items:plan,hasCarrier:!!pending?.messageId,hasOriginal,matchesSaved,selection:matchesSaved?pending.selection||null:null,review:room.lastLoreSearch?{method:room.lastLoreSearch.reviewMethod,reason:room.lastLoreSearch.reviewReason,total:room.lastLoreSearch.reviewBaseTotal,limit:room.lastLoreSearch.reviewLimit,at:room.lastLoreSearch.at}:null,...pendingSyncIssue(pending)};
 }
 
 function WUIReadMonitor(){
