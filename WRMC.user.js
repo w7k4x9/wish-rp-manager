@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.2.3
+// @version      2.2.4
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -11972,7 +11972,9 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
       schemaCheck(data,RESULT_SCHEMA);if(data.status==='incomplete')throw WLOG.tag(Error('외부 AI가 처리를 완료하지 못했습니다: '+data.message),'EXT_AI_INCOMPLETE');
       if(data.export_id!==job.exportId||data.source_sha256!==job.sha)throw WLOG.tag(Error('내보낸 작업과 결과의 식별값이 다릅니다. 가장 최근에 받은 TXT의 결과를 가져와 주세요.'),'SECONDARY_ID_MISMATCH');
       const by=new Map(job.inventory.rows.map(r=>[r.id,r])),allowed=new Set(job.exportIds||job.inventory.rows.map(r=>r.id)),given=new Map();
-      for(const result of data.results){if(!by.has(result.id)||!allowed.has(result.id)||given.has(result.id))throw WLOG.tag(Error('결과 ID가 파일에 없거나 중복됩니다: '+result.id),'SECONDARY_COUNT');given.set(result.id,result);}
+      const skipped=[];// 2.2.4: 파일에 없는 id · 중복 id는 전체를 거부하지 않고 건너뛴다(외부 AI가 흔히 섞어 넣음).
+      for(const result of data.results){if(!by.has(result.id)||!allowed.has(result.id)||given.has(result.id)){skipped.push(result.id);continue;}given.set(result.id,result);}
+      validateReply.skipped=skipped;
       // 결과에 없는 본문은 원문 유지(keep)로 본다.
       return job.inventory.rows.map(row=>{
         const result=given.get(row.id)||{id:row.id,action:'keep'},sent=allowed.has(row.id);
@@ -12007,10 +12009,10 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
       const epoch=localRestoreEpoch;assertTarget(room,epoch);
       const job=await getRuntimeRecord(runtimeRecordId(KIND,room));if(!job||job.version!==VERSION)throw WLOG.tag(Error('이 방의 2차 재구축 내보내기 기록이 없습니다. 먼저 지침 + TXT를 받아 주세요.'),'SECONDARY_NO_EXPORT');
       if(!ACCEPTED_REVISIONS.includes(job.guideRevision))throw WLOG.tag(Error('이전 지침으로 내보낸 작업입니다. 업데이트된 지침 + TXT를 새로 받아 처리해 주세요. 저장 원문과 기존 적용 압축본은 변경하지 않았습니다.'),'SECONDARY_OLD_GUIDE');
-      const rows=withExisting(validateReply(job,data),room),snap=await snapshot(room,job.options);assertTarget(room,epoch);
+      const rows=withExisting(validateReply(job,data),room),skippedIds=validateReply.skipped||[],snap=await snapshot(room,job.options);assertTarget(room,epoch);
       if(snap.sha!==job.sha||text(snap.room._epoch)!==text(job.roomEpoch))throw WLOG.tag(Error('TXT를 내보낸 뒤 원문·구조가 바뀌었습니다. 옛 압축 결과를 적용하지 않았습니다. 최신 자료를 다시 내보내 주세요.'),'SECONDARY_SOURCE_CHANGED');
       // notes: text taken out or left in place at an "이어서" seam of the file, shown above the comparison.
-      return WUI.openSheet('secondaryReview',{room,epoch,job,rows,notes:[aiJsonCuts.get(data),aiJsonNotes.get(data)].filter(Boolean),expressionStamp:stamp(room),sourceSha:snap.sha,audit:reviewAudit(rows),busy:false,error:'',draft:{query:'',filter:'changes',category:'all',pick:{},open:{},edit:{},limit:30,reviewed:false}});
+      return WUI.openSheet('secondaryReview',{room,epoch,job,rows,notes:[aiJsonCuts.get(data),aiJsonNotes.get(data),skippedIds.length?'이 TXT에 없거나 중복된 결과 '+skippedIds.length+'개는 건너뛰었습니다('+skippedIds.slice(0,5).join(', ')+(skippedIds.length>5?' 외':'')+'). 나머지 결과만 아래에서 확인합니다.':''].filter(Boolean),expressionStamp:stamp(room),sourceSha:snap.sha,audit:reviewAudit(rows),busy:false,error:'',draft:{query:'',filter:'changes',category:'all',pick:{},open:{},edit:{},limit:30,reviewed:false}});
     }
     function editReview(id){
       const d=WUI.ui.dlg(id);if(!d||d.busy)return false;
