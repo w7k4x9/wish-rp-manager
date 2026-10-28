@@ -11,6 +11,9 @@ https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 
 ## 수정 내역
 
+### 2.2.1
+- 중국어로 보내기: 번역 방식에 **DeepSeek**(AI 설정의 DeepSeek 키 · deepseek-flash · 생각 끔)를 추가했습니다. 한 번 번역한 기억은 저장해 두고 다시 번역하지 않습니다.
+
 ### 2.2.0
 - **중국어로 보내기 (선택 · 기본 꺼짐)**: 설정에서 켜면, 저장은 한국어 그대로 두고 AI에게 보낼 때만 미리 번역해 둔 번체 중국어를 넣습니다(같은 자리에 기억이 더 많이 들어감).
   - 번역 방식: 크롬 내장(무료 · 내 컴퓨터에서만) / DeepL 무료 키 / AI 설정의 Gemini 키.
