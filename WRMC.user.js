@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.0.9
+// @version      2.0.10
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -59,7 +59,7 @@
   // Storage IDs, ELR contract, strict AI commit validation and rollback formats are preserved.
  let WUI=null;
 
-  const SCRIPT_VERSION = '2.0.9';
+  const SCRIPT_VERSION = '2.0.10';
   const EDITION = 'core';
   const RUNTIME_HOST = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   // Managers without synchronous GM storage (iOS Userscripts, Greasemonkey 4) cannot keep settings; say so instead of a raw ReferenceError.
@@ -12241,7 +12241,7 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
   }
   const allFitRankCache=new Map();
   const RECALL_SELECTION_TIMEOUT_MS=60000;
-  const RECALL_SELECTION_BATCHES_MAX=3;
+  const RECALL_SELECTION_BATCHES_MAX=6;
   // 선택된 기억 AI 재검토 runs ahead of the send: after an AI answer arrives in a room over the limit, RecallPrefetch asks the AI
   // in idle time about every optional candidate but the latest-date logs, with that answer as the scene and no USER input. A send,
   // reroll or start never asks and never waits: it ranks with the scores at hand, or in local order. Scores stay in allFitRankCache
@@ -12972,9 +12972,10 @@ async function chooseAllFitItems(room, items, original, query='', options={}) {
           }
           // One scene for every request of the round; with more than one request its head (the text before the rows) is the same in each.
           const sceneContext={previous_answer:recallSceneText(scene,true),current_state_excerpt:stateText,scope:'읽기 전용 일부 문맥 · 신규 사실 생성 금지'},userHead=batches.length>1?JSON.stringify({mode:cfg,query:'',scene_context:sceneContext,candidates:0}).slice(0,-2):'';
-          const until=Date.now()+RECALL_SELECTION_TIMEOUT_MS;
-          for(const candidates of batches){
-            if(Date.now()>=until||!live())break;
+          // 2.0.9: 묶음을 차례로가 아니라 동시에 보냅니다. 60초 안에 1~2묶음만 끝나던 것을 최대 6묶음(약 290개 후보)까지 넓힙니다.
+          // 일부 묶음만 실패하면 성공한 묶음의 점수는 씁니다. 전부 실패할 때만 이번 회차를 실패로 둡니다.
+          if(!live())return;
+          const one=async candidates=>{
             const result=await callAiProvider(settings,getGuideText('apiRecall')+(indexed?getGuideText('apiIndex'):''),JSON.stringify({mode:cfg,query:'',scene_context:sceneContext,candidates}),{taskKind:'select',...(userHead?{anthropicUserCacheHead:userHead}:{}),responseMimeType:'application/json',maxOutputTokens:indexed?Math.min(16384,8192+candidates.filter(x=>x.build_index).length*600):4096,timeoutMs:RECALL_SELECTION_TIMEOUT_MS,operationLabel:cfg.semantic&&cfg.selector?'관련 기억 찾기·우선순위 정하기':cfg.semantic?'표현이 다른 기억 찾기':'기억 우선순위 정하기'});
             const parsed=WLOG.parseJson(result.text,'주입 후보 선별',result.diagnostic),data=indexed?WishEconomy.decode(parsed):parsed,valid=new Set(candidates.map(x=>x.id)),seen=new Set(),scores=[];
             if(!data||Object.keys(data).some(k=>k!=='scores')||!Array.isArray(data.scores)||data.scores.length!==candidates.length)throw Error('후보 개수가 맞지 않는 AI 결과');
@@ -12982,7 +12983,10 @@ async function chooseAllFitItems(room, items, original, query='', options={}) {
             if(indexed)WishEconomy.accept(room,source.filter(x=>valid.has(x.id)),candidates,scores);
             for(const row of scores){const r=byId.get(row.id);scored.set(r.key,{relevance:row.relevance,related:row.related,local:Number(r.item.recallScore||0)});}
             recallScoreSave(entryKey,scored);
-          }
+          };
+          const settled=await Promise.allSettled(batches.map(one));
+          if(settled.length&&settled.every(r=>r.status==='rejected'))throw settled[0].reason;
+          settled.filter(r=>r.status==='rejected').forEach(r=>console.warn('[Wish] 선별 묶음 하나 실패 · 나머지 점수 사용',r.reason));
         })();
         const flight=job.then(()=>{},()=>{});entry.inflight=flight;
         try{await job;}catch(e){entry.failed=true;WLOG.fail('주입 후보 선별',e,{stage:'실패 후 로컬 후보로 대체',outcome:'local-fallback'});rank={...rank,method:'local-fallback',error:String(e.message||e)};}
