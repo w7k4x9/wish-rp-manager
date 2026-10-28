@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.0.10
+// @version      2.0.11
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -59,7 +59,7 @@
   // Storage IDs, ELR contract, strict AI commit validation and rollback formats are preserved.
  let WUI=null;
 
-  const SCRIPT_VERSION = '2.0.10';
+  const SCRIPT_VERSION = '2.0.11';
   const EDITION = 'core';
   const RUNTIME_HOST = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   // Managers without synchronous GM storage (iOS Userscripts, Greasemonkey 4) cannot keep settings; say so instead of a raw ReferenceError.
@@ -4979,7 +4979,7 @@ function open(id){const room=state.currentRoom,old=normalize(room.relationships)
     const KIND_LABEL={promise:'약속',schedule:'예정',goal:'목표',mystery:'수수께끼',danger:'위험',foreshadow:'복선',other:'기타'};
     const FULL_KINDS=new Set(['promise','schedule','goal']); // per-turn list keeps the one-line detail for these
     const CLOSE_TYPES=['done','broken','cancelled'],DATE_KINDS=['exact','month_day','year','era','custom','unknown'];
-    const INJECT_CHARS=1500,SHRINK_CAPS=[1000,600,300,150],STALE_TURNS=300,STATUS_CHARS=120,TITLE_CHARS=80,CLOSED_INDEX_MAX=20,OPEN_MAX=200,CLOSED_KEEP=300,MEMO=' (지금 장면과 이어질 수 있음)';
+    const INJECT_CHARS=4000,SHRINK_CAPS=[2500,1500,600,150],STALE_TURNS=300,STATUS_CHARS=120,TITLE_CHARS=80,CLOSED_INDEX_MAX=20,OPEN_MAX=200,CLOSED_KEEP=300,MEMO=' (지금 장면과 이어질 수 있음)';
     const UNKNOWN_DATE=Object.freeze({kind:'unknown',display:'날짜 미상'});
     // Folded AI spellings → values. Unknown values are not mapped (the row is left out instead of guessed).
     const KIND_ALIAS={약속:'promise',맹세:'promise',예정:'schedule',일정:'schedule',목표:'goal',수수께끼:'mystery',의문:'mystery',미스터리:'mystery',위험:'danger',위협:'danger',threat:'danger',복선:'foreshadow',기타:'other'};
@@ -5416,7 +5416,7 @@ function open(id){const room=state.currentRoom,old=normalize(room.relationships)
   // room already had (fromSnapshot, R-3), and a rebuild that leaves one label clears them (R-5). Nothing here notifies but the one
   // line fromSnapshot returns when a TXT import lost boundaries (A-4); what cannot be applied is counted.
   const WishTimeline=(()=>{
-    const TITLE_CHARS=40,LINE_CHARS=120,NAME_MAX=12,CARD_MAX=400,INJECT_CHARS=2500,RECENT=6,COMMON_SHARE=0.5,COMMON_MIN=7,TITLES_MAX=3,ROUND_BASE=1;
+    const TITLE_CHARS=40,LINE_CHARS=120,NAME_MAX=12,CARD_MAX=400,INJECT_CHARS=5000,RECENT=6,COMMON_SHARE=0.5,COMMON_MIN=7,TITLES_MAX=3,ROUND_BASE=1;
     const ROUND_RE=/^(\d+)회차$/,UNKNOWN=WishThreads.UNKNOWN_DATE.display;
     const RULES=`연표는 이야기 처음부터 지금까지 무엇이 어떤 순서로 바뀌어 왔는지를 카드 몇 장으로 줄인 목차다. 날짜별 사건을 다 읽지 못하는 때에도 지난 흐름을 놓치지 않게 하는 것이 목적이다. 재료는 입력의 날짜별 사건과 이번 답의 events(새 사건·갱신)뿐이다. [신규 완료 RP] 원문에서 바로 카드를 만들지 않는다.
 
@@ -13191,7 +13191,7 @@ async function chooseAllFitItems(room, items, original, query='', options={}) {
   }
 
   let wishContextBuildCache=null;
-  const WISH_CONTEXT_GUIDE = "# RP 연속성 참고\n이 주석은 대화 관리 도구가 지난 RP를 정리한 연속성 참고 자료다. 이야기를 자연스럽게 이어 가는 데 참고하고, 이 주석의 내용이나 형식을 답변에 옮겨 쓰지 않는다.\n- 사용자의 정정·고정 설정과 이후 RP에서 실제로 확정된 변화가 이 자료보다 우선한다.\n- 지금 장면에 어울리는 내용만 골라 자연스럽게 녹여 쓴다. 장면과 상관없는 지난 일을 뜬금없이 꺼내거나, 기록된 말·반응을 그대로 되풀이하지 않는다.\n- 인물의 말·주장·믿음은 사실과 구분한다.\n- 이 자료는 지난 이야기의 일부만 담고 있다. 여기 없는 지난 일은 함부로 확정하지 않는다. 과거 장면은 당시의 상태와 아는 범위로 쓴다.\n\n";
+  const WISH_CONTEXT_GUIDE = "# RP 연속성 참고\n이 주석은 대화 관리 도구가 지난 RP를 정리한 연속성 참고 자료다. 이야기를 자연스럽게 이어 가는 데 참고하고, 이 주석의 내용이나 형식을 답변에 옮겨 쓰지 않는다.\n- 사용자의 정정·고정 설정과 이후 RP에서 실제로 확정된 변화가 이 자료보다 우선한다.\n- 지금 장면에 어울리는 내용만 골라 자연스럽게 녹여 쓴다. 장면과 상관없는 지난 일을 뜬금없이 꺼내거나, 지난 반응을 기계적으로 되풀이하지 않는다.\n- 인물은 지난 일을 실제로 기억하는 사람처럼 군다. 장면과 맞닿는 순간에는 지켜지지 않은 약속, 숨기고 있는 비밀, 예전에 한 말(당시 발언)을 인물이 떠올리거나 되짚거나 찔러 보게 해 생동감을 더한다. 예전 말을 인용할 때는 기록된 문장 그대로 쓰고, 매 답변마다 억지로 넣지는 않는다.\n- 인물의 말·주장·믿음은 사실과 구분한다.\n- 이 자료는 지난 이야기의 일부만 담고 있다. 여기 없는 지난 일은 함부로 확정하지 않는다. 과거 장면은 당시의 상태와 아는 범위로 쓴다.\n\n";
   const WISH_CONTEXT_END_NOTE='[이 주석은 대화 관리 도구가 덧붙인 참고 자료이며 AI 답변의 일부가 아니다. 답변은 기존 RP 형식으로 이어 쓰고, 이 주석의 표제·안내문·형식은 출력하지 않는다.]';
   const WISH_CONTEXT_GROUPS = Object.freeze([["extra","진행 규칙 · 기타(OOC)","사용자가 직접 쓴 진행·문체·출력 지시다. 다른 참고 자료보다 먼저 따른다."],["character","캐릭터 설정","등장인물의 기본 설정이다."],["lore","자료집","세계관·장소·조직·물건·복장 설정과 기억해 둘 대사를 모은 자료다. 장면에 나오면 이 설정에 맞춘다. (당시 발언)은 그때 실제로 한 말이다. 인물이 떠올리거나 되받는 등 장면에 맞게 활용한다."],["misc","기타 참고",""],["timeline","연표","지난 흐름을 시간 순서로 정리한 목차다."],["log","날짜로그","지난 사건을 날짜 순서대로 적은 기록이다."],["relationship","관계·감정선","인물이 상대를 어떻게 보는지 적은 것이다. A → B는 A가 B를 보는 마음이며, 반대 방향과 다를 수 있다."],["cognition","인지 경계","누가 무엇을 아는지 적은 것이다. 서술자가 아는 것과 인물이 아는 것을 구분한다."],["speech","현재 호칭·말투 · 화자 → 상대",""],["threads","서사 고리","아직 끝나지 않은 약속·목표·수수께끼 같은 일이다. 흐름에 맞을 때 다루고 억지로 끝내지 않는다. A→B 약속은 A가 B에게 한 약속이다."],["currentState","현재상태","지금 상황이다."]].map(row=>Object.freeze(row)));
   const WISH_CONTEXT_GROUP_MAP = new Map(WISH_CONTEXT_GROUPS.map(row=>[row[0],row]));
