@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.14
+// @version      2.3.15
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13403,7 +13403,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   const WishZh=(()=>{
     const CFG_KEY='wish-zh-config',CACHE_KEY='wish-zh-cache-v1',KINDS=new Set(['log','lore','relationship','currentState']),MIN_CHARS=120,MAX_ENTRIES=9000;
     const NOTE='- 일부 기억은 분량을 아끼려고 번체 중국어로 적었다. 인물 이름 · 애칭 · 대사 · 영어는 원문 그대로다. RP 응답은 언제나 한국어로 쓰고, 중국어 표현을 옮겨 쓰지 않는다.\n';
-    let cfg=null,cache=null,saveTimer=0,resyncTimer=0,busy=false,translator=null,names=[],namesAt=0,stats={done:0,failed:0,last:'',error:''};
+    let cfg=null,cache=null,saveTimer=0,resyncTimer=0,startedAt=0,busy=false,translator=null,names=[],namesAt=0,stats={done:0,failed:0,last:'',error:''};
     const pending=new Map();
     function config(){if(!cfg){try{cfg={on:false,engine:'chrome',deeplKey:'',...JSON.parse(localStorage.getItem(CFG_KEY)||'{}')};}catch(_){cfg={on:false,engine:'chrome',deeplKey:''};}}return cfg;}
     function setConfig(patch){cfg={...config(),...patch};try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}catch(_){}if(!cfg.on)pending.clear();}
@@ -13508,16 +13508,17 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
         const cap=c.engine==='deepl'?20:c.engine==='gemini'||c.engine==='deepseek'?3:4,batch=[];let chars=0;
         for(const [k,src] of pending){if(batch.length>=cap||chars+src.length>50000)break;batch.push([k,src]);chars+=src.length;}
         const prepared=batch.map(([k,src])=>({k,src,...protect(src)}));
-        const results=await translateBatch(prepared.map(p=>p.text));
+        startedAt=Date.now();
+        const results=await Promise.race([translateBatch(prepared.map(p=>p.text)),new Promise((_,rej)=>setTimeout(()=>rej(Error('번역기가 2분 동안 답하지 않았어요'+(c.engine==='chrome'?' · 크롬 내장 번역기가 멈춘 것 같아요. 번역 방식을 DeepSeek으로 바꿔 보세요':''))),120000))]);
         const c2=load(),now=Date.now();
         prepared.forEach((p,i)=>{pending.delete(p.k);const zh=restore(results[i],p.map),bad=check(p.src,zh);if(bad){c2.set(p.k,{f:1,t:now,why:bad});stats.failed++;}else{c2.set(p.k,{z:zh,t:now,u:now,e:c.engine});stats.done++;}});
         stats.last=new Date().toLocaleTimeString('ko-KR');stats.error='';save();
         // 2.3.12 번역이 생기면 이미 박힌 주입 글도 다시 써서 바로 중국어로 바꾼다(다음 전송을 기다리지 않음). 번역이 잠잠해진 뒤 한 번만.
         if(prepared.length){clearTimeout(resyncTimer);resyncTimer=setTimeout(()=>{try{const r=state.currentRoom;if(r===room&&r.pending&&!backgroundWorkPending(apiChatIdOf(r)))void syncPendingCarrier(r,'zh-translation').catch(e=>console.warn('[Wish] 번역 반영 보류',e));}catch(_){}},15000);}
-      }catch(e){stats.error=String(e?.message||e).slice(0,200);if(/키|key|401|403|지원|없어요|안 받았/.test(stats.error))pending.clear();}
-      finally{busy=false;}
+      }catch(e){stats.error=String(e?.message||e).slice(0,200);console.warn('[Wish] 번역 실패',e);if(/키|key|401|403|지원|없어요|안 받았|답하지 않았/.test(stats.error)){pending.clear();if(c.engine==='chrome')translator=null;}}
+      finally{busy=false;startedAt=0;try{renderModalIfIdle();}catch(_){}}
     }
-    function status(){const c=load();let ok=0,bad=0;for(const v of c.values())v.z?ok++:bad++;return {...config(),cached:ok,failed:bad,pending:pending.size,busy,...stats};}
+    function status(){const c=load();let ok=0,bad=0;for(const v of c.values())v.z?ok++:bad++;return {...config(),cached:ok,failed:bad,pending:pending.size,busy,startedAt,...stats};}
     // 2.3.13 지금 방의 주입 후보 중 번역된 것 / 번역할 수 있는 것.
     function roomStatus(items){let ok=0,all=0;if(config().on)for(const it of items||[]){if(!it||!eligible(it))continue;all++;const h=load().get(keyOf(String(it.content)));if(h&&h.z)ok++;}return {ok,all};}
     function clear(){cache=new Map();pending.clear();stats={done:0,failed:0,last:'',error:''};try{GM_setValue(CACHE_KEY,{});}catch(_){}}
@@ -22343,7 +22344,7 @@ function mRelationships() {
         (z.on?`<div class="w-row">${W_RM('번역 방식',eng==='chrome'?'무료 · 내 컴퓨터에서만 번역':eng==='deepseek'?'AI 설정의 DeepSeek 키 · 번역해 둔 건 다시 안 함':eng==='deepl'?'DeepL 무료 키 · 월 50만 자':'AI 설정의 Gemini 키')}<span class="w-seg" role="radiogroup" aria-label="번역 방식">${[['chrome','크롬 내장'],['deepseek','DeepSeek'],['deepl','DeepL'],['gemini','Gemini']].map(([k,l])=>`<button type="button" role="radio" aria-checked="${eng===k}" data-act="zhEngine" data-arg="${k}">${l}</button>`).join('')}</span></div>`+
           (eng==='chrome'?(()=>{const m=WishZh.model();return m==='available'?W_R('번역 모델','받음 · 이 크롬에서 바로 번역해요',''):m==='busy'?W_R('번역 모델','받는 중이에요 · 끝나면 자동으로 번역을 시작해요',''):m==='none'?W_R('번역 모델','이 브라우저에는 크롬 내장 번역기가 없어요 · DeepSeek · DeepL · Gemini를 써 주세요',''):m==='unavailable'?W_R('번역 모델','이 크롬은 한국어 → 번체 중국어를 지원하지 않아요',''):W_R('번역 모델','처음 한 번 받아야 해요 · 버튼을 눌러 주세요',btn('번역 모델 받기','zhModel',{cls:'mini'}));})():'')+
           (eng==='deepl'?`<div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-zh-deepl">DeepL 키</label></span><span class="w-sub">무료 키는 끝이 :fx</span></span><span class="w-acts"><input id="wish-zh-deepl" type="text" class="m3-keymask" data-bind="zh.deeplKey" value="${esc(z.deeplKey||'')}" placeholder="DeepL API 키"${NO_FILL} style="width:220px"></span></div>`:'')+
-          W_R('번역해 둔 기억',`${(()=>{try{const r=state.currentRoom,items=r?.pending?.items||[],p=SecondaryRebuild.projector(r,{contextNotation:true}),rs=WishZh.roomStatus(items.map(p.item));return rs.all?'이 방 '+fmt(rs.ok)+' / '+fmt(rs.all)+'개 · ':'';}catch(_){return '';}})()}전체 ${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.error?' · 문제: '+esc(z.error):''}`,btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
+          W_R('번역해 둔 기억',`${(()=>{try{const r=state.currentRoom,items=r?.pending?.items||[],p=SecondaryRebuild.projector(r,{contextNotation:true}),rs=WishZh.roomStatus(items.map(p.item));return rs.all?'이 방 '+fmt(rs.ok)+' / '+fmt(rs.all)+'개 · ':'';}catch(_){return '';}})()}전체 ${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.busy?' · 번역 중':''}${z.error?' · 문제: '+esc(z.error):''}`,btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
       W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시 두 가지를 덧붙입니다. 끄면 지금과 같습니다. 바꾸면 다음 전송부터 적용됩니다.'),savedTag('rpMemo'))+
       `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}</div>`+
       W_SECH('문제 해결')+
