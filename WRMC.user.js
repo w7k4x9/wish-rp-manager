@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.16
+// @version      2.3.17
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13494,14 +13494,17 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
     function fill(room){
       const items=room?.pending?.items;if(!Array.isArray(items)||!items.length)return;
       let p=null;try{p=SecondaryRebuild.projector(room,{contextNotation:true});}catch(_){return;}
-      for(const it of items){let x;try{x=p.item(it);}catch(_){continue;}if(!x||!eligible(x))continue;const src=String(x.content),k=keyOf(src),h=load().get(k);if(h&&h.z)continue;if(h&&h.f&&Date.now()-(h.t||0)<=86400000)continue;if(pending.size<600)pending.set(k,src);}
+      const n={all:items.length,target:0,done:0,held:0,err:0,msg:''};
+      for(const it of items){let x;try{x=p.item(it);}catch(e){n.err++;n.msg=String(e?.message||e).slice(0,80);continue;}if(!x||!eligible(x))continue;n.target++;const src=String(x.content),k=keyOf(src),h=load().get(k);if(h&&h.z){n.done++;continue;}if(h&&h.f&&Date.now()-(h.t||0)<=86400000){n.held++;continue;}if(pending.size<600)pending.set(k,src);}
+      fillInfo=n;
     }
+    let fillInfo=null;
     // 2.3.16 지금 번역이 왜 멈춰 있는지 상태 줄에 보인다(바뀔 때만 화면을 다시 그림).
     let why='';const note=w=>{if(w!==why){why=w;try{renderModalIfIdle();}catch(_){}}};
     async function tick(room){
       const c=config();if(!c.on)return;if(!room)return note('채팅방 확인 중');if(busy)return note(startedAt?'번역 중':'이름 목록 읽는 중');
       if(!pending.size&&Date.now()-lastFill>30000){lastFill=Date.now();try{fill(room);}catch(e){stats.error='대기열 준비 실패: '+String(e?.message||e).slice(0,120);console.warn('[Wish] 번역 대기열 준비 실패',e);}}
-      if(!pending.size)return note(room?.pending?.items?.length?'번역할 새 기억 없음':'주입이 꺼져 있어 번역할 기억 없음');
+      if(!pending.size)return note(room?.pending?.items?.length?'번역할 새 기억 없음'+(fillInfo?` (항목 ${fillInfo.all} · 대상 ${fillInfo.target} · 번역됨 ${fillInfo.done} · 보류 ${fillInfo.held}${fillInfo.err?' · 오류 '+fillInfo.err+' '+fillInfo.msg:''})`:''):'주입이 꺼져 있어 번역할 기억 없음');
       // 2.3.10 크랙 탭이 뒤에 있어도(폰으로 RP 중) 번역을 이어 간다. 생성·정리 중에만 쉰다.
       if(backgroundWorkPending(apiChatIdOf(room)))return note('생성·정리가 끝나길 기다리는 중');
       busy=true;note('번역 중');
@@ -13522,7 +13525,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
     }
     function status(){const c=load();let ok=0,bad=0;for(const v of c.values())v.z?ok++:bad++;return {...config(),cached:ok,failed:bad,pending:pending.size,busy,startedAt,why,...stats};}
     // 2.3.13 지금 방의 주입 후보 중 번역된 것 / 번역할 수 있는 것.
-    function roomStatus(items){let ok=0,all=0;if(config().on)for(const it of items||[]){if(!it||!eligible(it))continue;all++;const h=load().get(keyOf(String(it.content)));if(h&&h.z)ok++;}return {ok,all};}
+    function roomStatus(items){let ok=0,all=0;if(config().on)for(const it of items||[]){if(!it||!eligible(it))continue;all++;const src=String(it.content),k=keyOf(src),h=load().get(k);if(h&&h.z)ok++;else if(!(h&&h.f&&Date.now()-(h.t||0)<=86400000)&&pending.size<600)pending.set(k,src);}return {ok,all};}
     function clear(){cache=new Map();pending.clear();stats={done:0,failed:0,last:'',error:''};try{GM_setValue(CACHE_KEY,{});}catch(_){}}
     async function prepareModel(){const T=RUNTIME_HOST.Translator||window.Translator;if(!T)throw Error('이 브라우저에는 크롬 내장 번역기가 없어요(컴퓨터 크롬 138 이상 필요).');translator=null;modelState='busy';try{await chromeTranslator(true);modelState='available';}catch(e){modelState='';throw e;}return true;}
     // 2.3.13 번역 모델을 받았는지: 설정 화면이 버튼 대신 '받음'을 보이도록 한 번씩 확인해 둔다.
