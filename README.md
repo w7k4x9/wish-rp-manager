@@ -11,6 +11,9 @@ https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 
 ## 수정 내역
 
+### 2.3.3
+- ChatGPT 자동 정리: 기다리는 작업 칸에 **[ChatGPT로 보내기]** 버튼을 넣었습니다. 실패했거나 중간에 멈춘 요청을 같은 요청문으로 다시 보냅니다.
+
 ### 2.3.2
 - ChatGPT 자동 정리: 진행 중에 [지금 정리]를 다시 누르면(ChatGPT 탭을 직접 닫았거나 멈춘 경우) 새로고침 없이 이전 요청을 취소하고 새로 보냅니다.
 
