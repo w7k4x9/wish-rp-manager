@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.2.10
+// @version      2.3.0
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
 // @author       User
 // @license      All Rights Reserved
 // @match        https://crack.wrtn.ai/*
+// @match        https://chatgpt.com/*
 // @noframes
 // @connect      app.koofr.net
 // @connect      crack-api.wrtn.ai
@@ -29,11 +30,78 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
+// @grant        GM_deleteValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
+// @grant        GM_openInTab
 // @run-at       document-start
 // ==/UserScript==
 
 (function () {
   'use strict';
+  // 2.3.0 ChatGPT 자동 정리(실험): chatgpt.com에서는 Wish 화면을 띄우지 않고, 크랙의 Wish가 넘긴 요청문 하나만 처리한다.
+  // 흐름: 주소의 wish_job과 GM 저장소의 작업이 같을 때만 → 입력창에 붙여넣기(길면 TXT 첨부) → 보내기 → 답 완료 대기 → JSON 회수 → 크랙에 돌려줌.
+  if (location.hostname === 'chatgpt.com') {
+    const id = new URLSearchParams(location.search).get('wish_job');
+    if (!id) return;
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const vis = el => !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+    const page = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow : window;
+    const reply = payload => { try { GM_setValue('wish-gpt-result', { id, ...payload, at: Date.now() }); } catch (e) { console.error('[Wish GPT]', e); } };
+    const findComposer = () => ['#prompt-textarea', 'textarea[name="prompt-textarea"]', 'div[contenteditable="true"][data-lexical-editor="true"]', 'main form div[contenteditable="true"]']
+      .map(q => [...document.querySelectorAll(q)].find(vis)).find(Boolean) || null;
+    const findSend = () => ['#composer-submit-button', 'button[data-testid="send-button"]', 'button[data-testid*="send-button"]', 'button[aria-label="Send prompt"]', 'button[aria-label="Send message"]']
+      .map(q => [...document.querySelectorAll(q)].find(vis)).find(Boolean) || null;
+    const busy = () => ['button[data-testid="stop-button"]', 'button[data-testid*="stop"]', 'button[aria-label*="Stop"]', 'button[aria-label*="중지"]']
+      .some(q => [...document.querySelectorAll(q)].some(vis));
+    const waitFor = async (fn, ms, step = 400) => { const t = Date.now(); while (Date.now() - t < ms) { const v = fn(); if (v) return v; await sleep(step); } return null; };
+    const assistants = () => [...document.querySelectorAll('[data-message-author-role="assistant"]')];
+    const run = async () => {
+      const job = GM_getValue('wish-gpt-job', null);
+      if (!job || job.id !== id) return;
+      if (GM_getValue('wish-gpt-taken', '') === id) return; // 같은 작업을 두 번 보내지 않는다(새로고침 등)
+      GM_setValue('wish-gpt-taken', id);
+      const composer = await waitFor(findComposer, 60000);
+      if (!composer) throw new Error('ChatGPT 입력창을 찾지 못했어요. ChatGPT에 로그인돼 있는지 확인해 주세요.');
+      await sleep(800);
+      const text = String(job.text || '');
+      composer.focus();
+      if (text.length > 18000) {
+        const input = document.querySelector('input#upload-files[type="file"]') || [...document.querySelectorAll('input[type="file"]')].find(i => !i.disabled && !/image|video|audio/.test(String(i.accept || '')) ) || document.querySelector('input[type="file"]');
+        if (!input) throw new Error('ChatGPT 파일 첨부 칸을 찾지 못했어요.');
+        const File_ = page.File || File, DT_ = page.DataTransfer || DataTransfer;
+        const dt = new DT_(); dt.items.add(new File_([text], 'wish-request-' + id.slice(0, 12) + '.txt', { type: 'text/plain', lastModified: Date.now() }));
+        input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true }));
+        await sleep(1500);
+        composer.focus();
+        document.execCommand('insertText', false, '첨부한 요청문 TXT를 처음부터 끝까지 읽고, 그 안의 [작업 지침]과 [출력 확인]을 그대로 따라 답해 줘. 답은 ```json 코드 블록 하나로만 써 줘.');
+      } else {
+        document.execCommand('insertText', false, text);
+      }
+      // 첨부 올리는 동안 보내기가 잠겨 있을 수 있다.
+      const send = await waitFor(() => { const b = findSend(); return b && !b.disabled && b.getAttribute('aria-disabled') !== 'true' ? b : null; }, 180000, 600);
+      if (!send) throw new Error('ChatGPT 보내기 버튼이 눌리지 않았어요(첨부가 끝나지 않았거나 화면이 바뀌었어요).');
+      const before = assistants().length;
+      send.click();
+      // 답이 시작되고 끝날 때까지: 새 답이 생기고, 중지 버튼이 사라진 채 글이 3초 동안 그대로면 끝으로 본다.
+      const started = await waitFor(() => assistants().length > before || busy(), 90000, 500);
+      if (!started) throw new Error('ChatGPT가 답을 시작하지 않았어요(사용 한도·로그인 확인).');
+      let last = '', stable = 0; const t0 = Date.now();
+      while (Date.now() - t0 < 20 * 60000) {
+        await sleep(1000);
+        const a = assistants().at(-1), cur = a ? a.innerText : '';
+        if (!busy() && cur && cur === last) { if (++stable >= 3) break; } else stable = 0;
+        last = cur;
+      }
+      const a = assistants().at(-1);
+      if (!a) throw new Error('ChatGPT 답을 읽지 못했어요.');
+      const codes = [...a.querySelectorAll('pre code, pre')].map(el => el.innerText).filter(t => t && t.includes('{'));
+      const answer = codes.length ? codes.sort((x, y) => y.length - x.length)[0] : a.innerText;
+      reply({ text: answer });
+    };
+    run().catch(e => reply({ error: String(e && e.message || e) }));
+    return;
+  }
   // Core 1.0.0: private cloud sync and native summary engines removed; local backup/restore retained.
   // Koofr WebDAV backup/restore is optional and manual only (no timers, startup requests or shared server).
   // Core 1.5.0: Firebase gets an optional App Check debug token (required by Firebase AI Logic from 2026-11-02), exchanged on demand without background timers.
@@ -3365,12 +3433,50 @@ const WLOG=(()=>{
     // meant for the AI stay in the full text, which [오류 문구 복사] and the log carry.
     return { code: job.code, lanes, at: new Date(job.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }), chars: job.chars, error, fixable, short: fixable ? manualErrorShort(error) : error };
   }
+  // 2.3.0 ChatGPT 자동 정리(실험): [함께 정리]의 요청문을 ChatGPT 임시 채팅 탭으로 넘기고, 답을 받아 [답 붙여넣기]와 같은 길로 적용한다.
+  const GptBridge = (() => {
+    const enabled = () => { try { return localStorage.getItem('wish-gpt-auto') === '1'; } catch (_) { return false; } };
+    function set(on) { try { if (on) localStorage.setItem('wish-gpt-auto', '1'); else localStorage.removeItem('wish-gpt-auto'); } catch (_) {} }
+    let running = false;
+    function ask(text, code) {
+      const id = code + '-' + Date.now().toString(36);
+      GM_setValue('wish-gpt-job', { id, text, at: Date.now() });
+      let tab = null;
+      try { tab = GM_openInTab('https://chatgpt.com/?temporary-chat=true&wish_job=' + encodeURIComponent(id), { active: false, insert: true, setParent: true }); } catch (e) { return Promise.reject(new Error('ChatGPT 탭을 열지 못했습니다: ' + (e.message || e))); }
+      return new Promise((resolve, reject) => {
+        let lid = null;
+        const done = () => { clearTimeout(timer); try { if (lid != null) GM_removeValueChangeListener(lid); } catch (_) {} try { tab && tab.close(); } catch (_) {} try { GM_deleteValue('wish-gpt-job'); } catch (_) {} };
+        const timer = setTimeout(() => { done(); reject(new Error('ChatGPT 답을 25분 안에 받지 못했습니다.')); }, 25 * 60000);
+        lid = GM_addValueChangeListener('wish-gpt-result', (k, o, v) => { if (!v || v.id !== id) return; done(); if (v.error) reject(new Error(v.error)); else resolve(String(v.text || '')); });
+      });
+    }
+    async function runJob(room, code, text) {
+      if (running) { notify('ChatGPT 자동 정리가 이미 진행 중입니다.', 'warn', 4000); return; }
+      running = true;
+      notify('ChatGPT 임시 채팅으로 요청문을 보냈어요 (' + text.length.toLocaleString() + '자) · 답이 오면 자동으로 적용해요', 'info', 6000);
+      try {
+        const answer = await ask(text, code);
+        const job = loadManualJob(room);
+        if (!job || job.code !== code) throw new Error('기다리던 작업이 바뀌어 이 답은 적용하지 않았습니다.');
+        const ok = await applyManualAnswer(room, answer);
+        if (ok === true) notify('ChatGPT 답을 기억에 적용했어요', 'success', 5000);
+        else if (ok && typeof ok === 'object') notify('ChatGPT 답에서 빠지는 글이 있어 확인이 필요해요 · [답 붙여넣기]에서 확인해 주세요', 'warn', 8000);
+        else notify('ChatGPT 답을 적용하지 못했어요 · [답 붙여넣기]에 표시된 이유를 확인해 주세요', 'warn', 8000);
+      } catch (e) {
+        const job = loadManualJob(room);
+        if (job && job.code === code) { job.lastError = 'ChatGPT 자동: ' + String(e.message || e); job.lastFixable = false; saveManualJob(room, job); }
+        notify('ChatGPT 자동 정리 실패: ' + String(e.message || e), 'error', 9000);
+      } finally { running = false; renderModalIfIdle(); }
+    }
+    return { enabled, set, runJob, busy: () => running };
+  })();
   async function exportManualJob(room, x) {
     const code = 'WJ-' + String(x.stamp).slice(0, 6).toUpperCase();
     const label = x.kind === 'all' ? '기억·인물 함께 정리' : x.kind === 'memory' ? '기억 정리' : '인물 정리';
     const text = buildManualAiRequest(x.system, x.prompt, { operationLabel: label, taskKind: 'extract', responseMimeType: 'application/json', jobCode: code, check: x.check });
     saveManualJob(room, { v: 1, sv: 4, code, stamp: x.stamp, force: x.kind, memCap: x.memCap, obsCap: x.obsCap, mem: x.mem, obs: x.obs, chars: text.length, at: Date.now(), lastError: '', ...(x.unsent?.length ? { unsent: x.unsent } : {}) });
     storeManualRequest(room, code, text);
+    if (GptBridge.enabled()) { setTimeout(() => GptBridge.runJob(room, code, text), 300); renderModalIfIdle(); return true; }
     downloadText(text, 'Wish-외부AI-요청문-' + code + '.txt', 'text/plain');
     notify('요청문 TXT를 저장했습니다 (' + text.length.toLocaleString() + '자) · 외부 AI 새 대화에 파일로 첨부해 보내고, 답을 복사한 뒤 [답 붙여넣기]를 눌러 주세요. 파일이 안 보이면 [TXT 다시 받기]를 눌러 주세요.', 'success', 9000);
     renderModalIfIdle();
@@ -22120,6 +22226,7 @@ function mRelationships() {
       W_SECH('처음부터 다시 정리')+
       `<div class="w-grp${j?' is-focus':''}" data-key="rebuild">${W_R('과거 대화 전체 재구축 '+help(rebuildHelp),'지난 대화를 약 20만 자씩 읽어 상황 · 사건 · 떡밥 · 연표 · 인물 · 자료 · 호칭 · 관계를 다시 만들어요',rebuildBtn)}${prog}${W_STACK('외부 AI로 재구축','API 키 없이 ChatGPT · Gemini 같은 곳에 맡겨서 다시 정리해요',vExternalRebuild(busy,true),'external')}${W_STACK('외부 AI로 2차 재구축','RP 결은 지키고 군더더기만 덜어 같은 자리에 기억을 더 넣어요 · 긴 본문만 보내 가벼워요',btn('지침 + TXT 받기','secondaryExport',{cls:'mini',dis:run})+btn('JSON 가져오기','secondaryImport',{cls:'mini',dis:run})+btn('지침','promptGuides',{arg:'externalSecondary',cls:'mini',icon:'doc'}),'secondary-rebuild',vSecondaryStatus(run))}</div>`+
       W_SECH('점검')+
+      `<div class="w-grp" data-key="gpt-auto">${W_R('ChatGPT 자동 정리 (실험)',GptBridge.enabled()?'켜짐 · AI 연결이 [외부 AI 복붙]일 때 [함께 정리]가 ChatGPT 임시 채팅 탭을 열어 보내고, 답을 받아 자동 적용해요 · ChatGPT에 로그인해 두세요':'외부 AI 복붙 모드에서 요청문을 ChatGPT 웹(임시 채팅)으로 자동으로 보내고 답을 적용해요 · API 없이 · 웹 자동 입력은 ChatGPT 이용약관과 부딪칠 수 있어요',btn(GptBridge.enabled()?'끄기':'켜기','gptAuto',{cls:GptBridge.enabled()?'danger mini':'mini'}))}</div>`+
       `<div class="w-grp" data-key="sub-test">${W_R('서브 칸 읽기 테스트',subCanaryOn()?'켜짐 · 서브 칸에 암호 C1~C5가 든 더미 약 4만 자가 들어가요 · 확인이 끝나면 꼭 끄세요':'켜면 서브 칸(그 전 AI 답변)에 암호 C1~C5가 든 더미 약 4만 자를 넣어요 · 실제 기억은 그대로',btn(subCanaryOn()?'테스트 끄기':'테스트 켜기','subTest',{cls:subCanaryOn()?'danger mini':'mini'}))}</div>`+
       W_SECH('초기화')+
       `<div class="w-grp" data-key="room-reset">${W_R('이 방 데이터 초기화','이 방의 기억 · 인물 · 설정 · 작업 기록을 지워요 · 크랙 대화는 그대로 · 누르면 한 번 더 물어봐요',btn('이 방 데이터 초기화','reset',{cls:'danger mini m3-reset-action',icon:'trash'}))}</div>`;
@@ -24578,7 +24685,7 @@ WUI_ADAPTER.act.cogSelectMode=async mode=>{
  if(room.pending)try{await syncPendingCarrier(room,'category-injection-change');}catch(e){notify('설정은 저장됨 · 주입 재적용 대기: '+e.message,'warn',4000,{error:e});}
 };
 Object.assign(WUI_ADAPTER.act,{
- recogTest:()=>WLOG.show('주입 블록 읽는 중…',()=>RecogTest.open()),subTest:async()=>{const on=!subCanaryOn();try{if(on)localStorage.setItem('wish-sub-canary','1');else localStorage.removeItem('wish-sub-canary');}catch(_){}const r=state.currentRoom;if(r?.pending){try{await syncPendingCarrier(r,'update');}catch(e){console.warn('[Wish] 서브 테스트 반영 보류',e);}}notify(on?'서브 칸 테스트 켜짐 · 홈의 서브 숫자를 확인한 뒤 RP 창에 질문을 보내세요':'서브 칸 테스트 꺼짐 · 다음 갱신 때 서브의 더미가 빠져요','success',5000);WUI.paint();},secondaryExport:()=>SecondaryRebuild.openExport(),secondaryExportRun:id=>WLOG.show('자료 준비 중…',()=>SecondaryRebuild.exportFromDialog(id)),secondaryImport:()=>SecondaryRebuild.importFile(),secondaryApply:id=>WLOG.show('검증·저장 중…',()=>SecondaryRebuild.apply(id)),secondaryEdit:id=>SecondaryRebuild.editReview(id),secondaryToggleEdit:arg=>{const [id,key]=arg.split('|'),d=WUI.ui.dlg(id);if(d&&!d.busy){d.draft.editing||={};d.draft.editing[key]=!d.draft.editing[key];WUI.paint(false);}},secondaryManage:()=>SecondaryRebuild.openManage(),secondaryChange:arg=>{const [id,mode]=arg.split('|');return SecondaryRebuild.change(id,mode);},
+ recogTest:()=>WLOG.show('주입 블록 읽는 중…',()=>RecogTest.open()),gptAuto:()=>{GptBridge.set(!GptBridge.enabled());notify(GptBridge.enabled()?'ChatGPT 자동 정리 켜짐 · AI 연결을 [외부 AI 복붙]으로 두고 [함께 정리]를 눌러 보세요':'ChatGPT 자동 정리 꺼짐','success',5000);WUI.paint();},subTest:async()=>{const on=!subCanaryOn();try{if(on)localStorage.setItem('wish-sub-canary','1');else localStorage.removeItem('wish-sub-canary');}catch(_){}const r=state.currentRoom;if(r?.pending){try{await syncPendingCarrier(r,'update');}catch(e){console.warn('[Wish] 서브 테스트 반영 보류',e);}}notify(on?'서브 칸 테스트 켜짐 · 홈의 서브 숫자를 확인한 뒤 RP 창에 질문을 보내세요':'서브 칸 테스트 꺼짐 · 다음 갱신 때 서브의 더미가 빠져요','success',5000);WUI.paint();},secondaryExport:()=>SecondaryRebuild.openExport(),secondaryExportRun:id=>WLOG.show('자료 준비 중…',()=>SecondaryRebuild.exportFromDialog(id)),secondaryImport:()=>SecondaryRebuild.importFile(),secondaryApply:id=>WLOG.show('검증·저장 중…',()=>SecondaryRebuild.apply(id)),secondaryEdit:id=>SecondaryRebuild.editReview(id),secondaryToggleEdit:arg=>{const [id,key]=arg.split('|'),d=WUI.ui.dlg(id);if(d&&!d.busy){d.draft.editing||={};d.draft.editing[key]=!d.draft.editing[key];WUI.paint(false);}},secondaryManage:()=>SecondaryRebuild.openManage(),secondaryChange:arg=>{const [id,mode]=arg.split('|');return SecondaryRebuild.change(id,mode);},
  unifiedAll:()=>{const r=state.currentRoom;if(isManualAiProvider()&&loadManualJob(r)&&!confirm('기다리는 외부 AI 작업이 있습니다. 새 요청문으로 바꿀까요?\n이미 외부 AI에 보낸 이전 요청문의 답은 쓸 수 없게 됩니다.'))return;return U3.run(r,'all');},rebuildRead:()=>R31.read(state.currentRoom),rebuildRun:()=>R31.run(state.currentRoom),rebuildApply:()=>R31.apply(state.currentRoom),rebuildStop:()=>R31.stop(),rebuildClear:()=>R31.clear(state.currentRoom),
 });
 for(const name of ['delta','index'])WUI_ADAPTER.bind['apiEconomy.'+name]=value=>{WUISettingsDraft()['apiEconomy.'+name]=!!value;};
