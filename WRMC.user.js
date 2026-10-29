@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.13
+// @version      2.3.14
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13488,8 +13488,18 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
       const tr=await chromeTranslator();const out=[];for(const text of list)out.push(await tr.translate(text));return out;
     }
     // 쉬는 시간에 몇 개씩: 크롬 4개 · DeepL 20개(5만 자 안) · Gemini 3개.
+    // 2.3.14 번역 대기열을 주입 글이 다시 그려질 때만 채우지 않는다. 지금 방의 주입 후보를 직접 훑어 번역 안 된 것을 넣는다
+    // (새로고침하면 대기열이 비고, 주입 글은 다음 전송 전까지 다시 그려지지 않아 번역이 멈춰 있었다).
+    let lastFill=0;
+    function fill(room){
+      const items=room?.pending?.items;if(!Array.isArray(items)||!items.length)return;
+      let p=null;try{p=SecondaryRebuild.projector(room,{contextNotation:true});}catch(_){return;}
+      for(const it of items){let x;try{x=p.item(it);}catch(_){continue;}if(!x||!eligible(x))continue;const src=String(x.content),k=keyOf(src),h=load().get(k);if(h&&h.z)continue;if(h&&h.f&&Date.now()-(h.t||0)<=86400000)continue;if(pending.size<600)pending.set(k,src);}
+    }
     async function tick(room){
-      const c=config();if(!c.on||busy||!pending.size||!room)return;
+      const c=config();if(!c.on||busy||!room)return;
+      if(!pending.size&&Date.now()-lastFill>30000){lastFill=Date.now();fill(room);}
+      if(!pending.size)return;
       // 2.3.10 크랙 탭이 뒤에 있어도(폰으로 RP 중) 번역을 이어 간다. 생성·정리 중에만 쉰다.
       if(backgroundWorkPending(apiChatIdOf(room)))return;
       busy=true;
