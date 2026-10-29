@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.2.5
+// @version      2.2.6
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -17205,7 +17205,17 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
   const overflowPools=new Map();
   const OVERFLOW_NOTE="※ 보조 참고: 아래는 더 최근 AI 답변 끝의 주 참고 주석에 다 담지 못한 추가 기억이다. 두 주석은 함께 하나의 참고 자료다. 겹치거나 어긋나면 최근 쪽 주석과 이후 RP에서 확정된 내용이 우선한다.\n\n";
   // 2.2.3: 서브(보조 주입)는 기본 꺼짐. 크랙이 끝까지 읽는 것이 확인된 메인 5만 자만 쓴다. 다시 켜려면 localStorage 'wish-overflow-carrier-on'='1'.
-  function overflowCarrierEnabled(){try{return localStorage.getItem('wish-overflow-carrier-on')==='1';}catch(_){return false;}}
+  function overflowCarrierEnabled(){try{return localStorage.getItem('wish-overflow-carrier-on')==='1'||subCanaryOn();}catch(_){return false;}}
+  // 2.2.6 서브 칸 읽기 테스트: 켜면 서브 칸 맨 앞에 암호 C1~C5가 든 더미 약 4만 자를 넣는다(실제 기억은 건드리지 않음).
+  function subCanaryOn(){try{return localStorage.getItem('wish-sub-canary')==='1';}catch(_){return false;}}
+  const SUB_CANARY_CODES=['청록연-5307','호박단추-8162','은색사다리-4495','감빛모래-2718','쪽빛우표-6039'];
+  function subCanaryItem(){
+    let seed=4242;const rnd=n=>{seed=(seed*1103515245+12345)%2147483648;return seed%n;};
+    const A=['오래된','차가운','희미한','낡은','조용한','붉은','젖은','먼','작은','깊은','하얀','검은','따뜻한','좁은'],N=['등대','골목','시계탑','항구','서재','기차역','정원','다락방','시장','성당','부두','온실','계단','우물','빵집','다리'],V=[' 앞을 지나갔다',' 근처에서 사람을 기다렸다',' 쪽을 바라보았다','에서 편지를 읽었다','의 문을 두드렸다',' 이야기를 들었다'],P=['관리인','여행자','아이','상인','노인','학생','경비','화가','어부','수녀'];
+    const paras=[];let total=0;while(total<38000){let p='';while(p.length<600)p+=P[rnd(P.length)]+'은 '+A[rnd(A.length)]+' '+N[rnd(N.length)]+V[rnd(V.length)]+'. ';paras.push(p.trim());total+=p.length+1;}
+    const n=paras.length;[0,Math.floor(n*0.25),Math.floor(n*0.5),Math.floor(n*0.75),n-1].forEach((at,k)=>{const line='확인 암호 C'+(k+1)+': '+SUB_CANARY_CODES[k]+'.';paras[at]=k===0?line+' '+paras[at]:k===4?paras[at]+' '+line:paras[at].slice(0,300)+' '+line+' '+paras[at].slice(300);});
+    return {slotId:'__subtest',sourceSlotId:'logSummary',sourceKey:'auto-log:__subtest',title:'서브 칸 읽기 테스트',group:'log-auto',autoType:'log',content:paras.join('\n'),totalTurns:0,usedTurns:0,reason:'서브 칸 읽기 테스트'};
+  }
   function rememberOverflowPool(room,normalPlan,selection){
     try{
       const key=String(room?.chatId||'');if(!key)return;
@@ -17304,6 +17314,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       const inMain=(ctx.active||[]).find(i=>injectionCadenceKind(i)==='threads'),full=threadsPendingItem(safeMemoryThreadsRoom(room));
       if(full&&String(full.content||'').trim()&&(!inMain||String(inMain.content||'').length<String(full.content).length))pool.unshift({...full,reason:'메인 자리 부족 · 서브에 전체 목록'});
     }catch(error){console.debug('[Wish] overflow threads skipped',error);}
+    if(subCanaryOn())pool.unshift(subCanaryItem());
     if(!targetId||!pool.length){delete next.overflow;delete next.overflowError;return;}
     const live=await fetchMessage(rid,targetId);
     if(!live||messageRoleOf(live)!=='assistant'){delete next.overflow;return;}
@@ -22108,6 +22119,8 @@ function mRelationships() {
       `<div class="w-grp" data-key="room-copy">${W_R('다른 방 자료 복사 '+help(helpSections([['독립 사본','원본 방과 연결하지 않고 현재 방 안에 독립 복사합니다. 이후 어느 한쪽이 자동 갱신돼도 다른 방은 바뀌지 않습니다.'],['선택 복사','현재상태·날짜로그·서사 고리·캐릭터/OOC·자료집·인물인지·은폐·호칭말투·관계감정선을 필요한 것만 체크해 복사합니다.'],['안전 범위','주입 중 상태, AI cursor·근거 manifest, 재구축 staging, 자동화 실행상태는 방 사이에 이식하지 않습니다.']])),'분기 · 새 방으로 옮길 때 · 섹션 · 사건 · 카드를 골라서 복사해요',btn('다른 방에서 선택 복사','roomCopy',{cls:'mini',icon:'copy',dis:run}))}${W_R('정리 전후 비교','자동 정리가 무엇을 바꿨는지 봐요 · 방마다 최근 10회 · AI 호출 없음',btn('정리 기록','memDiff',{cls:'mini',icon:'history'}),'','memdiff-settings')}</div>`+
       W_SECH('처음부터 다시 정리')+
       `<div class="w-grp${j?' is-focus':''}" data-key="rebuild">${W_R('과거 대화 전체 재구축 '+help(rebuildHelp),'지난 대화를 약 20만 자씩 읽어 상황 · 사건 · 떡밥 · 연표 · 인물 · 자료 · 호칭 · 관계를 다시 만들어요',rebuildBtn)}${prog}${W_STACK('외부 AI로 재구축','API 키 없이 ChatGPT · Gemini 같은 곳에 맡겨서 다시 정리해요',vExternalRebuild(busy,true),'external')}${W_STACK('외부 AI로 2차 재구축','RP 결은 지키고 군더더기만 덜어 같은 자리에 기억을 더 넣어요 · 긴 본문만 보내 가벼워요',btn('지침 + TXT 받기','secondaryExport',{cls:'mini',dis:run})+btn('JSON 가져오기','secondaryImport',{cls:'mini',dis:run})+btn('지침','promptGuides',{arg:'externalSecondary',cls:'mini',icon:'doc'}),'secondary-rebuild',vSecondaryStatus(run))}</div>`+
+      W_SECH('점검')+
+      `<div class="w-grp" data-key="sub-test">${W_R('서브 칸 읽기 테스트',subCanaryOn()?'켜짐 · 서브 칸에 암호 C1~C5가 든 더미 약 4만 자가 들어가요 · 확인이 끝나면 꼭 끄세요':'켜면 서브 칸(그 전 AI 답변)에 암호 C1~C5가 든 더미 약 4만 자를 넣어요 · 실제 기억은 그대로',btn(subCanaryOn()?'테스트 끄기':'테스트 켜기','subTest',{cls:subCanaryOn()?'danger mini':'mini'}))}</div>`+
       W_SECH('초기화')+
       `<div class="w-grp" data-key="room-reset">${W_R('이 방 데이터 초기화','이 방의 기억 · 인물 · 설정 · 작업 기록을 지워요 · 크랙 대화는 그대로 · 누르면 한 번 더 물어봐요',btn('이 방 데이터 초기화','reset',{cls:'danger mini m3-reset-action',icon:'trash'}))}</div>`;
   }
@@ -24565,7 +24578,7 @@ WUI_ADAPTER.act.cogSelectMode=async mode=>{
  if(room.pending)try{await syncPendingCarrier(room,'category-injection-change');}catch(e){notify('설정은 저장됨 · 주입 재적용 대기: '+e.message,'warn',4000,{error:e});}
 };
 Object.assign(WUI_ADAPTER.act,{
- recogTest:()=>WLOG.show('주입 블록 읽는 중…',()=>RecogTest.open()),secondaryExport:()=>SecondaryRebuild.openExport(),secondaryExportRun:id=>WLOG.show('자료 준비 중…',()=>SecondaryRebuild.exportFromDialog(id)),secondaryImport:()=>SecondaryRebuild.importFile(),secondaryApply:id=>WLOG.show('검증·저장 중…',()=>SecondaryRebuild.apply(id)),secondaryEdit:id=>SecondaryRebuild.editReview(id),secondaryToggleEdit:arg=>{const [id,key]=arg.split('|'),d=WUI.ui.dlg(id);if(d&&!d.busy){d.draft.editing||={};d.draft.editing[key]=!d.draft.editing[key];WUI.paint(false);}},secondaryManage:()=>SecondaryRebuild.openManage(),secondaryChange:arg=>{const [id,mode]=arg.split('|');return SecondaryRebuild.change(id,mode);},
+ recogTest:()=>WLOG.show('주입 블록 읽는 중…',()=>RecogTest.open()),subTest:async()=>{const on=!subCanaryOn();try{if(on)localStorage.setItem('wish-sub-canary','1');else localStorage.removeItem('wish-sub-canary');}catch(_){}const r=state.currentRoom;if(r?.pending){try{await syncPendingCarrier(r,'update');}catch(e){console.warn('[Wish] 서브 테스트 반영 보류',e);}}notify(on?'서브 칸 테스트 켜짐 · 홈의 서브 숫자를 확인한 뒤 RP 창에 질문을 보내세요':'서브 칸 테스트 꺼짐 · 다음 갱신 때 서브의 더미가 빠져요','success',5000);WUI.paint();},secondaryExport:()=>SecondaryRebuild.openExport(),secondaryExportRun:id=>WLOG.show('자료 준비 중…',()=>SecondaryRebuild.exportFromDialog(id)),secondaryImport:()=>SecondaryRebuild.importFile(),secondaryApply:id=>WLOG.show('검증·저장 중…',()=>SecondaryRebuild.apply(id)),secondaryEdit:id=>SecondaryRebuild.editReview(id),secondaryToggleEdit:arg=>{const [id,key]=arg.split('|'),d=WUI.ui.dlg(id);if(d&&!d.busy){d.draft.editing||={};d.draft.editing[key]=!d.draft.editing[key];WUI.paint(false);}},secondaryManage:()=>SecondaryRebuild.openManage(),secondaryChange:arg=>{const [id,mode]=arg.split('|');return SecondaryRebuild.change(id,mode);},
  unifiedAll:()=>{const r=state.currentRoom;if(isManualAiProvider()&&loadManualJob(r)&&!confirm('기다리는 외부 AI 작업이 있습니다. 새 요청문으로 바꿀까요?\n이미 외부 AI에 보낸 이전 요청문의 답은 쓸 수 없게 됩니다.'))return;return U3.run(r,'all');},rebuildRead:()=>R31.read(state.currentRoom),rebuildRun:()=>R31.run(state.currentRoom),rebuildApply:()=>R31.apply(state.currentRoom),rebuildStop:()=>R31.stop(),rebuildClear:()=>R31.clear(state.currentRoom),
 });
 for(const name of ['delta','index'])WUI_ADAPTER.bind['apiEconomy.'+name]=value=>{WUISettingsDraft()['apiEconomy.'+name]=!!value;};
