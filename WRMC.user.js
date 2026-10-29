@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.17
+// @version      2.3.18
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -3461,15 +3461,16 @@ const WLOG=(()=>{
     const setEvery = (m, o) => { try { localStorage.setItem('wish-gpt-every', JSON.stringify({ memoryEvery: m, observeEvery: o })); } catch (_) {} };
     function set(on) { try { if (on) localStorage.setItem('wish-gpt-auto', '1'); else localStorage.removeItem('wish-gpt-auto'); } catch (_) {} }
     let running = false, cancelCurrent = null, runSeq = 0;
-    function ask(text, code) {
+    function ask(text, code, opt = {}) {
       const id = code + '-' + Date.now().toString(36);
-      GM_setValue('wish-gpt-job', { id, text, at: Date.now(), effort: effort() });
+      GM_setValue('wish-gpt-job', { id, text, at: Date.now(), effort: opt.effort || effort() });
       let tab = null;
       try { tab = GM_openInTab('https://chatgpt.com/?temporary-chat=true&wish_job=' + encodeURIComponent(id), { active: false, insert: true, setParent: true }); } catch (e) { return Promise.reject(new Error('ChatGPT 탭을 열지 못했습니다: ' + (e.message || e))); }
       return new Promise((resolve, reject) => {
         let lid = null;
-        const done = () => { clearTimeout(timer); try { if (lid != null) GM_removeValueChangeListener(lid); } catch (_) {} try { tab && tab.close(); } catch (_) {} try { GM_deleteValue('wish-gpt-job'); } catch (_) {} };
-        const timer = setTimeout(() => { done(); reject(new Error('ChatGPT 답을 25분 안에 받지 못했습니다.')); }, 25 * 60000);
+        const done = () => { clearTimeout(timer); try { if (lid != null) GM_removeValueChangeListener(lid); } catch (_) {} try { tab && tab.close(); } catch (_) {} try { const cur = GM_getValue('wish-gpt-job', null); if (!cur || cur.id === id) GM_deleteValue('wish-gpt-job'); } catch (_) {} };
+        const timer = setTimeout(() => { done(); reject(new Error('ChatGPT 답을 ' + (opt.minutes || 25) + '분 안에 받지 못했습니다.')); }, (opt.minutes || 25) * 60000);
+        if (opt.track === false) { lid = GM_addValueChangeListener('wish-gpt-result', (k, o, v) => { if (!v || v.id !== id) return; done(); if (v.error) reject(new Error(v.error)); else resolve(String(v.text || '')); }); return; }
         cancelCurrent = () => { done(); reject(Object.assign(new Error('새 요청으로 바꿔 이전 ChatGPT 요청은 취소했습니다.'), { replaced: true })); };
         lid = GM_addValueChangeListener('wish-gpt-result', (k, o, v) => { if (!v || v.id !== id) return; done(); if (v.error) reject(new Error(v.error)); else resolve(String(v.text || '')); });
       });
@@ -3511,7 +3512,10 @@ const WLOG=(()=>{
         notify('ChatGPT 자동 정리 실패: ' + String(e.message || e), 'error', 9000);
       } finally { if (mine === runSeq) { running = false; cancelCurrent = null; } renderModalIfIdle(); }
     }
-    return { enabled, set, runJob, every, setEvery, effort, setEffort, busy: () => running };
+    // 2.3.18 중국어 번역용: 정리와 따로, 가장 낮은 추론으로 한 번 묻는다. 정리가 진행 중이면 부르지 않는다(정리 우선).
+    let zhRunning = false;
+    async function translate(text) { if (running) throw Object.assign(new Error('ChatGPT 정리 중'), { wait: true }); zhRunning = true; try { return await ask(text, 'ZH', { track: false, effort: 'low', minutes: 10 }); } finally { zhRunning = false; } }
+    return { enabled, set, runJob, every, setEvery, effort, setEffort, translate, busy: () => running, zhBusy: () => zhRunning };
   })();
   async function exportManualJob(room, x) {
     const code = 'WJ-' + String(x.stamp).slice(0, 6).toUpperCase();
@@ -13403,9 +13407,12 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   const WishZh=(()=>{
     const CFG_KEY='wish-zh-config',CACHE_KEY='wish-zh-cache-v1',KINDS=new Set(['log','lore','relationship','currentState']),MIN_CHARS=120,MAX_ENTRIES=9000;
     const NOTE='- 일부 기억은 분량을 아끼려고 번체 중국어로 적었다. 인물 이름 · 애칭 · 대사 · 영어는 원문 그대로다. RP 응답은 언제나 한국어로 쓰고, 중국어 표현을 옮겨 쓰지 않는다.\n';
-    let cfg=null,cache=null,saveTimer=0,resyncTimer=0,startedAt=0,busy=false,translator=null,names=[],namesAt=0,stats={done:0,failed:0,last:'',error:''};
+    let cfg=null,cache=null,saveTimer=0,resyncTimer=0,startedAt=0,gptRetryAt=0,busy=false,translator=null,names=[],namesAt=0,stats={done:0,failed:0,last:'',error:''};
     const pending=new Map();
-    function config(){if(!cfg){try{cfg={on:false,engine:'chrome',deeplKey:'',...JSON.parse(localStorage.getItem(CFG_KEY)||'{}')};}catch(_){cfg={on:false,engine:'chrome',deeplKey:''};}}return cfg;}
+    const ENGINES=['gpt','deepseek','deepl','gemini'];
+    // 2.3.18 크롬 내장 번역기는 뺐다. 예전 설정(chrome)이나 빈 값은 지금 AI 연결에 맞춰 고른다: DeepSeek 키가 있으면 DeepSeek, 아니면 ChatGPT 웹.
+    const defaultEngine=()=>{try{const ai=loadAiSettings();return ai.provider==='deepseek'&&ai.deepSeekApiKey?'deepseek':'gpt';}catch(_){return 'gpt';}};
+    function config(){if(!cfg){try{cfg={on:false,engine:'',deeplKey:'',...JSON.parse(localStorage.getItem(CFG_KEY)||'{}')};}catch(_){cfg={on:false,engine:'',deeplKey:''};}if(!ENGINES.includes(cfg.engine))cfg.engine=defaultEngine();}return cfg;}
     function setConfig(patch){cfg={...config(),...patch};try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}catch(_){}if(!cfg.on)pending.clear();}
     function load(){if(cache)return cache;cache=new Map();try{const raw=GM_getValue(CACHE_KEY,null),obj=typeof raw==='string'?JSON.parse(raw):raw;if(obj&&typeof obj==='object')for(const [k,v] of Object.entries(obj))if(v&&typeof v==='object')cache.set(k,v);}catch(_){}return cache;}
     function save(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{const c=load();if(c.size>MAX_ENTRIES){const keep=[...c].sort((a,b)=>(b[1].u||b[1].t||0)-(a[1].u||a[1].t||0)).slice(0,MAX_ENTRIES);cache=new Map(keep);}GM_setValue(CACHE_KEY,Object.fromEntries(load()));}catch(e){console.warn('[Wish] 번역 저장 실패',e);}},1500);}
@@ -13485,7 +13492,12 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
         }
         return out;
       }
-      const tr=await chromeTranslator();const out=[];for(const text of list)out.push(await tr.translate(text));return out;
+      // ChatGPT 웹: 한 번에 모아 JSON으로 묻고 같은 순서·개수로 받는다.
+      const ask='[작업 지침]\n아래 items의 한국어 RP 기억 메모를 각각 번체 중국어(zh-Hant)로 번역한다.\n- QZAB처럼 QZ로 시작하는 대문자 코드는 글자 그대로 둔다(이름·대사 자리다).\n- 아라비아 숫자는 그대로 둔다. 없는 내용을 더하거나 빼지 않는다. 짧은 기록체를 유지한다.\n[출력 확인]\n답은 ```json 코드 블록 하나로만: {"t":["번역1","번역2",...]} · t의 개수와 순서는 items와 같다.\n\n'+JSON.stringify({items:list});
+      const raw=await GptBridge.translate(ask),a=raw.indexOf('{'),b=raw.lastIndexOf('}');
+      let data=null;try{data=JSON.parse(raw.slice(a,b+1));}catch(_){throw Error('ChatGPT 번역 답을 읽지 못했어요');}
+      const t=Array.isArray(data?.t)?data.t:[];if(t.length!==list.length)throw Error('ChatGPT 번역 개수가 맞지 않아요('+t.length+'/'+list.length+')');
+      return t.map(x=>String(x||''));
     }
     // 쉬는 시간에 몇 개씩: 크롬 4개 · DeepL 20개(5만 자 안) · Gemini 3개.
     // 2.3.14 번역 대기열을 주입 글이 다시 그려질 때만 채우지 않는다. 지금 방의 주입 후보를 직접 훑어 번역 안 된 것을 넣는다
@@ -13507,20 +13519,22 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
       if(!pending.size)return note(room?.pending?.items?.length?'번역할 새 기억 없음'+(fillInfo?` (항목 ${fillInfo.all} · 대상 ${fillInfo.target} · 번역됨 ${fillInfo.done} · 보류 ${fillInfo.held}${fillInfo.err?' · 오류 '+fillInfo.err+' '+fillInfo.msg:''})`:''):'주입이 꺼져 있어 번역할 기억 없음');
       // 2.3.10 크랙 탭이 뒤에 있어도(폰으로 RP 중) 번역을 이어 간다. 생성·정리 중에만 쉰다.
       if(backgroundWorkPending(apiChatIdOf(room)))return note('생성·정리가 끝나길 기다리는 중');
+      if(c.engine==='gpt'&&GptBridge.busy())return note('ChatGPT 정리가 끝나길 기다리는 중');
+      if(c.engine==='gpt'&&Date.now()<gptRetryAt)return note('ChatGPT 번역 다시 시도 대기 중');
       busy=true;note('번역 중');
       try{
         await loadNames(room);
-        const cap=c.engine==='deepl'?20:c.engine==='gemini'||c.engine==='deepseek'?3:4,batch=[];let chars=0;
-        for(const [k,src] of pending){if(batch.length>=cap||chars+src.length>50000)break;batch.push([k,src]);chars+=src.length;}
+        const cap=c.engine==='deepl'?20:c.engine==='gpt'?40:3,maxChars=c.engine==='gpt'?15000:50000,batch=[];let chars=0;
+        for(const [k,src] of pending){if(batch.length&&(batch.length>=cap||chars+src.length>maxChars))break;batch.push([k,src]);chars+=src.length;}
         const prepared=batch.map(([k,src])=>({k,src,...protect(src)}));
         startedAt=Date.now();
-        const results=await Promise.race([translateBatch(prepared.map(p=>p.text)),new Promise((_,rej)=>setTimeout(()=>rej(Error('번역기가 2분 동안 답하지 않았어요'+(c.engine==='chrome'?' · 크롬 내장 번역기가 멈춘 것 같아요. 번역 방식을 DeepSeek으로 바꿔 보세요':''))),120000))]);
+        const results=await Promise.race([translateBatch(prepared.map(p=>p.text)),new Promise((_,rej)=>setTimeout(()=>rej(Error('번역기가 '+(c.engine==='gpt'?'10':'2')+'분 동안 답하지 않았어요')),c.engine==='gpt'?600000:120000))]);
         const c2=load(),now=Date.now();
         prepared.forEach((p,i)=>{pending.delete(p.k);const zh=restore(results[i],p.map),bad=check(p.src,zh);if(bad){c2.set(p.k,{f:1,t:now,why:bad});stats.failed++;}else{c2.set(p.k,{z:zh,t:now,u:now,e:c.engine});stats.done++;}});
         stats.last=new Date().toLocaleTimeString('ko-KR');stats.error='';save();
         // 2.3.12 번역이 생기면 이미 박힌 주입 글도 다시 써서 바로 중국어로 바꾼다(다음 전송을 기다리지 않음). 번역이 잠잠해진 뒤 한 번만.
         if(prepared.length){clearTimeout(resyncTimer);resyncTimer=setTimeout(()=>{try{const r=state.currentRoom;if(r===room&&r.pending&&!backgroundWorkPending(apiChatIdOf(r)))void syncPendingCarrier(r,'zh-translation').catch(e=>console.warn('[Wish] 번역 반영 보류',e));}catch(_){}},15000);}
-      }catch(e){stats.error=String(e?.message||e).slice(0,200);console.warn('[Wish] 번역 실패',e);if(/키|key|401|403|지원|없어요|안 받았|답하지 않았/.test(stats.error)){pending.clear();if(c.engine==='chrome')translator=null;}}
+      }catch(e){stats.error=String(e?.message||e).slice(0,200);console.warn('[Wish] 번역 실패',e);if(c.engine==='gpt')gptRetryAt=Date.now()+(e&&e.wait?30000:5*60000);if(/키|key|401|403|지원|없어요|안 받았|답하지 않았/.test(stats.error)){pending.clear();if(c.engine==='chrome')translator=null;}}
       finally{busy=false;startedAt=0;try{renderModalIfIdle();}catch(_){}}
     }
     function status(){const c=load();let ok=0,bad=0;for(const v of c.values())v.z?ok++:bad++;return {...config(),cached:ok,failed:bad,pending:pending.size,busy,startedAt,why,...stats};}
@@ -22344,10 +22358,10 @@ function mRelationships() {
       W_SECH('5만 자가 넘칠 때 고르는 법 '+help(recallHelp),savedTag('recall'))+
       `<div class="w-grp" data-key="recall-settings"><div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-recall-mode">고르는 방식</label></span><span class="w-sub">평소엔 최근 · 관련 기억을 검색해서 넣어요</span></span><span class="w-acts">${selc('recall.mode',V.ai.manual?'local':mode,[['local','에리·키워드 결과만 사용'],['priority','AI로 후보 순서 재검토'],['both','AI로 관련성·순서 재검토'],['semantic','AI로 관련성만 재검토']],'m3-select',' id="wish-recall-mode" aria-label="선택된 기억 AI 재검토"'+(V.ai.manual?' disabled':''))}</span></div>${selOnly(W_TG('AI로 관련성 재확인','recall.semantic',!(V.ai.manual&&!V.ai.hybrid)&&q.semantic,'','사용하도록 설정한 전체 후보가 원문·서식 포함 50,000자를 초과하면 AI 답이 도착한 뒤 보조 AI가 그 답과의 문맥 관련성을 미리 확인합니다. 제외 항목은 유지하며, 키워드가 일치하지 않는 후보도 상위 144개(색인으로 후보 선별을 켜면 384개)까지 평가할 수 있습니다. 이번 USER 입력으로 검색 점수가 오른 후보는 빼지 않습니다. 의미검색 색인이 있으면 전송 때 이번 입력의 검색 벡터를 요청하되 기다리지 않고, 미리 만든 직전 AI 답의 검색 벡터나 키워드로 순위를 정합니다.'))}${selOnly(W_TG('AI로 우선순위 정하기','recall.selector',!(V.ai.manual&&!V.ai.hybrid)&&q.selector,'','직전 AI 답·미해결 약속·위험과 직접 연결된 후보부터 50,000자 안전선 안에 배치합니다. 이번 USER 입력으로 검색 점수가 오른 후보는 에리·키워드 자리를 지킵니다. 점수가 준비되지 않았거나 실패하면 에리·키워드 순위를 그대로 사용합니다.'))}</div>${W_FOOT((V.ai.manual?manualOff+' · 최근·키워드 검색만 사용':'모든 방 공통')+' · 넘칠 때만 AI가 골라요 · 보낼 때는 기다리지 않아요')}`+
       (()=>{const z=WishZh.status(),eng=z.engine||'chrome';
-        return W_SECH('중국어로 보내기 (선택) '+help('[무엇]\n저장은 한국어 그대로 두고, AI에게 보낼 때만 미리 번역해 둔 번체 중국어를 넣어요. 같은 자리에 기억이 더 많이 들어가요.\n\n[번역하지 않는 것]\n인물 이름 · 애칭 · 대사(따옴표 안) · 영어는 원문 그대로 끼워요. 호칭·말투 · 떡밥 목록 · 캐릭터 설정 · 진행 규칙은 번역하지 않아요.\n\n[안전장치]\n번역 뒤 숫자 · 끼운 말이 다 남았는지 검사해서, 하나라도 빠지면 그 기억은 한국어로 보내요. 보낼 때는 번역을 기다리지 않아요(아직 번역 안 된 건 한국어).\n\n[번역 방식]\n크롬 내장: 무료 · 내 컴퓨터에서만 번역 · 컴퓨터 크롬 138 이상\nDeepL: 무료 키 월 50만 자 · 글이 DeepL로 감\nDeepSeek: AI 설정의 DeepSeek 키 · 한 번 번역한 건 다시 안 해서 처음에만 조금 듦\nGemini: AI 설정의 Gemini 키 사용 · 무료 등급이면 무료 · 글이 구글로 감'))+
+        return W_SECH('중국어로 보내기 (선택) '+help('[무엇]\n저장은 한국어 그대로 두고, AI에게 보낼 때만 미리 번역해 둔 번체 중국어를 넣어요. 같은 자리에 기억이 더 많이 들어가요.\n\n[번역하지 않는 것]\n인물 이름 · 애칭 · 대사(따옴표 안) · 영어는 원문 그대로 끼워요. 호칭·말투 · 떡밥 목록 · 캐릭터 설정 · 진행 규칙은 번역하지 않아요.\n\n[안전장치]\n번역 뒤 숫자 · 끼운 말이 다 남았는지 검사해서, 하나라도 빠지면 그 기억은 한국어로 보내요. 보낼 때는 번역을 기다리지 않아요(아직 번역 안 된 건 한국어).\n\n[번역 방식]\nChatGPT 웹: API 없이 · ChatGPT 임시 채팅 탭에서 모아서 번역(정리가 먼저)\nDeepL: 무료 키 월 50만 자 · 글이 DeepL로 감\nDeepSeek: AI 설정의 DeepSeek 키 · 한 번 번역한 건 다시 안 해서 처음에만 조금 듦\nGemini: AI 설정의 Gemini 키 사용 · 무료 등급이면 무료 · 글이 구글로 감'))+
         `<div class="w-grp" data-key="zh-settings"><div class="w-row">${W_RM('중국어로 보내기','끄면 지금처럼 한국어로만 보내요 · 기본은 꺼짐')}${W_SW(!!z.on,'zhToggle',null,'중국어로 보내기')}</div>`+
-        (z.on?`<div class="w-row">${W_RM('번역 방식',eng==='chrome'?'무료 · 내 컴퓨터에서만 번역':eng==='deepseek'?'AI 설정의 DeepSeek 키 · 번역해 둔 건 다시 안 함':eng==='deepl'?'DeepL 무료 키 · 월 50만 자':'AI 설정의 Gemini 키')}<span class="w-seg" role="radiogroup" aria-label="번역 방식">${[['chrome','크롬 내장'],['deepseek','DeepSeek'],['deepl','DeepL'],['gemini','Gemini']].map(([k,l])=>`<button type="button" role="radio" aria-checked="${eng===k}" data-act="zhEngine" data-arg="${k}">${l}</button>`).join('')}</span></div>`+
-          (eng==='chrome'?(()=>{const m=WishZh.model();return m==='available'?W_R('번역 모델','받음 · 이 크롬에서 바로 번역해요',''):m==='busy'?W_R('번역 모델','받는 중이에요 · 끝나면 자동으로 번역을 시작해요',''):m==='none'?W_R('번역 모델','이 브라우저에는 크롬 내장 번역기가 없어요 · DeepSeek · DeepL · Gemini를 써 주세요',''):m==='unavailable'?W_R('번역 모델','이 크롬은 한국어 → 번체 중국어를 지원하지 않아요',''):W_R('번역 모델','처음 한 번 받아야 해요 · 버튼을 눌러 주세요',btn('번역 모델 받기','zhModel',{cls:'mini'}));})():'')+
+        (z.on?`<div class="w-row">${W_RM('번역 방식',eng==='gpt'?'ChatGPT 임시 채팅 탭에서 모아서 번역 · API 없이 · 정리가 먼저':eng==='deepseek'?'AI 설정의 DeepSeek 키 · 번역해 둔 건 다시 안 함':eng==='deepl'?'DeepL 무료 키 · 월 50만 자':'AI 설정의 Gemini 키')}<span class="w-seg" role="radiogroup" aria-label="번역 방식">${[['gpt','ChatGPT 웹'],['deepseek','DeepSeek'],['deepl','DeepL'],['gemini','Gemini']].map(([k,l])=>`<button type="button" role="radio" aria-checked="${eng===k}" data-act="zhEngine" data-arg="${k}">${l}</button>`).join('')}</span></div>`+
+          
           (eng==='deepl'?`<div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-zh-deepl">DeepL 키</label></span><span class="w-sub">무료 키는 끝이 :fx</span></span><span class="w-acts"><input id="wish-zh-deepl" type="text" class="m3-keymask" data-bind="zh.deeplKey" value="${esc(z.deeplKey||'')}" placeholder="DeepL API 키"${NO_FILL} style="width:220px"></span></div>`:'')+
           W_R('번역해 둔 기억',`${(()=>{try{const r=state.currentRoom,items=r?.pending?.items||[],p=SecondaryRebuild.projector(r,{contextNotation:true}),rs=WishZh.roomStatus(items.map(p.item));return rs.all?'이 방 '+fmt(rs.ok)+' / '+fmt(rs.all)+'개 · ':'';}catch(_){return '';}})()}전체 ${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.why?' · 지금: '+esc(z.why):''}${z.error?' · 문제: '+esc(z.error):''}`,btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
       W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시 두 가지를 덧붙입니다. 끄면 지금과 같습니다. 바꾸면 다음 전송부터 적용됩니다.'),savedTag('rpMemo'))+
@@ -23761,7 +23775,7 @@ ${open ? `<div class="wp-err-body"><div class="wp-err-row"><span>원인</span><p
     kvOpen:()=>WishKoofr.open(),kvSettings:()=>WishKoofr.settings(),kvRefresh:()=>WishKoofr.refresh(),kvBackup:()=>WishKoofr.backup(),kvRestore:id=>WishKoofr.restore(id),kvTest:id=>WishKoofr.test(id),kvSave:id=>WishKoofr.save(id),kvDisconnect:()=>WishKoofr.disconnect(),kvSelect:id=>WishKoofr.select(id),kvPick:a=>WishKoofr.pick(a),kvRemove:id=>WishKoofr.remove(id),kvRoomPick:a=>WishKoofr.roomPick(a),kvRoomAccept:id=>WishKoofr.roomAccept(id),
     personDossier:arg=>openSheet('personDossier',{draft:{person:arg||personOptions()[0]?.[0]||'',category:'all',limit:40}}),
     recordsMore:id=>{const d=findDlg(id);if(d)d.draft.limit=(Number(d.draft.limit)||40)+40;},
-    usageLedger:localUsageOpen,logCalendar:localCalendarOpen,relationMap:localGraphOpen,memDiff:localDiffOpen,memDiffSeen:()=>{MemoryDiff.dismiss(state.currentRoom);},injWhy:a=>{S.injWhy=a;},zhToggle:()=>{const c=WishZh.config();WishZh.setConfig({on:!c.on});},zhEngine:a=>{WishZh.setConfig({engine:['chrome','deepseek','deepl','gemini'].includes(a)?a:'chrome'});},zhModel:async()=>{try{WUI.paint();await WishZh.prepareModel();WUI.paint();toast('번역 모델을 받았어요. 이제 쉬는 시간에 조금씩 번역해요.','ok');}catch(e){toast(String(e?.message||e),'warn',8000);}},zhClear:()=>{WishZh.clear();},usageTab:a=>{S.usageTab=['main','sub'].includes(a)?a:'all';},usageCat:a=>{S.usageCat=S.usageCat===a?'':a;},navReview:()=>{S.tab='cognition';S.cog='review';S.scrollTop=true;AD.onNav&&AD.onNav('cognition','review');},navMem:a=>{S.tab='memory';S.mem=a;S.scrollTop=true;S.tlLanesAll=null;AD.onNav&&AD.onNav('memory',a);},macRun:()=>{S.macRun=!S.macRun;},macRunPick:(a,el)=>{S.macRun=false;return run(a,undefined,el);},flipSw:(key,el)=>setKey(key,el.getAttribute('aria-checked')!=='true'),macTheme:a=>{try{localStorage.setItem('wish-ui-theme',a);}catch(_){}wishApplyTheme();},tourToggle:()=>{if(S.tourRun){tourEnd();return;}S.tourSheet=!S.tourSheet;},tourClose:()=>{S.tourSheet=false;},tourStart:a=>tourStart(a),tourReset:()=>{const k=tourScreen(),st=tourState();st.done[k]=[];tourSave();tourStart(0);},tourOther:a=>{const g=TOUR_GO[a];if(!g)return;BUILTIN[g[0]](g[1]);const st=tourState();st.seen[a]=true;tourSave();S.tourSheet=true;},tourAuto:()=>{const st=tourState();st.autoOpen=!st.autoOpen;tourSave();},macMore:a=>{S.macMore={...(S.macMore||{}),[a]:!(S.macMore||{})[a]};},capUnit:()=>{S.capKb=!S.capKb;try{localStorage.setItem('wish-m3-cap-unit',S.capKb?'kb':'chars');}catch(_){}},thView:a=>{S.thView=a==='closed'?'closed':'open';},tlBand:id=>{S.tlSel={kind:'band',id};S.tlScroll=true;},tlBar:a=>{const k=a.lastIndexOf('|');S.tlSel={kind:'bar',lane:a.slice(0,k),id:a.slice(k+1)};S.tlScroll=true;},tlLanes:id=>{tlMoreLanes(id);},tlROpen:id=>tlToggleRound(id),
+    usageLedger:localUsageOpen,logCalendar:localCalendarOpen,relationMap:localGraphOpen,memDiff:localDiffOpen,memDiffSeen:()=>{MemoryDiff.dismiss(state.currentRoom);},injWhy:a=>{S.injWhy=a;},zhToggle:()=>{const c=WishZh.config();WishZh.setConfig({on:!c.on});},zhEngine:a=>{WishZh.setConfig({engine:['gpt','deepseek','deepl','gemini'].includes(a)?a:'gpt'});},zhModel:async()=>{try{WUI.paint();await WishZh.prepareModel();WUI.paint();toast('번역 모델을 받았어요. 이제 쉬는 시간에 조금씩 번역해요.','ok');}catch(e){toast(String(e?.message||e),'warn',8000);}},zhClear:()=>{WishZh.clear();},usageTab:a=>{S.usageTab=['main','sub'].includes(a)?a:'all';},usageCat:a=>{S.usageCat=S.usageCat===a?'':a;},navReview:()=>{S.tab='cognition';S.cog='review';S.scrollTop=true;AD.onNav&&AD.onNav('cognition','review');},navMem:a=>{S.tab='memory';S.mem=a;S.scrollTop=true;S.tlLanesAll=null;AD.onNav&&AD.onNav('memory',a);},macRun:()=>{S.macRun=!S.macRun;},macRunPick:(a,el)=>{S.macRun=false;return run(a,undefined,el);},flipSw:(key,el)=>setKey(key,el.getAttribute('aria-checked')!=='true'),macTheme:a=>{try{localStorage.setItem('wish-ui-theme',a);}catch(_){}wishApplyTheme();},tourToggle:()=>{if(S.tourRun){tourEnd();return;}S.tourSheet=!S.tourSheet;},tourClose:()=>{S.tourSheet=false;},tourStart:a=>tourStart(a),tourReset:()=>{const k=tourScreen(),st=tourState();st.done[k]=[];tourSave();tourStart(0);},tourOther:a=>{const g=TOUR_GO[a];if(!g)return;BUILTIN[g[0]](g[1]);const st=tourState();st.seen[a]=true;tourSave();S.tourSheet=true;},tourAuto:()=>{const st=tourState();st.autoOpen=!st.autoOpen;tourSave();},macMore:a=>{S.macMore={...(S.macMore||{}),[a]:!(S.macMore||{})[a]};},capUnit:()=>{S.capKb=!S.capKb;try{localStorage.setItem('wish-m3-cap-unit',S.capKb?'kb':'chars');}catch(_){}},thView:a=>{S.thView=a==='closed'?'closed':'open';},tlBand:id=>{S.tlSel={kind:'band',id};S.tlScroll=true;},tlBar:a=>{const k=a.lastIndexOf('|');S.tlSel={kind:'bar',lane:a.slice(0,k),id:a.slice(k+1)};S.tlScroll=true;},tlLanes:id=>{tlMoreLanes(id);},tlROpen:id=>tlToggleRound(id),
     secondaryExpand:arg=>{const [id,key]=arg.split('|'),d=findDlg(id);if(d&&!d.busy){d.draft.open||={};d.draft.open[key]=!d.draft.open[key];}},
     secondaryMore:id=>{const d=findDlg(id);if(d&&!d.busy)d.draft.limit=(Number(d.draft.limit)||30)+30;},
     secondaryPick:arg=>{const [id,mode]=arg.split('|');SecondaryRebuild.selectReviewRows(findDlg(id),mode);},

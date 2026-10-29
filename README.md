@@ -11,6 +11,9 @@ https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 
 ## 수정 내역
 
+### 2.3.18
+- 중국어로 보내기: 크롬 내장 번역기를 빼고 **ChatGPT 웹** 번역을 넣었습니다(ChatGPT · DeepSeek · DeepL · Gemini 중 선택). ChatGPT 웹은 번역 안 된 기억을 모아 임시 채팅 한 번으로 번역하고, ChatGPT 정리가 진행 중이면 끝난 뒤에 합니다. 예전 '크롬 내장' 설정은 DeepSeek 키가 있으면 DeepSeek, 없으면 ChatGPT 웹으로 바뀝니다.
+
 ### 2.3.17
 - 중국어로 보내기: '이 방 0 / n개'인데 '번역할 새 기억 없음'으로 멈춰 있던 문제 대응. 설정 화면이 찾은 번역 안 된 기억을 바로 대기열에 넣고, 멈출 때는 항목 수 · 대상 · 번역됨 · 보류 · 오류를 함께 보여 줍니다.
 
