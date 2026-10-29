@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.1
+// @version      2.3.2
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -3438,7 +3438,7 @@ const WLOG=(()=>{
   const GptBridge = (() => {
     const enabled = () => { try { return localStorage.getItem('wish-gpt-auto') === '1'; } catch (_) { return false; } };
     function set(on) { try { if (on) localStorage.setItem('wish-gpt-auto', '1'); else localStorage.removeItem('wish-gpt-auto'); } catch (_) {} }
-    let running = false;
+    let running = false, cancelCurrent = null, runSeq = 0;
     function ask(text, code) {
       const id = code + '-' + Date.now().toString(36);
       GM_setValue('wish-gpt-job', { id, text, at: Date.now() });
@@ -3448,11 +3448,14 @@ const WLOG=(()=>{
         let lid = null;
         const done = () => { clearTimeout(timer); try { if (lid != null) GM_removeValueChangeListener(lid); } catch (_) {} try { tab && tab.close(); } catch (_) {} try { GM_deleteValue('wish-gpt-job'); } catch (_) {} };
         const timer = setTimeout(() => { done(); reject(new Error('ChatGPT 답을 25분 안에 받지 못했습니다.')); }, 25 * 60000);
+        cancelCurrent = () => { done(); reject(Object.assign(new Error('새 요청으로 바꿔 이전 ChatGPT 요청은 취소했습니다.'), { replaced: true })); };
         lid = GM_addValueChangeListener('wish-gpt-result', (k, o, v) => { if (!v || v.id !== id) return; done(); if (v.error) reject(new Error(v.error)); else resolve(String(v.text || '')); });
       });
     }
     async function runJob(room, code, text) {
-      if (running) { notify('ChatGPT 자동 정리가 이미 진행 중입니다.', 'warn', 4000); return; }
+      // 진행 중에 다시 보내면(탭을 직접 닫았거나 멈춘 경우 등) 이전 요청을 취소하고 새로 보낸다.
+      if (running && cancelCurrent) { try { cancelCurrent(); } catch (_) {} await new Promise(r => setTimeout(r, 300)); }
+      const mine = ++runSeq;
       running = true;
       notify('ChatGPT 임시 채팅으로 요청문을 보냈어요 (' + text.length.toLocaleString() + '자) · 답이 오면 자동으로 적용해요', 'info', 6000);
       try {
@@ -3464,10 +3467,11 @@ const WLOG=(()=>{
         else if (ok && typeof ok === 'object') notify('ChatGPT 답에서 빠지는 글이 있어 확인이 필요해요 · [답 붙여넣기]에서 확인해 주세요', 'warn', 8000);
         else notify('ChatGPT 답을 적용하지 못했어요 · [답 붙여넣기]에 표시된 이유를 확인해 주세요', 'warn', 8000);
       } catch (e) {
+        if (e && e.replaced) return;
         const job = loadManualJob(room);
         if (job && job.code === code) { job.lastError = 'ChatGPT 자동: ' + String(e.message || e); job.lastFixable = false; saveManualJob(room, job); }
         notify('ChatGPT 자동 정리 실패: ' + String(e.message || e), 'error', 9000);
-      } finally { running = false; renderModalIfIdle(); }
+      } finally { if (mine === runSeq) { running = false; cancelCurrent = null; } renderModalIfIdle(); }
     }
     return { enabled, set, runJob, busy: () => running };
   })();
