@@ -11,6 +11,10 @@ https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 
 ## 수정 내역
 
+### 2.3.8
+- ChatGPT 자동 정리를 정식 기능으로: 설정 → AI 연결 → AI 서비스에서 **ChatGPT 웹 자동 (API 없이)**를 고르면 됩니다(자료 관리 → 점검의 실험 스위치는 없앰).
+- ChatGPT 추론 수준을 최저 · 중간 · 최대 중에서 고를 수 있습니다(기본 최저).
+
 ### 2.3.7
 - ChatGPT 자동 정리: 보내기 전에 ChatGPT 추론 수준을 가장 낮게(Instant) 맞춥니다.
 - ChatGPT 자동 정리 전용 정리 주기(기본 기억 10턴 · 인물 5턴). 켜져 있을 때 설정의 자동 정리 칸에서 바꾸면 이 주기만 바뀌고, API 주기는 그대로 남습니다. API 기본 주기는 기억 4턴 · 인물 2턴.
