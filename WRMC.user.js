@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.2.6
+// @version      2.2.7
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -17204,8 +17204,8 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
   // 주 주입보다 항상 나중에, 서버 본문을 직접 읽고 확인한 뒤 씁니다. 실패하면 주 주입은 그대로 두고 다음 확인 때 다시 시도합니다.
   const overflowPools=new Map();
   const OVERFLOW_NOTE="※ 보조 참고: 아래는 더 최근 AI 답변 끝의 주 참고 주석에 다 담지 못한 추가 기억이다. 두 주석은 함께 하나의 참고 자료다. 겹치거나 어긋나면 최근 쪽 주석과 이후 RP에서 확정된 내용이 우선한다.\n\n";
-  // 2.2.3: 서브(보조 주입)는 기본 꺼짐. 크랙이 끝까지 읽는 것이 확인된 메인 5만 자만 쓴다. 다시 켜려면 localStorage 'wish-overflow-carrier-on'='1'.
-  function overflowCarrierEnabled(){try{return localStorage.getItem('wish-overflow-carrier-on')==='1'||subCanaryOn();}catch(_){return false;}}
+  // 2.2.7: 서브(보조 주입) 기본 켜짐 — 2026-10-29 암호 테스트로 크랙 AI가 메인 5만 자 + 서브(그 전 답변) 4만 자를 앞·중간·끝까지 모두 읽는 것을 확인했다. 끄려면 localStorage 'wish-overflow-carrier-off'='1'.
+  function overflowCarrierEnabled(){try{return localStorage.getItem('wish-overflow-carrier-off')!=='1'||subCanaryOn();}catch(_){return true;}}
   // 2.2.6 서브 칸 읽기 테스트: 켜면 서브 칸 맨 앞에 암호 C1~C5가 든 더미 약 4만 자를 넣는다(실제 기억은 건드리지 않음).
   function subCanaryOn(){try{return localStorage.getItem('wish-sub-canary')==='1';}catch(_){return false;}}
   const SUB_CANARY_CODES=['청록연-5307','호박단추-8162','은색사다리-4495','감빛모래-2718','쪽빛우표-6039'];
@@ -21492,7 +21492,7 @@ function createWishUI(AD) {
     const seg=`<span class="w-seg" role="radiogroup" aria-label="보기">${[['all','합계'],['main','메인'],['sub','서브']].map(([k,l])=>`<button type="button" role="radio" aria-checked="${view===k}" data-act="usageTab" data-arg="${k}">${l}</button>`).join('')}</span>`;
     const allOpen=!!(S.macMore||{}).allItems,inN=(I.items||[]).filter(i=>itemPlace(i)!=='out').length,outN=(I.items||[]).length-inN;
     const allRow=I.armed&&(I.items||[]).length?`<button type="button" class="w-row w-rowbtn" data-act="macMore" data-arg="allItems" aria-expanded="${allOpen}">${W_RM('항목 전부 보기','들어감 '+fmt(inN)+'개 · 빠짐 '+fmt(outN)+'개 · 빠진 이유별로 거르기')}<span class="w-chev${allOpen?' open':''}" aria-hidden="true">›</span></button>${allOpen?`<div class="w-row w-block w-items" data-key="home-injection">${injRows()}</div>`:''}`:'';
-    const usage=`<div class="w-sec">무엇이 들어갔나 ${help((subOn?'[메인 · 서브]\n기억은 AI 답변 두 군데에 숨겨서 보내요.\n메인: 직전 AI 답변 · 최대 5만 자\n서브: 그 전 AI 답변 · 최대 5만 자\n합계는 둘을 더한 것(최대 10만 자)이에요.':'[자리]\n기억은 직전 AI 답변 끝에 숨겨서 보내요 · 최대 5만 자.\n크랙 AI가 이 5만 자를 처음부터 끝까지 읽는 것을 확인했어요.')+'\n\n[매 턴 다시 고름]\n꼭 필요한 것(지금 상황 · 호칭 · 아는 것 · 떡밥)은 항상 들어가요. 나머지는 지금 장면과 관련 있는 순서로 채우고, 자리가 모자라면 빠져요. 다음 턴엔 지난번 것을 지우고 다시 골라요.\n\n[막대]\n색 칸에 마우스를 올리면 이름과 양이 나와요. 아래 줄에 올리면 막대에서 그 분류가 밝아져요. 빗금은 기억이 아닌 부분이에요.\n\n[스위치]\n끄면 그 분류를 AI에게 보내지 않아요. 저장된 기억은 그대로예요.')}<span class="w-r">${subOn?seg:''}</span></div>
+    const usage=`<div class="w-sec">무엇이 들어갔나 ${help((subOn?'[메인 · 서브]\n기억은 AI 답변 두 군데에 숨겨서 보내요.\n메인: 직전 AI 답변 · 최대 5만 자\n서브: 그 전 AI 답변 · 최대 5만 자\n합계는 둘을 더한 것(최대 10만 자)이에요.\n크랙 AI가 메인과 서브를 앞부터 끝까지 다 읽는 것을 확인했어요(2026-10-29 암호 테스트).':'[자리]\n기억은 직전 AI 답변 끝에 숨겨서 보내요 · 최대 5만 자.')+'\n\n[매 턴 다시 고름]\n꼭 필요한 것(지금 상황 · 호칭 · 아는 것 · 떡밥)은 항상 들어가요. 나머지는 지금 장면과 관련 있는 순서로 채우고, 자리가 모자라면 빠져요. 다음 턴엔 지난번 것을 지우고 다시 골라요.\n\n[막대]\n색 칸에 마우스를 올리면 이름과 양이 나와요. 아래 줄에 올리면 막대에서 그 분류가 밝아져요. 빗금은 기억이 아닌 부분이에요.\n\n[스위치]\n끄면 그 분류를 AI에게 보내지 않아요. 저장된 기억은 그대로예요.')}<span class="w-r">${subOn?seg:''}</span></div>
       <div class="w-grp w-usage" data-key="home-usage"><div class="w-row w-block"><div class="w-big"><b data-count="${totV}">${fmt(totV)}</b><span>/ ${fmt(capV)}자</span></div>${bar}<div class="w-sub w-wrap">${capLine}</div></div>${catRows}${overRow}${allRow}${calc}</div>`;
     return `${alerts.length?`<div class="w-alerts">${alerts.join('')}</div>`:''}${manual}${status}${usage}`;
   }
@@ -21503,7 +21503,7 @@ function createWishUI(AD) {
       {id:'arm',title:'기억 보내기 켜기',short:'이게 켜져 있어야 AI가 기억해요',body:'<b>AI에게 기억 보내기</b> 스위치를 눌러 켜 보세요. 파랗게 바뀌면 다음 답부터 AI가 기억을 읽어요.',target:'[data-key="home-status"] .w-sw',event:'arm'},
       {id:'state',title:'잘 되는지 보기',short:'초록 점이면 끝이에요',body:'<b>초록 점 · 잘 들어가고 있어요</b>면 끝이에요. 주황 점은 확인하는 중, 빨간 점이면 맨 위 알림의 <b>다시 확인</b>을 눌러요.',target:'[data-key="home-status"] .w-state'},
       {id:'ai',title:'정리해 줄 AI 연결',short:'위쪽 열쇠를 눌러요',body:'위쪽 <b>열쇠</b>를 눌러 쓰는 AI(예: DeepSeek)를 고르고 API 키를 붙여 넣은 뒤 <b>연결 테스트 → 저장</b>. 키가 없으면 홈 알림의 <b>복붙으로 쓰기</b>도 돼요.',target:'.w-tb [data-act="api"]',event:'api'},
-      {id:'usage',title:'무엇이 얼마나 들어갔나',short:'막대에 올려 보기 · 줄 눌러 펼치기',body:'큰 숫자가 지금 AI에게 보내는 글자 수예요(최대 5만 자). 막대 색 칸에 마우스를 올리면 이름과 양이 나와요. 아래 줄을 누르면 그 분류에 들어간 항목이 펼쳐져요.',target:'[data-key="home-usage"] .w-block'},
+      {id:'usage',title:'무엇이 얼마나 들어갔나',short:'합계 · 메인 · 서브 · 막대에 올려 보기',body:'큰 숫자가 지금 AI에게 보내는 글자 수예요(최대 10만 자). 제목 옆 <b>합계 · 메인 · 서브</b>로 바꿔 보고, 막대 색 칸에 마우스를 올리면 이름과 양이 나와요. 아래 줄을 누르면 그 분류에 들어간 항목이 펼쳐져요.',target:'[data-key="home-usage"] .w-block'},
       {id:'cat',title:'필요 없는 분류 끄기',short:'끄면 그 분류는 안 보내요',body:'분류 옆 스위치를 눌러 보세요. 저장된 기억은 지워지지 않아서 다시 켜면 돌아와요.',target:'[data-key="home-usage"] [data-act="flipSw"]',event:'flipSw'},
       {id:'run',title:'지금 정리',short:'기다리지 않고 바로 정리해요',body:'자동 정리는 정한 턴마다 알아서 돌아요. 바로 하고 싶으면 <b>지금 정리</b>, 위쪽 <b>⟳</b>에서는 기억만 · 인물만도 골라요.',target:'[data-key="home-status"] [data-act="unifiedAll"]'}]},
     memory:{title:'기억 안내',name:'기억',steps:[
