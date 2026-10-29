@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.19
+// @version      2.3.20
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -703,7 +703,7 @@
 
   function removeMessageInjectionMagnifiers(keepMessageId = '') {
     const keep = String(keepMessageId || '');
-    document.querySelectorAll('.wish-rp-message-injection-look').forEach(button => {
+    document.querySelectorAll('.wish-rp-message-injection-look:not([data-wish-sub])').forEach(button => {
       if (!keep || String(button.dataset.wishRpMessageId || '') !== keep) button.remove();
     });
     cleanupWishFallbackFooters();
@@ -779,7 +779,28 @@
     return button;
   }
 
-  function refreshMessageInjectionMagnifier(){const __t=performance.now();try{return refreshMessageInjectionMagnifier__perf.apply(this,arguments);}finally{__wpfAdd('refreshMessageInjectionMagnifier',performance.now()-__t);}}
+  function refreshMessageInjectionMagnifier(){const __t=performance.now();try{return refreshMessageInjectionMagnifier__perf.apply(this,arguments);}finally{try{refreshSubInjectionMagnifier();}catch(e){console.warn('[Wish] 서브 주입 버튼 보류',e);}__wpfAdd('refreshMessageInjectionMagnifier',performance.now()-__t);}}
+  // 2.3.20 서브(넘침) 주입이 들어간 답변에도 [Wish 서브] 버튼: 서버에서 그 답변을 다시 읽어 서브 주입을 보여 준다.
+  function refreshSubInjectionMagnifier(){
+    const room=state.currentRoom,oid=String(room?.pending?.overflow?.messageId||'');
+    document.querySelectorAll('.wish-rp-message-injection-look[data-wish-sub]').forEach(b=>{if(!oid||b.dataset.wishRpMessageId!==oid)b.remove();});
+    if(!room||!oid)return;
+    const container=exactMessageContainer(oid);if(!container?.isConnected)return;
+    const target=getMessageInjectionActionTarget(container);if(!target?.slot?.isConnected)return;
+    let button=document.querySelector(`.wish-rp-message-injection-look[data-wish-sub][data-wish-rp-message-id="${CSS.escape(oid)}"]`);
+    if(!button){
+      button=document.createElement('button');button.type='button';button.className='wish-rp-message-injection-look';button.dataset.wishSub='1';button.dataset.wishRpMessageId=oid;
+      button.innerHTML=wishMagnifierSvg()+'<span>Wish 서브</span>';button.title='이 메시지에 들어간 Wish 서브 주입 보기';button.setAttribute('aria-label',button.title);
+      button.addEventListener('click',async e=>{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();if(button.disabled)return;button.disabled=true;
+        try{const live=state.currentRoom;if(String(live?.pending?.overflow?.messageId||'')!==oid){notify('이 메시지는 지금 서브 주입 대상이 아닙니다.','warn',3200);return;}
+          const cur=await fetchMessage(apiChatIdOf(live),oid);if(!cur)throw new Error('이 AI 메시지를 서버에서 다시 읽지 못했습니다.');
+          const block=messageContextBlock(messageTextOf(cur));if(!block){notify('이 메시지에는 지금 Wish 서브 주입이 없습니다.','warn',3600);return;}
+          WUI.openSheet('viewer',{text:contextBlockForMessageViewer(block),desc:'서버에서 직접 읽은 Wish 서브 주입 · '+shortId(oid)});}
+        catch(error){notify('서브 주입 확인 실패: '+error.message,'error',5500,{error});}
+        finally{if(button.isConnected)button.disabled=false;}});
+    }
+    if(button.parentElement!==target.slot)target.slot.appendChild(button);
+  }
 
   function refreshMessageInjectionMagnifier__perf() {
     ensureMessageInjectionInspectorStyles();
@@ -793,8 +814,8 @@
     const target = getMessageInjectionActionTarget(container);
     if (!target?.slot?.isConnected) { removeMessageInjectionMagnifiers(); return; }
 
-    let button = document.querySelector(`.wish-rp-message-injection-look[data-wish-rp-message-id="${CSS.escape(messageId)}"]`);
-    document.querySelectorAll('.wish-rp-message-injection-look').forEach(other=>{if(other!==button)other.remove();});
+    let button = document.querySelector(`.wish-rp-message-injection-look:not([data-wish-sub])[data-wish-rp-message-id="${CSS.escape(messageId)}"]`);
+    document.querySelectorAll('.wish-rp-message-injection-look:not([data-wish-sub])').forEach(other=>{if(other!==button)other.remove();});
     if (!button) button = makeMessageInjectionMagnifierButton(room, messageId);
     if (button.parentElement !== target.slot) target.slot.appendChild(button);
 
