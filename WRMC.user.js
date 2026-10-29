@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.0
+// @version      2.3.1
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -50,12 +50,13 @@
     const reply = payload => { try { GM_setValue('wish-gpt-result', { id, ...payload, at: Date.now() }); } catch (e) { console.error('[Wish GPT]', e); } };
     const findComposer = () => ['#prompt-textarea', 'textarea[name="prompt-textarea"]', 'div[contenteditable="true"][data-lexical-editor="true"]', 'main form div[contenteditable="true"]']
       .map(q => [...document.querySelectorAll(q)].find(vis)).find(Boolean) || null;
-    const findSend = () => ['#composer-submit-button', 'button[data-testid="send-button"]', 'button[data-testid*="send-button"]', 'button[aria-label="Send prompt"]', 'button[aria-label="Send message"]']
+    const findSend = () => ['#composer-submit-button', 'button[data-testid="send-button"]', 'button[data-testid*="send-button"]', 'form button[aria-label="보내기"]', 'form button[aria-label="Send"]', 'button[aria-label="Send prompt"]', 'button[aria-label="Send message"]']
       .map(q => [...document.querySelectorAll(q)].find(vis)).find(Boolean) || null;
     const busy = () => ['button[data-testid="stop-button"]', 'button[data-testid*="stop"]', 'button[aria-label*="Stop"]', 'button[aria-label*="중지"]']
       .some(q => [...document.querySelectorAll(q)].some(vis));
     const waitFor = async (fn, ms, step = 400) => { const t = Date.now(); while (Date.now() - t < ms) { const v = fn(); if (v) return v; await sleep(step); } return null; };
-    const assistants = () => [...document.querySelectorAll('[data-message-author-role="assistant"]')];
+    // 2026-10 ChatGPT 화면: data-message-author-role이 없고 assistant-message 표시만 있다. 둘 다 찾는다.
+    const assistants = () => { const a = [...document.querySelectorAll('[data-message-author-role="assistant"]')]; return a.length ? a : [...document.querySelectorAll('[data-content-search-unit-key$=":assistant"], [data-markdown-text-style="assistant-message"]')].filter((e, i, all) => !all.some(o => o !== e && o.contains(e))); };
     const run = async () => {
       const job = GM_getValue('wish-gpt-job', null);
       if (!job || job.id !== id) return;
