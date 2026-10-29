@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.2.4
+// @version      2.2.5
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -59,7 +59,8 @@
   // Storage IDs, ELR contract, strict AI commit validation and rollback formats are preserved.
  let WUI=null;
 
-  const SCRIPT_VERSION = '2.1.0';
+  // 2.2.5: 화면에 보이는 버전은 설치된 스크립트(@version)를 그대로 읽는다. 예전엔 2.1.0에 고정돼 있었다.
+  const SCRIPT_VERSION = (()=>{try{const v=typeof GM_info==='object'&&GM_info&&GM_info.script&&GM_info.script.version;if(v)return String(v);}catch(_){}return '2.2.5';})();
   const EDITION = 'core';
   const RUNTIME_HOST = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   // Managers without synchronous GM storage (iOS Userscripts, Greasemonkey 4) cannot keep settings; say so instead of a raw ReferenceError.
