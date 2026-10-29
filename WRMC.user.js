@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.6
+// @version      2.3.7
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -65,6 +65,17 @@
       const composer = await waitFor(findComposer, 60000);
       if (!composer) throw new Error('ChatGPT 입력창을 찾지 못했어요. ChatGPT에 로그인돼 있는지 확인해 주세요.');
       await sleep(800);
+      // 2.3.7 추론 수준을 가장 낮게(Instant): 모델 메뉴의 추론 막대를 맨 왼쪽으로. 못 찾으면 그대로 진행한다.
+      try {
+        const pill = [...document.querySelectorAll('form button[aria-haspopup="menu"]')].find(b => vis(b) && /모델|model/i.test(b.getAttribute('aria-label') || ''));
+        if (pill) {
+          pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })); pill.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); pill.click();
+          const slider = await waitFor(() => document.querySelector('[role=menu] [role=slider]'), 3000, 150);
+          if (slider && slider.getAttribute('aria-valuenow') !== slider.getAttribute('aria-valuemin')) { slider.focus(); slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', code: 'Home', bubbles: true })); await sleep(500); }
+          const menu = document.querySelector('[role=menu]'); if (menu) menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+          await sleep(400);
+        }
+      } catch (e) { console.warn('[Wish GPT] 추론 수준 설정 건너뜀', e); }
       const text = String(job.text || '');
       composer.focus();
       if (text.length > 18000) {
@@ -1617,7 +1628,7 @@
       maxMessages,
       temperature,
       maxOutputTokens,
-      unifiedAutomation: normalizeUnifiedAutomation(src.unifiedAutomation)||{enabled:true,memoryEnabled:true,observeEnabled:true,memoryEvery:10,observeEvery:5},
+      unifiedAutomation: normalizeUnifiedAutomation(src.unifiedAutomation)||{enabled:true,memoryEnabled:true,observeEnabled:true,memoryEvery:4,observeEvery:2},
       apiEconomy: {delta:src.apiEconomy?.delta===true,index:src.apiEconomy?.index===true},
       recallSelection: {semantic:src.recallSelection?.semantic===true,selector:src.recallSelection?.selector===true},
       rpMemo: {staleThreads:src.rpMemo?.staleThreads===true,awayPeople:src.rpMemo?.awayPeople===true},
@@ -3437,6 +3448,9 @@ const WLOG=(()=>{
   // 2.3.0 ChatGPT 자동 정리(실험): [함께 정리]의 요청문을 ChatGPT 임시 채팅 탭으로 넘기고, 답을 받아 [답 붙여넣기]와 같은 길로 적용한다.
   const GptBridge = (() => {
     const enabled = () => { try { return localStorage.getItem('wish-gpt-auto') === '1'; } catch (_) { return false; } };
+    // 2.3.7 ChatGPT 자동 정리 전용 주기(기본 기억 10턴 · 인물 5턴). API 연결의 주기와 따로 저장한다.
+    const every = () => { let v = {}; try { v = JSON.parse(localStorage.getItem('wish-gpt-every') || '{}') || {}; } catch (_) {} const ok = n => Number.isInteger(n) && n >= 2 && n <= 100; return { memoryEvery: ok(v.memoryEvery) ? v.memoryEvery : 10, observeEvery: ok(v.observeEvery) ? v.observeEvery : 5 }; };
+    const setEvery = (m, o) => { try { localStorage.setItem('wish-gpt-every', JSON.stringify({ memoryEvery: m, observeEvery: o })); } catch (_) {} };
     function set(on) { try { if (on) localStorage.setItem('wish-gpt-auto', '1'); else localStorage.removeItem('wish-gpt-auto'); } catch (_) {} }
     let running = false, cancelCurrent = null, runSeq = 0;
     function ask(text, code) {
@@ -3489,7 +3503,7 @@ const WLOG=(()=>{
         notify('ChatGPT 자동 정리 실패: ' + String(e.message || e), 'error', 9000);
       } finally { if (mine === runSeq) { running = false; cancelCurrent = null; } renderModalIfIdle(); }
     }
-    return { enabled, set, runJob, busy: () => running };
+    return { enabled, set, runJob, every, setEvery, busy: () => running };
   })();
   async function exportManualJob(room, x) {
     const code = 'WJ-' + String(x.stamp).slice(0, 6).toUpperCase();
@@ -6856,7 +6870,8 @@ function wishApplyReferencesDelta(db,data,skip=null){if(!data||!Array.isArray(da
     // only a copy of the shared settings, made when the room was set up (initialize, rebaseAfterImport): not a room choice, so it never
     // keeps 기억 묶음 off after Settings turns it on.
     const legacyOff=typeof room?.automationEnabled!=='boolean'&&room?.autoMemory?.enabled===false;
-    return {...shared,enabled,...(legacyOff?{memoryEnabled:false}:{})};
+    const gpt=isManualAiProvider()&&GptBridge.enabled()?GptBridge.every():{};
+    return {...shared,...gpt,enabled,...(legacyOff?{memoryEnabled:false}:{})};
   }
   function turnText(m){
     const raw=messageTextOf(m),cacheable=m!==null&&typeof m==='object';let c=cacheable?automationTurnTextCache.get(m):null;
@@ -8409,6 +8424,7 @@ const p=plan(list,{...u,settings:settings(room)},force==='retry'||retrying?(u.fa
     if(ExternalReplay.pending(apiChatIdOf(room))||aiUpdateRunning||memoryImportRunning||localRestoreInProgress())throw Error('정리 작업이 끝난 뒤 주기를 저장해 주세요.');
     const shared={enabled:loadAiSettings().unifiedAutomation.enabled,memoryEnabled:!!values.memoryEnabled,observeEnabled:!!values.observeEnabled,memoryEvery:memEvery,observeEvery:Number(values.observeEvery),...Object.fromEntries(AREAS.filter(r=>values[r[2]]===false).map(r=>[r[2],false]))};
     // Resolve shared settings at execution time; do not rewrite other rooms or their cursors.
+    if(isManualAiProvider()&&GptBridge.enabled()){const old=loadAiSettings().unifiedAutomation;GptBridge.setEvery(shared.memoryEvery,shared.observeEvery);shared.memoryEvery=old.memoryEvery;shared.observeEvery=old.observeEvery;}
     saveAiSettings({...loadAiSettings(),unifiedAutomation:shared});
     checked.delete(room);schedule(room);renderModalIfIdle();
     notify('자동 정리 설정을 모든 방에 적용했습니다.','success');
@@ -22284,7 +22300,7 @@ function mRelationships() {
       W_SECH('정리해 줄 AI '+help('기억·인물 정리, 날짜로그, 선택된 주입 후보 재검토에 같은 연결을 사용합니다. 에리 임베딩 의미검색은 Gemini API Key가 준비된 경우 사용합니다.'))+
       `<div class="w-grp" data-key="ai-settings">${W_R('연결 · 모델',esc([V.ai.providerLabel,V.ai.model].filter(Boolean).join(' · '))||'아직 연결 안 됨',btn('연결 · 모델','api',{cls:'mini'}))}${W_R('AI에게 주는 지침','기억 · 인물 · 후보 고르기 지침을 고쳐요 · 모든 방 공통 · 기본값으로 되돌리기 가능',btn('지침','promptGuides',{arg:'apiCommon',cls:'mini',icon:'doc'}),'','api-guides')}${W_R('AI 사용량 가계부','날짜별 호출 횟수와 예상 비용(USD) · 추가 AI 호출 없음',btn('가계부','usageLedger',{cls:'mini',icon:'wallet'}),'','usage-settings')}</div>`+
       W_SECH('자동 정리 '+help(autoHelp),savedTag('unified'))+
-      `<div class="w-grp" data-key="automation-settings"><div class="wp-every">${stepRow('기억 정리','지금 상황 · 사건 · 자료집 · 떡밥','unified.memoryEvery',u.memoryEvery)}${stepRow('인물 정리','관계 · 호칭 · 아는 것','unified.observeEvery',u.observeEvery)}</div>${areaRow('memory','기억 묶음','켜면 아래 체크한 것만 정리해요','unified.memoryEnabled',u.memoryEnabled)}${areaRow('observe','인물 묶음','켜면 아래 체크한 것만 정리해요','unified.observeEnabled',u.observeEnabled)}</div>${W_FOOT('모든 방 공통 · 바꾸면 바로 적용 · 일시정지는 방마다 따로'+(V.ai.manual?' · '+(GptBridge.enabled()?'ChatGPT 자동 정리가 켜져 있어 이 주기마다 ChatGPT로 보내요':manualOff):''))}`+
+      `<div class="w-grp" data-key="automation-settings"><div class="wp-every">${stepRow('기억 정리','지금 상황 · 사건 · 자료집 · 떡밥','unified.memoryEvery',u.memoryEvery)}${stepRow('인물 정리','관계 · 호칭 · 아는 것','unified.observeEvery',u.observeEvery)}</div>${areaRow('memory','기억 묶음','켜면 아래 체크한 것만 정리해요','unified.memoryEnabled',u.memoryEnabled)}${areaRow('observe','인물 묶음','켜면 아래 체크한 것만 정리해요','unified.observeEnabled',u.observeEnabled)}</div>${W_FOOT('모든 방 공통 · 바꾸면 바로 적용 · 일시정지는 방마다 따로'+(V.ai.manual?' · '+(GptBridge.enabled()?'ChatGPT 자동 정리 전용 주기예요(기본 기억 10턴 · 인물 5턴) · API 연결로 돌아가면 API 주기로 바뀌어요':manualOff):''))}`+
       W_SECH('AI 요금 아끼기 '+help(ecoHelp),savedTag('apiEconomy'))+
       `<div class="w-grp" data-key="economy-settings">${apiOnly(W_TG('현재상태 바뀐 부분만 고치기','apiEconomy.delta',!V.ai.manual&&V.apiEconomy?.delta,'','변경된 원문 구간만 수정하고 나머지 문구는 보존합니다. 수정·추가·종료에 신규 RP 근거와 요청 토큰을 검증합니다. 애매한 편집은 원본을 유지하고 오류를 표시합니다. 날짜별 사건·자료·인지는 기존 증분 방식을 유지합니다.'))}${apiOnly(W_TG('색인으로 후보 고르기','apiEconomy.index',!V.ai.manual&&V.apiEconomy?.index,'','전체 후보가 50,000자를 초과할 때만 기존 선별 설정에 따라 사용합니다. 첫 선별에서 원문과 점수를 읽고 짧은 발췌 색인을 함께 준비하므로 첫 호출은 더 커질 수 있습니다. 다음 호출부터 같은 원문의 색인을 사용하며 실제 주입은 원문입니다. 자료 변경·색인 부적합·캐시 소실 때는 원문으로 돌아갑니다. 핵심 단서 누락 가능성은 실전 비교가 필요합니다.'))}${W_R('켜기 전 백업','아끼기를 켜기 전 기억 · 인물 · 자료를 파일로 받아요',btn('절약 적용 전 백업 받기','economyBackup',{cls:'mini',dis:!!V.ai.manual}))}</div>${W_FOOT(esc([V.ai.manual?manualOff:'모든 방 공통',V.apiEconomy?.status||''].filter(Boolean).join(' · ')))}`+
       W_SECH('5만 자가 넘칠 때 고르는 법 '+help(recallHelp),savedTag('recall'))+
