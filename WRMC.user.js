@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.9
+// @version      2.3.10
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13490,7 +13490,8 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
     // 쉬는 시간에 몇 개씩: 크롬 4개 · DeepL 20개(5만 자 안) · Gemini 3개.
     async function tick(room){
       const c=config();if(!c.on||busy||!pending.size||!room)return;
-      if(document.hidden||backgroundWorkPending(apiChatIdOf(room)))return;
+      // 2.3.10 크랙 탭이 뒤에 있어도(폰으로 RP 중) 번역을 이어 간다. 생성·정리 중에만 쉰다.
+      if(backgroundWorkPending(apiChatIdOf(room)))return;
       busy=true;
       try{
         await loadNames(room);
