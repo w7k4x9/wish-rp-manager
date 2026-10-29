@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.11
+// @version      2.3.12
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13403,7 +13403,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   const WishZh=(()=>{
     const CFG_KEY='wish-zh-config',CACHE_KEY='wish-zh-cache-v1',KINDS=new Set(['log','lore','relationship','currentState']),MIN_CHARS=120,MAX_ENTRIES=9000;
     const NOTE='- 일부 기억은 분량을 아끼려고 번체 중국어로 적었다. 인물 이름 · 애칭 · 대사 · 영어는 원문 그대로다. RP 응답은 언제나 한국어로 쓰고, 중국어 표현을 옮겨 쓰지 않는다.\n';
-    let cfg=null,cache=null,saveTimer=0,busy=false,translator=null,names=[],namesAt=0,stats={done:0,failed:0,last:'',error:''};
+    let cfg=null,cache=null,saveTimer=0,resyncTimer=0,busy=false,translator=null,names=[],namesAt=0,stats={done:0,failed:0,last:'',error:''};
     const pending=new Map();
     function config(){if(!cfg){try{cfg={on:false,engine:'chrome',deeplKey:'',...JSON.parse(localStorage.getItem(CFG_KEY)||'{}')};}catch(_){cfg={on:false,engine:'chrome',deeplKey:''};}}return cfg;}
     function setConfig(patch){cfg={...config(),...patch};try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}catch(_){}if(!cfg.on)pending.clear();}
@@ -13502,6 +13502,8 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
         const c2=load(),now=Date.now();
         prepared.forEach((p,i)=>{pending.delete(p.k);const zh=restore(results[i],p.map),bad=check(p.src,zh);if(bad){c2.set(p.k,{f:1,t:now,why:bad});stats.failed++;}else{c2.set(p.k,{z:zh,t:now,u:now,e:c.engine});stats.done++;}});
         stats.last=new Date().toLocaleTimeString('ko-KR');stats.error='';save();
+        // 2.3.12 번역이 생기면 이미 박힌 주입 글도 다시 써서 바로 중국어로 바꾼다(다음 전송을 기다리지 않음). 번역이 잠잠해진 뒤 한 번만.
+        if(prepared.length){clearTimeout(resyncTimer);resyncTimer=setTimeout(()=>{try{const r=state.currentRoom;if(r===room&&r.pending&&!backgroundWorkPending(apiChatIdOf(r)))void syncPendingCarrier(r,'zh-translation').catch(e=>console.warn('[Wish] 번역 반영 보류',e));}catch(_){}},15000);}
       }catch(e){stats.error=String(e?.message||e).slice(0,200);if(/키|key|401|403|지원|없어요|안 받았/.test(stats.error))pending.clear();}
       finally{busy=false;}
     }
