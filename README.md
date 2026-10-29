@@ -11,6 +11,9 @@ https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 
 ## 수정 내역
 
+### 2.3.19
+- 중국어로 보내기: 번역 방식을 버튼 줄 대신 드롭다운으로 고릅니다. **[지금 번역]** 버튼: 누르면 바로 번역을 시작하고, 무엇을 했는지(또는 왜 못 하는지) 알려 줍니다. 그대로 두어도 쉬는 시간에 자동으로 번역합니다.
+
 ### 2.3.18
 - 중국어로 보내기: 크롬 내장 번역기를 빼고 **ChatGPT 웹** 번역을 넣었습니다(ChatGPT · DeepSeek · DeepL · Gemini 중 선택). ChatGPT 웹은 번역 안 된 기억을 모아 임시 채팅 한 번으로 번역하고, ChatGPT 정리가 진행 중이면 끝난 뒤에 합니다. 예전 '크롬 내장' 설정은 DeepSeek 키가 있으면 DeepSeek, 없으면 ChatGPT 웹으로 바뀝니다.
 
