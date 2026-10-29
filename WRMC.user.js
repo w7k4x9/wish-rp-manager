@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.3
+// @version      2.3.4
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -3459,13 +3459,29 @@ const WLOG=(()=>{
       running = true;
       notify('ChatGPT 임시 채팅으로 요청문을 보냈어요 (' + text.length.toLocaleString() + '자) · 답이 오면 자동으로 적용해요', 'info', 6000);
       try {
-        const answer = await ask(text, code);
-        const job = loadManualJob(room);
-        if (!job || job.code !== code) throw new Error('기다리던 작업이 바뀌어 이 답은 적용하지 않았습니다.');
-        const ok = await applyManualAnswer(room, answer);
-        if (ok === true) notify('ChatGPT 답을 기억에 적용했어요', 'success', 5000);
-        else if (ok && typeof ok === 'object') notify('ChatGPT 답에서 빠지는 글이 있어 확인이 필요해요 · [답 붙여넣기]에서 확인해 주세요', 'warn', 8000);
-        else notify('ChatGPT 답을 적용하지 못했어요 · [답 붙여넣기]에 표시된 이유를 확인해 주세요', 'warn', 8000);
+        // 2.3.4 실패하면 1분 뒤 새 임시 채팅으로 같은 요청문을 다시 보낸다(최대 3번). 폰으로 RP 중이면 실패를 볼 수 없어서.
+        const TRIES = 3;
+        for (let attempt = 1; ; attempt++) {
+          let why = '';
+          try {
+            const answer = await ask(text, code);
+            const job = loadManualJob(room);
+            if (!job || job.code !== code) { notify('기다리던 작업이 바뀌어 ChatGPT 답은 적용하지 않았어요.', 'warn', 6000); return; }
+            const ok = await applyManualAnswer(room, answer);
+            if (ok === true) { notify('ChatGPT 답을 기억에 적용했어요' + (attempt > 1 ? ' (' + attempt + '번째 시도)' : ''), 'success', 5000); return; }
+            if (ok && typeof ok === 'object') { notify('ChatGPT 답에서 빠지는 글이 있어 확인이 필요해요 · [답 붙여넣기]에서 확인해 주세요', 'warn', 8000); return; }
+            why = (loadManualJob(room)?.lastError) || '답을 적용하지 못했어요';
+          } catch (e) { if (e && e.replaced) throw e; why = String(e && e.message || e); }
+          if (mine !== runSeq) return;
+          const job = loadManualJob(room);
+          if (!job || job.code !== code) return;
+          if (attempt >= TRIES) throw new Error(why + ' (' + TRIES + '번 시도)');
+          job.lastError = 'ChatGPT 자동: ' + why + ' · 1분 뒤 다시 보내요 (' + attempt + '/' + TRIES + ')'; job.lastFixable = false; saveManualJob(room, job); renderModalIfIdle();
+          await new Promise(r => setTimeout(r, 60000));
+          if (mine !== runSeq) return;
+          const again = loadManualJob(room); if (!again || again.code !== code) return;
+          again.lastError = ''; saveManualJob(room, again);
+        }
       } catch (e) {
         if (e && e.replaced) return;
         const job = loadManualJob(room);
@@ -8113,7 +8129,11 @@ const p=plan(list,{...u,settings:settings(room)},force==='retry'||retrying?(u.fa
         // A retry whose read passed with nothing left to 정리: the failure has nothing to retry, so clear it as the re-check above does.
         if(!p.memory&&!p.observe){if((force==='retry'||retrying)&&u.lastError){u.lastError='';u.failedKind='';u.retry=null;u.status='대화 재확인 완료';await saveRoom(room);}if(force)notify('새로 정리할 확정 대화가 없습니다. 최신 1턴은 다음 응답 뒤 확정됩니다.','info');return false;}
         // 외부 AI 복붙 방식은 자동 예약으로 복붙 창을 띄우지 않습니다. 차례만 알리고, 사용자가 누른 실행과 이어지는 구간만 진행합니다.
-        if(!scope&&isManualAiProvider()){manualDueNotice(room,p);return false;}
+        if(!scope&&isManualAiProvider()){
+          // 2.3.4 ChatGPT 자동 정리: 차례가 되면 알림 대신 바로 보낸다. 실패해 남은 작업은 새 대화가 쌓였으니 새 요청문으로 바꿔 보낸다.
+          if(GptBridge.enabled()&&state.currentRoom===room&&!GptBridge.busy()){const j=loadManualJob(room);if(!j||j.lastError||Date.now()-(j.at||0)>30*60000){if(j)clearManualJob(room);setTimeout(()=>{try{U3.run(room,'all');}catch(e){console.warn('[Wish] ChatGPT 자동 정리 시작 보류',e);}},800);return false;}}
+          manualDueNotice(room,p);return false;
+        }
         // 기억 묶음이 자료를 갱신하기 전에 방별 canonical 자동팩을 준비한다.
         // 이 과정에서 같은 방의 옛 임의-ID 자동팩도 삭제 없이 한 번 안전 병합된다.
         if(p.memory)await ensureAutoLorePack(room);
@@ -22231,7 +22251,7 @@ function mRelationships() {
       W_SECH('처음부터 다시 정리')+
       `<div class="w-grp${j?' is-focus':''}" data-key="rebuild">${W_R('과거 대화 전체 재구축 '+help(rebuildHelp),'지난 대화를 약 20만 자씩 읽어 상황 · 사건 · 떡밥 · 연표 · 인물 · 자료 · 호칭 · 관계를 다시 만들어요',rebuildBtn)}${prog}${W_STACK('외부 AI로 재구축','API 키 없이 ChatGPT · Gemini 같은 곳에 맡겨서 다시 정리해요',vExternalRebuild(busy,true),'external')}${W_STACK('외부 AI로 2차 재구축','RP 결은 지키고 군더더기만 덜어 같은 자리에 기억을 더 넣어요 · 긴 본문만 보내 가벼워요',btn('지침 + TXT 받기','secondaryExport',{cls:'mini',dis:run})+btn('JSON 가져오기','secondaryImport',{cls:'mini',dis:run})+btn('지침','promptGuides',{arg:'externalSecondary',cls:'mini',icon:'doc'}),'secondary-rebuild',vSecondaryStatus(run))}</div>`+
       W_SECH('점검')+
-      `<div class="w-grp" data-key="gpt-auto">${W_R('ChatGPT 자동 정리 (실험)',GptBridge.enabled()?'켜짐 · AI 연결이 [외부 AI 복붙]일 때 [함께 정리]가 ChatGPT 임시 채팅 탭을 열어 보내고, 답을 받아 자동 적용해요 · ChatGPT에 로그인해 두세요':'외부 AI 복붙 모드에서 요청문을 ChatGPT 웹(임시 채팅)으로 자동으로 보내고 답을 적용해요 · API 없이 · 웹 자동 입력은 ChatGPT 이용약관과 부딪칠 수 있어요',btn(GptBridge.enabled()?'끄기':'켜기','gptAuto',{cls:GptBridge.enabled()?'danger mini':'mini'}))}</div>`+
+      `<div class="w-grp" data-key="gpt-auto">${W_R('ChatGPT 자동 정리 (실험)',GptBridge.enabled()?'켜짐 · AI 연결이 [외부 AI 복붙]일 때 자동 정리 차례가 되면 ChatGPT 임시 채팅 탭을 열어 보내고, 답을 받아 적용해요 · 실패하면 1분 뒤 최대 3번 다시 보내요 · 이 PC에서 크랙 방과 ChatGPT 로그인을 켜 두세요':'외부 AI 복붙 모드에서 요청문을 ChatGPT 웹(임시 채팅)으로 자동으로 보내고 답을 적용해요 · API 없이 · 웹 자동 입력은 ChatGPT 이용약관과 부딪칠 수 있어요',btn(GptBridge.enabled()?'끄기':'켜기','gptAuto',{cls:GptBridge.enabled()?'danger mini':'mini'}))}</div>`+
       `<div class="w-grp" data-key="sub-test">${W_R('서브 칸 읽기 테스트',subCanaryOn()?'켜짐 · 서브 칸에 암호 C1~C5가 든 더미 약 4만 자가 들어가요 · 확인이 끝나면 꼭 끄세요':'켜면 서브 칸(그 전 AI 답변)에 암호 C1~C5가 든 더미 약 4만 자를 넣어요 · 실제 기억은 그대로',btn(subCanaryOn()?'테스트 끄기':'테스트 켜기','subTest',{cls:subCanaryOn()?'danger mini':'mini'}))}</div>`+
       W_SECH('초기화')+
       `<div class="w-grp" data-key="room-reset">${W_R('이 방 데이터 초기화','이 방의 기억 · 인물 · 설정 · 작업 기록을 지워요 · 크랙 대화는 그대로 · 누르면 한 번 더 물어봐요',btn('이 방 데이터 초기화','reset',{cls:'danger mini m3-reset-action',icon:'trash'}))}</div>`;
