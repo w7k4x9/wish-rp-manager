@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.5
+// @version      2.3.6
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -8131,7 +8131,7 @@ const p=plan(list,{...u,settings:settings(room)},force==='retry'||retrying?(u.fa
         // 외부 AI 복붙 방식은 자동 예약으로 복붙 창을 띄우지 않습니다. 차례만 알리고, 사용자가 누른 실행과 이어지는 구간만 진행합니다.
         if(!scope&&isManualAiProvider()){
           // 2.3.4 ChatGPT 자동 정리: 차례가 되면 알림 대신 바로 보낸다. 실패해 남은 작업은 새 대화가 쌓였으니 새 요청문으로 바꿔 보낸다.
-          if(GptBridge.enabled()&&state.currentRoom===room&&!GptBridge.busy()){const j=loadManualJob(room);if(!j||j.lastError||Date.now()-(j.at||0)>30*60000){if(j)clearManualJob(room);setTimeout(()=>{if(state.currentRoom!==room)return;U3.run(room,'all',true).catch(e=>notify('ChatGPT 자동 정리를 시작하지 못했어요: '+String(e&&e.message||e),'warn',8000));},800);return false;}}
+          if(GptBridge.enabled()&&state.currentRoom===room&&!GptBridge.busy()){const j=loadManualJob(room);if(!j||j.lastError||Date.now()-(j.at||0)>30*60000){if(j)clearManualJob(room);setTimeout(()=>{if(state.currentRoom!==room)return;U3.run(room,p.memory&&p.observe?'all':p.memory?'memory':'observe',true).catch(e=>notify('ChatGPT 자동 정리를 시작하지 못했어요: '+String(e&&e.message||e),'warn',8000));},800);return false;}}
           manualDueNotice(room,p);return false;
         }
         // 기억 묶음이 자료를 갱신하기 전에 방별 canonical 자동팩을 준비한다.
@@ -22284,7 +22284,7 @@ function mRelationships() {
       W_SECH('정리해 줄 AI '+help('기억·인물 정리, 날짜로그, 선택된 주입 후보 재검토에 같은 연결을 사용합니다. 에리 임베딩 의미검색은 Gemini API Key가 준비된 경우 사용합니다.'))+
       `<div class="w-grp" data-key="ai-settings">${W_R('연결 · 모델',esc([V.ai.providerLabel,V.ai.model].filter(Boolean).join(' · '))||'아직 연결 안 됨',btn('연결 · 모델','api',{cls:'mini'}))}${W_R('AI에게 주는 지침','기억 · 인물 · 후보 고르기 지침을 고쳐요 · 모든 방 공통 · 기본값으로 되돌리기 가능',btn('지침','promptGuides',{arg:'apiCommon',cls:'mini',icon:'doc'}),'','api-guides')}${W_R('AI 사용량 가계부','날짜별 호출 횟수와 예상 비용(USD) · 추가 AI 호출 없음',btn('가계부','usageLedger',{cls:'mini',icon:'wallet'}),'','usage-settings')}</div>`+
       W_SECH('자동 정리 '+help(autoHelp),savedTag('unified'))+
-      `<div class="w-grp" data-key="automation-settings"><div class="wp-every">${stepRow('기억 정리','지금 상황 · 사건 · 자료집 · 떡밥','unified.memoryEvery',u.memoryEvery)}${stepRow('인물 정리','관계 · 호칭 · 아는 것','unified.observeEvery',u.observeEvery)}</div>${areaRow('memory','기억 묶음','켜면 아래 체크한 것만 정리해요','unified.memoryEnabled',u.memoryEnabled)}${areaRow('observe','인물 묶음','켜면 아래 체크한 것만 정리해요','unified.observeEnabled',u.observeEnabled)}</div>${W_FOOT('모든 방 공통 · 바꾸면 바로 적용 · 일시정지는 방마다 따로'+(V.ai.manual?' · '+(GptBridge.enabled()?'ChatGPT 자동 정리가 켜져 있어 이 주기마다 ChatGPT로 보내요 (기억·인물 중 먼저 차는 쪽 기준, 둘 다 함께 정리)':manualOff):''))}`+
+      `<div class="w-grp" data-key="automation-settings"><div class="wp-every">${stepRow('기억 정리','지금 상황 · 사건 · 자료집 · 떡밥','unified.memoryEvery',u.memoryEvery)}${stepRow('인물 정리','관계 · 호칭 · 아는 것','unified.observeEvery',u.observeEvery)}</div>${areaRow('memory','기억 묶음','켜면 아래 체크한 것만 정리해요','unified.memoryEnabled',u.memoryEnabled)}${areaRow('observe','인물 묶음','켜면 아래 체크한 것만 정리해요','unified.observeEnabled',u.observeEnabled)}</div>${W_FOOT('모든 방 공통 · 바꾸면 바로 적용 · 일시정지는 방마다 따로'+(V.ai.manual?' · '+(GptBridge.enabled()?'ChatGPT 자동 정리가 켜져 있어 이 주기마다 ChatGPT로 보내요':manualOff):''))}`+
       W_SECH('AI 요금 아끼기 '+help(ecoHelp),savedTag('apiEconomy'))+
       `<div class="w-grp" data-key="economy-settings">${apiOnly(W_TG('현재상태 바뀐 부분만 고치기','apiEconomy.delta',!V.ai.manual&&V.apiEconomy?.delta,'','변경된 원문 구간만 수정하고 나머지 문구는 보존합니다. 수정·추가·종료에 신규 RP 근거와 요청 토큰을 검증합니다. 애매한 편집은 원본을 유지하고 오류를 표시합니다. 날짜별 사건·자료·인지는 기존 증분 방식을 유지합니다.'))}${apiOnly(W_TG('색인으로 후보 고르기','apiEconomy.index',!V.ai.manual&&V.apiEconomy?.index,'','전체 후보가 50,000자를 초과할 때만 기존 선별 설정에 따라 사용합니다. 첫 선별에서 원문과 점수를 읽고 짧은 발췌 색인을 함께 준비하므로 첫 호출은 더 커질 수 있습니다. 다음 호출부터 같은 원문의 색인을 사용하며 실제 주입은 원문입니다. 자료 변경·색인 부적합·캐시 소실 때는 원문으로 돌아갑니다. 핵심 단서 누락 가능성은 실전 비교가 필요합니다.'))}${W_R('켜기 전 백업','아끼기를 켜기 전 기억 · 인물 · 자료를 파일로 받아요',btn('절약 적용 전 백업 받기','economyBackup',{cls:'mini',dis:!!V.ai.manual}))}</div>${W_FOOT(esc([V.ai.manual?manualOff:'모든 방 공통',V.apiEconomy?.status||''].filter(Boolean).join(' · ')))}`+
       W_SECH('5만 자가 넘칠 때 고르는 법 '+help(recallHelp),savedTag('recall'))+
