@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.20
+// @version      2.3.21
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -12623,13 +12623,14 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
     // send fit, the UTF-8 refit and the 413/500 retries pick what the refresh in that order would have.
     if(options.standby?.length){items=[...(items||[]),...options.standby];options={...options,standby:null};}
     if(selection.seatHeadOver||options.preferredKeysOver){selection=await chooseAllFitItems(room,items,original,query,{...options,scoresOnly:true});text=build(selection.items);bytes=carrierBytesWith(text,reserveOf(selection));if(bytes<=budget)return selection;}
-    const core=(items||[]).filter(i=>allFitRequired(i)&&injectionCadenceKind(i)!=='threads');let coreText=build(core),coreBytes=carrierBodyBytes(coreText);
+    const spilled=new Set((selection.spill||[]).map(pendingItemIdentity)),kept=i=>!spilled.has(pendingItemIdentity(i));
+    const core=(items||[]).filter(i=>allFitRequired(i)&&injectionCadenceKind(i)!=='threads'&&kept(i));let coreText=build(core),coreBytes=carrierBodyBytes(coreText);
     // Over the byte budget or the character limit (the same rule as assertRequiredRecallBudget), 인지·호칭 are read at their shortest
     // forms (required fit): only what no step can shorten stops the send, and the floor below is that form's length.
     if(coreBytes>budget||coreText.length>(Number(selection.limit)||allFitLimit(room))){coreText=build(requiredFitFloor(room,core));coreBytes=carrierBodyBytes(coreText);}
     if(coreBytes>budget)throw requiredByteError(coreBytes,budget);
     let limit=Math.min(Number(selection.limit)||allFitLimit(room),lenWith(text,selection)),floor=coreText.length;
-    if(options.wholeRequired?.(items||[])){const whole=build((items||[]).filter(allFitRequired)),wholeLen=lenWith(whole,selection);if(wholeLen<=limit&&carrierBytesWith(whole,reserveOf(selection))<=budget)floor=Math.max(floor,wholeLen);}
+    if(options.wholeRequired?.(items||[])){const whole=build((items||[]).filter(i=>allFitRequired(i)&&kept(i))),wholeLen=lenWith(whole,selection);if(wholeLen<=limit&&carrierBytesWith(whole,reserveOf(selection))<=budget)floor=Math.max(floor,wholeLen);}
     for(let round=1;bytes>budget;round++){
       await new Promise(resolve=>setTimeout(resolve,0)); // 2.0.12: 줄이는 회차 사이 입력 처리에 자리를 내줌
       // The 연표 never takes a pick to the floor: before the round that keeps only the 꼭 넣는 칸, a pick holding it is made again without it.
@@ -13148,6 +13149,16 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
       const fitted=plan.at(lo);fitSwap=new Map(required.map((item,n)=>[item,fitted[n]]));required=fitted;
     }
   }catch(error){console.debug('[Wish] required fit skipped',error);fitSwap=null;required=items.filter(allFitRequired);}
+  // 2.3.21 꼭 넣는 칸만으로 메인(5만 자)을 넘으면 멈추지 않고, 덜 급한 꼭 넣는 칸부터 서브로 넘긴다(관계 → 날짜로그 · 자료 → 인지 → 서사 고리 …).
+  // 현재상태는 끝까지 메인에 둔다. 서브가 꺼져 있거나 현재상태만으로도 넘치면 예전처럼 멈춘다.
+  let spill=[];
+  if(size(required)>limit&&!options.totalLength&&overflowCarrierEnabled())try{
+    const order=['relationship','log','lore','cognition','threads','extra','character','speech'],rk=i=>{const n=order.indexOf(injectionCadenceKind(i));return n<0?order.length:n;};
+    const back=new Map();if(fitSwap)for(const [orig,fitted] of fitSwap)back.set(fitted,orig);
+    let kept=[...required];const moved=[];
+    for(const it of [...required].filter(i=>injectionCadenceKind(i)!=='currentState').sort((a,b)=>rk(a)-rk(b))){if(size(kept)<=limit)break;kept=kept.filter(x=>x!==it);moved.push(it);}
+    if(size(kept)<=limit&&moved.length){const origs=moved.map(m=>back.get(m)||m),gone=new Set(origs);required=kept;items=items.filter(i=>!gone.has(i));spill=origs;}
+  }catch(error){console.debug('[Wish] required spill skipped',error);spill=[];}
   if(size(required)>limit)throw Error('현재상태·인지·호칭·켜진 캐릭터/OOC·고정 자료와 AI 원문만으로 '+limit.toLocaleString()+'자를 넘습니다. 고정 항목 또는 이번 세션 포함 선택을 줄여 주세요. 원문과 저장 기억은 삭제하지 않았습니다.');
   // 수동 서버 복구는 같은 AI 장애를 다시 기다리지 않고 결정적인 로컬 순서로 재구성한다.
   const cfg=reviewTotal<=APP.carrierSafeChars?{semantic:false,selector:false}:recallSelectionSettings(room),settings=selectionAiSettings();
@@ -13263,7 +13274,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   // the limit, the lowest-ranked optional items leave one at a time until it fits; required items and latest-date logs stay.
   // K11: the first pass keeps relationship rows; still over the limit, the pass as before (totalLength's pick: that pass only).
   for(const all of options.totalLength?[true]:[false,true])for(let n=rank.ids.length-1;n>=0&&selectedTotal>fitLimit;n--){const item=optional[rank.ids[n]];if(!item||item.autoType==='recent-log'||(!all&&injectionCadenceKind(item)==='relationship')||!selected.includes(item))continue;if(!all)RecallSeat.stats.k11++;selected=selected.filter(i=>i!==item);selectedTotal=exactSize(selected);}
-  return {items:selected,method:rank.method,error:rank.error,total:selectedTotal,fullTotal:whole,omitted:items.length-selected.length,limit,rankedKeys:rank.ids.map(id=>optional[id]).filter(Boolean).map(pendingItemIdentity),...(threadsOut?{threadsOut:true}:{}),...(seatOff?{seatOff:true}:{}),...(seatBranches?{seatBranches}:{}),...(seatHeadOver?{seatHeadOver:true}:{}),...(rankedOver?{rankedKeysOver:rankedOver.map(id=>optional[id]).filter(Boolean).map(pendingItemIdentity)}:options.preferredKeys&&options.preferredKeysOver?{rankedKeysOver:options.preferredKeysOver}:{}),...(reviewTotal!==whole?{reviewTotal}:{}),...(reserve?{reserved:true}:{})};
+  return {items:selected,method:rank.method,error:rank.error,total:selectedTotal,fullTotal:whole,omitted:items.length-selected.length+spill.length,limit,...(spill.length?{spill}:{}),rankedKeys:rank.ids.map(id=>optional[id]).filter(Boolean).map(pendingItemIdentity),...(threadsOut?{threadsOut:true}:{}),...(seatOff?{seatOff:true}:{}),...(seatBranches?{seatBranches}:{}),...(seatHeadOver?{seatHeadOver:true}:{}),...(rankedOver?{rankedKeysOver:rankedOver.map(id=>optional[id]).filter(Boolean).map(pendingItemIdentity)}:options.preferredKeys&&options.preferredKeysOver?{rankedKeysOver:options.preferredKeysOver}:{}),...(reviewTotal!==whole?{reviewTotal}:{}),...(reserve?{reserved:true}:{})};
 
     } finally {finish();}
   }
@@ -16153,6 +16164,8 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
     // still step down, so the anchors step down first and a turn their step-down lets through is not fitted.
     let required=all,text=build(all);
     if(fit&&(text.length>limit||carrierBodyBytes(text)>APP.carrierByteBudget)){required=requiredFitFloor(room,all);text=build(required);}
+    // 2.3.21 서브가 켜져 있으면 넘치는 꼭 넣는 칸은 서브로 간다(chooseAllFitItems). 메인에 꼭 남는 현재상태만 한도를 지키면 된다.
+    if((text.length>limit||carrierBodyBytes(text)>APP.carrierByteBudget)&&overflowCarrierEnabled()){const st=build(all.filter(i=>injectionCadenceKind(i)==='currentState'));if(st.length<=limit&&carrierBodyBytes(st)<=APP.carrierByteBudget)return st.length;}
     const total=text.length;
     if(total>limit)throw Error('현재상태·인지·호칭·켜진 캐릭터/OOC·고정 자료와 AI 원문만으로 '+limit.toLocaleString()+'자를 넘습니다. 고정 항목 또는 이번 세션 포함 선택을 줄여 주세요. 원문과 저장 기억은 삭제하지 않았습니다.');
     const bytes=carrierBodyBytes(text);if(bytes>APP.carrierByteBudget)throw requiredByteError(bytes,APP.carrierByteBudget);
@@ -17449,6 +17462,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       const key=String(room?.chatId||'');if(!key)return;
       if(!selection||selection.method==='all-fit'){overflowPools.delete(key);return;}
       const chosen=new Set(selection.items||[]),byKey=new Map((normalPlan||[]).map(i=>[pendingItemIdentity(i),i])),out=[];let chars=0;
+      for(const item of selection.spill||[]){const len=String(item?.content||'').length;if(!len)continue;out.push({...item,totalTurns:0,usedTurns:0,spilled:true});chars+=len;}
       for(const k of selection.rankedKeys||[]){
         const item=byKey.get(k);if(!item||chosen.has(item)||allFitRequired(item))continue;
         const whole=typeof RecallSeat!=='undefined'&&RecallSeat.whole?RecallSeat.whole(item):item;
@@ -17532,8 +17546,8 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       catch(error){next.cleanupCarrierMessageIds=[...new Set([...(Array.isArray(next.cleanupCarrierMessageIds)?next.cleanupCarrierMessageIds:[]),prev.messageId])];}
     }
     const used=new Set((ctx.active||[]).map(pendingItemIdentity)),pool=[],seen=new Set(used);
-    for(const item of [...(ctx.candidates||[]),...(ctx.standby||[]),...(stored||[])]){
-      if(!item||allFitRequired(item))continue;
+    for(const item of [...(stored||[]).filter(i=>i&&i.spilled),...(ctx.candidates||[]),...(ctx.standby||[]),...(stored||[])]){
+      if(!item||(allFitRequired(item)&&!item.spilled))continue;
       const k=pendingItemIdentity(item);if(!k||seen.has(k))continue;seen.add(k);
       if(String(item.content||'').trim())pool.push(item);
     }
