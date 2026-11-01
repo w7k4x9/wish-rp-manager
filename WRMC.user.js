@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.22
+// @version      2.3.23
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -8020,6 +8020,8 @@ function applyObserveRows(cog,speech,data,rp,cutoff,relationshipRows=[],relation
   if(code==='AI_JSON_PARSE')return count<2?15000:0;
   // [auto-retry patch 2] AI가 빈 답·미완료 답을 보냈거나, 답의 형식·참조 검사에서 거절된 경우도 15초 뒤 최대 2번 다시 요청한다.
   if(['AI_EMPTY','AI_INCOMPLETE'].includes(code)||error?.answerFault===true||unifiedAnswerFault(error,error?.diagnostic?.stage||''))return count<2?15000:0;
+  // 2.3.23 크랙 로그인 실패(만료 · 잠깐 못 읽음)는 사용자가 다시 로그인하면 풀린다: 1 · 2 · 5 · 5 · 10 · 10분 뒤 다시 시도한다.
+  if(/^CRACK_AUTH_/.test(code))return count<6?[60000,120000,300000,300000,600000,600000][count]:0;
   const transient=status
     ?[429,502,503,504,529].includes(status)
     :(['AI_NETWORK','AI_TIMEOUT','CRACK_NETWORK','CRACK_TIMEOUT'].includes(code)||/(?:\b(?:429|502|503|504|529)\b|네트워크 오류|network error|시간 초과|시간이 초과|제한 시간|AI_TIMEOUT|timeout)/i.test(text));
@@ -11657,6 +11659,12 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
     try{await work;}finally{if(crackAuthState.waiting===work)crackAuthState.waiting=null;}
   }
   function isCrackAuthError(error){return /^CRACK_AUTH_/.test(String(error?.code||''));}
+  // 2.3.23 크랙 요청이 다시 성공하면, 로그인 실패로 멈춰 있던 자동 정리 기록을 지우고 이어서 정리한다(새로고침 · 재로그인 뒤 그대로 남던 문제).
+  const CRACK_LOGIN_TEXT=/크랙이 로그인을 거절|크랙 로그인 정보를 (?:찾지|읽지) 못|사이트 로그인 확인 대기|로그인 토큰을 찾지 못/;
+  function crackAuthRecovered(){
+    const room=state.currentRoom,u=room?.unified;
+    if(u&&CRACK_LOGIN_TEXT.test(String(u.lastError||''))){u.lastError='';u.failedKind='';u.retry=null;u.status='로그인 확인됨 · 정리를 이어서 해요';void saveRoom(room).then(()=>{if(state.currentRoom===room){U3.invalidate(room);U3.schedule(room,1500);renderModalIfIdle();}}).catch(e=>console.warn('[Wish] 로그인 회복 저장 보류',e));}
+  }
   function pendingSyncIssue(pending){
     const error=String(pending?.lastSyncError||'');
     return {error,authWaiting:!!error&&(isCrackAuthError({code:pending?.lastSyncErrorCode})||error.includes('로그인 토큰을 찾지 못했습니다')),lastCheckedAt:Number(pending?.verifiedAt||0)};
@@ -11693,7 +11701,8 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
           let parsed = null;
           try { parsed = res.responseText ? JSON.parse(res.responseText) : null; } catch (_) {}
           if (res.status >= 200 && res.status < 300) {
-            crackAuthState.failures=0;crackAuthState.retryAt=0;WLOG.crackOk(method,ringMark);
+            const wasFailing=crackAuthState.failures>0;crackAuthState.failures=0;crackAuthState.retryAt=0;WLOG.crackOk(method,ringMark);
+            if(wasFailing)setTimeout(()=>{try{crackAuthRecovered();}catch(e){console.warn('[Wish] 로그인 회복 처리 보류',e);}},0);
             resolve(parsed ?? { ok: true });
           } else if(res.status===401){
             // Never replay a mutation: a failed write requires its existing verification path.
