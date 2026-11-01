@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.23
+// @version      2.3.24
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -11702,7 +11702,8 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
           try { parsed = res.responseText ? JSON.parse(res.responseText) : null; } catch (_) {}
           if (res.status >= 200 && res.status < 300) {
             const wasFailing=crackAuthState.failures>0;crackAuthState.failures=0;crackAuthState.retryAt=0;WLOG.crackOk(method,ringMark);
-            if(wasFailing)setTimeout(()=>{try{crackAuthRecovered();}catch(e){console.warn('[Wish] 로그인 회복 처리 보류',e);}},0);
+            // 2.3.24 새로고침 뒤에는 실패 횟수가 0이라 회복을 못 알아챘다: 크랙 요청이 성공할 때마다 남은 로그인 실패 기록을 확인한다(가벼운 문자열 검사).
+            void wasFailing;setTimeout(()=>{try{crackAuthRecovered();}catch(e){console.warn('[Wish] 로그인 회복 처리 보류',e);}},0);
             resolve(parsed ?? { ok: true });
           } else if(res.status===401){
             // Never replay a mutation: a failed write requires its existing verification path.
