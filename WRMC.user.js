@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.21
+// @version      2.3.22
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -11645,7 +11645,9 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
   function crackAuthError(code){
     crackAuthState.failures=Math.min(5,crackAuthState.failures+1);
     crackAuthState.retryAt=Date.now()+Math.min(300000,30000*2**(crackAuthState.failures-1));
-    return WLOG.tag(Object.assign(new Error('사이트 로그인 확인 대기 중입니다. 저장된 기억은 유지됩니다. 잠시 후 다시 확인하며, 계속되면 페이지를 새로고침해 주세요.'),{code}),'CRACK_LOGIN');
+    // 2.3.22 두 경우를 나눠 알린다: 로그인 정보가 아예 안 보임(로그아웃 · 크랙 로그인 방식 변경) / 크랙이 로그인을 거절함(만료).
+    const msg=code==='CRACK_AUTH_REJECTED'?'크랙이 로그인을 거절했어요(로그인이 만료됨). 저장된 기억은 그대로예요. 크랙 화면을 새로고침하고, 그래도 계속되면 크랙에서 로그아웃했다가 다시 로그인해 주세요.':'크랙 로그인 정보를 찾지 못했어요. 저장된 기억은 그대로예요. 크랙에 로그인돼 있는지 확인하고 새로고침해 주세요. 로그인돼 있는데도 계속되면 크랙의 로그인 방식이 바뀐 것일 수 있어요.';
+    return WLOG.tag(Object.assign(new Error(msg),{code}),'CRACK_LOGIN');
   }
   async function waitForCrackToken(){
     if(getCookie('access_token'))return;
