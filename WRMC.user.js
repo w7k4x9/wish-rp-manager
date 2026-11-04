@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.24
+// @version      2.3.25
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -44,7 +44,20 @@
   if (location.hostname === 'chatgpt.com') {
     const id = new URLSearchParams(location.search).get('wish_job');
     if (!id) return;
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    // 2.3.25 ChatGPT 탭은 뒤에서 열리므로 크롬이 타이머를 느리게 돌린다(5분 넘게 숨겨지면 1분에 한 번). 답이 다 와도
+    // 확인이 몇 분씩 늦어져 '탭을 눌러야 적용'되던 원인. 워커 타이머(뒤에서도 안 느려짐)를 쓰고, 막히면 보통 타이머로 돌아간다.
+    const sleep = (() => {
+      const plain = ms => new Promise(r => setTimeout(r, ms));
+      try {
+        const w = new Worker(URL.createObjectURL(new Blob(['onmessage=e=>setTimeout(()=>postMessage(e.data.n),e.data.ms)'], { type: 'text/javascript' })));
+        const waits = new Map(); let n = 0, broken = false;
+        w.onmessage = e => { const r = waits.get(e.data); if (r) { waits.delete(e.data); r(); } };
+        w.onerror = () => { broken = true; for (const r of waits.values()) r(); waits.clear(); };
+        return ms => broken ? plain(ms) : new Promise(r => { const k = ++n; waits.set(k, r); try { w.postMessage({ n: k, ms }); } catch (_) { broken = true; waits.delete(k); plain(ms).then(r); } });
+      } catch (_) { return plain; }
+    })();
+    // 화면이 바뀌면 바로 깨운다(MutationObserver는 숨은 탭에서도 바로 불린다).
+    const nextChange = ms => new Promise(r => { let done = false; const fin = () => { if (done) return; done = true; try { mo.disconnect(); } catch (_) {} r(); }; const mo = new MutationObserver(fin); try { mo.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'data-testid', 'disabled'] }); } catch (_) {} sleep(ms).then(fin); });
     const vis = el => !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
     const page = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow : window;
     const reply = payload => { try { GM_setValue('wish-gpt-result', { id, ...payload, at: Date.now() }); } catch (e) { console.error('[Wish GPT]', e); } };
@@ -104,11 +117,14 @@
       // 답이 시작되고 끝날 때까지: 새 답이 생기고, 중지 버튼이 사라진 채 글이 3초 동안 그대로면 끝으로 본다.
       const started = await waitFor(() => assistants().length > before || busy(), 90000, 500);
       if (!started) throw new Error('ChatGPT가 답을 시작하지 않았어요(사용 한도·로그인 확인).');
+      // 끝 판정: 중지 버튼이 사라졌고 코드 블록의 JSON이 온전히 읽히면 바로 끝. 아니면 글이 3번 연속 그대로일 때 끝.
+      const jsonDone = a => [...a.querySelectorAll('pre code, pre')].some(el => { const t = (el.innerText || '').trim(); if (!t.includes('{')) return false; try { JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); return true; } catch (_) { return false; } });
       let last = '', stable = 0; const t0 = Date.now();
       while (Date.now() - t0 < 20 * 60000) {
-        await sleep(1000);
+        await nextChange(1000);
         const a = assistants().at(-1), cur = a ? a.innerText : '';
-        if (!busy() && cur && cur === last) { if (++stable >= 3) break; } else stable = 0;
+        if (!busy() && a && cur && jsonDone(a)) { await sleep(300); break; }
+        if (!busy() && cur && cur === last) { if (++stable >= 3) break; } else if (cur !== last) stable = 0;
         last = cur;
       }
       const a = assistants().at(-1);
