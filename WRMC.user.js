@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.28
+// @version      2.3.29
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13407,7 +13407,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
     pending.quickStateVersion=2;
     pending.verified=false;
     pending.recallNeedsRefresh=true;
-    delete pending.recallPlan;
+    delete pending.recallPlan;delete pending.overflowPool;
   }
 
   function clearQuickExclusions(room,predicate){
@@ -16416,7 +16416,9 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
     const carry=item=>{const old=previous.get(pendingItemIdentity(item));return {...item,totalTurns:0,usedTurns:0,turnStartUserId:old?.turnStartUserId||pending.latestUserId||pending.turnStartUserId};};
     const recalled=[...selection.items.filter(item=>injectionCadenceKind(item)==='timeline'),...logs,...lore,...inactive].map(carry);
     pending.items=[...selectedBase,...recalled];delete pending.recallNeedsRefresh;
-    rememberOverflowPool(room,normalPlan,selection);
+    // 2.3.29 서브 후보를 방 저장 기록에도 남긴다. 전에는 탭 메모리에만 있어서, 새로고침한 뒤 기억이 바뀌기 전까지는 서브에
+    // 관계 · 서사 고리만 들어가고 날짜로그 · 자료집 · 연표는 자리가 남아도 빠졌다.
+    {const out=rememberOverflowPool(room,normalPlan,selection);if(Array.isArray(out)){const keep=[];let n=0;for(const it of out){const len=String(it?.content||'').length;if(n+len>120000)break;keep.push(it);n+=len;}if(keep.length)pending.overflowPool=keep;else delete pending.overflowPool;}}
     pending.recallPlan={inventoryHash:aiHashTiny(inventory),inventoryChars:inventory.length,method:selection.method,rankedKeys:selection.rankedKeys||selection.items.filter(i=>!allFitRequired(i)).map(pendingItemIdentity),...(selection.rankedKeysOver?{rankedKeysOver:selection.rankedKeysOver}:{}),...(standby.length?{standby:standby.map(carry)}:{}),queryHash:retained?previousPlan.queryHash:aiHashTiny(query),fullTotal:selection.fullTotal,total:selection.total,omitted:selection.omitted,limit:selection.limit,retained:!!retained,...(selection.byteLimited?{byteLimited:true}:{})};
     room.lastLoreSearch={at:Date.now(),queryHash:aiHashTiny(query),semanticUsed:!!vector,semanticError,matchedLore:lore.length,
       matchedLogs:logs.filter(item=>item.autoType==='related-log').length,reviewMethod:review.method,reviewError:review.error,
@@ -17494,7 +17496,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
   function rememberOverflowPool(room,normalPlan,selection){
     try{
       const key=String(room?.chatId||'');if(!key)return;
-      if(!selection||selection.method==='all-fit'){overflowPools.delete(key);return;}
+      if(!selection||selection.method==='all-fit'){overflowPools.delete(key);return [];}
       const chosen=new Set(selection.items||[]),byKey=new Map((normalPlan||[]).map(i=>[pendingItemIdentity(i),i])),out=[];let chars=0;
       for(const item of selection.spill||[]){const len=String(item?.content||'').length;if(!len)continue;out.push({...item,totalTurns:0,usedTurns:0,spilled:true});chars+=len;}
       for(const k of selection.rankedKeys||[]){
@@ -17504,7 +17506,8 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
         out.push({...whole,totalTurns:0,usedTurns:0});chars+=len;if(chars>240000)break;
       }
       if(out.length)overflowPools.set(key,out);else overflowPools.delete(key);
-    }catch(error){console.debug('[Wish] overflow pool skipped',error);}
+      return out;
+    }catch(error){console.debug('[Wish] overflow pool skipped',error);return null;}
   }
   // The AI answer before the carrier on the chat's line: past the carrier, the USER that answered it, then the version that USER continued from.
   function overflowTargetOf(frame,carrierId){
@@ -17572,7 +17575,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     let targetId='';
     if(overflowCarrierEnabled()&&ctx.carrierId){const t=overflowTargetOf(frame,ctx.carrierId);targetId=String(messageIdOf(t)||'');}
     if(targetId&&(targetId===mainId||targetId===String(room.sessionSetup?.messageId||'')))targetId='';
-    const stored=overflowPools.get(String(room.chatId));
+    const stored=overflowPools.get(String(room.chatId))||(Array.isArray(next.overflowPool)&&next.overflowPool.length?next.overflowPool:null)||(Array.isArray(room.pending?.overflowPool)&&room.pending.overflowPool.length?room.pending.overflowPool:null);
     // After a page reload the ranked pool is gone until the next send: an overflow already on the same target stays as it is.
     if(!stored&&prev&&prev.messageId===targetId){delete next.overflowError;return;}
     if(prev&&prev.messageId!==targetId&&prev.messageId!==mainId){
