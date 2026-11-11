@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.27
+// @version      2.3.28
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -12674,8 +12674,11 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
   }
   function allFitRequired(item) {
     // The 연표 is never a 꼭 넣는 칸, even included for this session (J-1): it gives way, it never stops a send.
+    // 2.3.28 기억이 한도를 넘어 골라 넣을 때(연표가 후보에 있을 때만) 연표(최대 4,000자)는 꼭 넣는 칸으로 본다: 오래된 날짜로그가 빠질 때
+    // 이야기 전체의 뼈대가 되기 때문. 메인에 자리가 없으면 서브 맨 앞으로 넘어간다(chooseAllFitItems spill). 서브가 꺼져 있으면 예전처럼 양보한다.
     const kind=injectionCadenceKind(item);
-    return kind!=='timeline'&&((item?.quickChoice?.version===2&&item.quickChoice.action==='include')||!['log','lore','relationship'].includes(kind)||['pinned-log','manual-log','pinned-lore'].includes(item.autoType));
+    if(kind==='timeline')return overflowCarrierEnabled();
+    return ((item?.quickChoice?.version===2&&item.quickChoice.action==='include')||!['log','lore','relationship'].includes(kind)||['pinned-log','manual-log','pinned-lore'].includes(item.autoType));
   }
   function allFitSourceStamp(){const __t=performance.now();try{return allFitSourceStamp__perf.apply(this,arguments);}finally{__wpfAdd('allFitSourceStamp',performance.now()-__t);}}
   function allFitSourceStamp__perf(room) {
@@ -13182,10 +13185,12 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   // 현재상태는 끝까지 메인에 둔다. 서브가 꺼져 있거나 현재상태만으로도 넘치면 예전처럼 멈춘다.
   let spill=[];
   if(size(required)>limit&&!options.totalLength&&overflowCarrierEnabled())try{
-    const order=['relationship','log','lore','cognition','threads','extra','character','speech'],rk=i=>{const n=order.indexOf(injectionCadenceKind(i));return n<0?order.length:n;};
+    const order=['relationship','log','lore','timeline','cognition','threads','extra','character','speech'],rk=i=>{const n=order.indexOf(injectionCadenceKind(i));return n<0?order.length:n;};
     const back=new Map();if(fitSwap)for(const [orig,fitted] of fitSwap)back.set(fitted,orig);
     let kept=[...required];const moved=[];
     for(const it of [...required].filter(i=>injectionCadenceKind(i)!=='currentState').sort((a,b)=>rk(a)-rk(b))){if(size(kept)<=limit)break;kept=kept.filter(x=>x!==it);moved.push(it);}
+    // 넘긴 뒤 자리가 남으면 덜 급하게 넘긴 것부터 다시 메인에 들인다(예: 인지를 넘겨 생긴 자리에 연표가 들어가면 연표는 메인에).
+    for(const it of [...moved].reverse()){const tryKept=required.filter(x=>kept.includes(x)||x===it);if(size(tryKept)<=limit){kept=tryKept;moved.splice(moved.indexOf(it),1);}}
     if(size(kept)<=limit&&moved.length){const origs=moved.map(m=>back.get(m)||m),gone=new Set(origs);required=kept;items=items.filter(i=>!gone.has(i));spill=origs;}
   }catch(error){console.debug('[Wish] required spill skipped',error);spill=[];}
   if(size(required)>limit)throw Error('현재상태·인지·호칭·켜진 캐릭터/OOC·고정 자료와 AI 원문만으로 '+limit.toLocaleString()+'자를 넘습니다. 고정 항목 또는 이번 세션 포함 선택을 줄여 주세요. 원문과 저장 기억은 삭제하지 않았습니다.');
