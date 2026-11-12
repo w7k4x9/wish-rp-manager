@@ -11,6 +11,9 @@ https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 
 ## 수정 내역
 
+### 2.3.34
+- 채팅창 Wish 버튼: 바탕색 없앰(고리 · 숫자 · 상태 점만).
+
 ### 2.3.33
 - 채팅창 Wish 버튼: 그림자 · 흐림 효과를 빼고 크랙 버튼처럼 납작하게(반투명 회색 바탕).
 
