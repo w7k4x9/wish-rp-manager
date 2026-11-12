@@ -11,6 +11,9 @@ https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 
 ## 수정 내역
 
+### 2.3.35
+- 채팅창 Wish 버튼: 색 점 대신 모양으로 상태 표시. 실선 고리 + 남은 턴 = 주입 중, 점선 고리 + OFF = 주입 꺼짐, 가운데 '!' = 자동 정리 멈춤. 흑백만 사용.
+
 ### 2.3.34
 - 채팅창 Wish 버튼: 바탕색 없앰(고리 · 숫자 · 상태 점만).
 
