@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.38
+// @version      2.3.39
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13234,7 +13234,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   // The head every path keeps first: the latest-date logs, then the 연표 (CC-1 ①). The AI review never reads, moves or drops it, nor a
   // relationship row the user pinned (고정 = 선순위, CC-1 ②).
   const recent=local.filter(x=>x.item.autoType==='recent-log').map(x=>x.id),head=[...recent,...local.filter(x=>x.item.autoType==='timeline').map(x=>x.id)],hoist=ids=>head.length?[...head,...ids.filter(id=>!head.includes(id))]:ids;
-  let rank=null,aiRelated=null;
+  let rank=null,aiRelated=null,aiDropped=[];
   if(options.preferredKeys){const positions=new Map(optional.map((item,id)=>[pendingItemIdentity(item),id]));rank={ids:options.preferredKeys.filter(k=>positions.has(k)).map(k=>positions.get(k)),method:options.preferredMethod||'local',error:''};}
   if(!rank){
     rank={ids:local.map(x=>x.id),method:'local',error:''};
@@ -13303,7 +13303,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
         const s=r=>scored.get(r.key),ids=[...order],move=new Set(known.map(r=>r.id));
         if(cfg.selector){const at=ids.flatMap((id,p)=>move.has(id)?[p]:[]),sorted=[...known].sort((a,b)=>s(b).relevance-s(a).relevance||position.get(a.id)-position.get(b.id));at.forEach((p,i)=>{ids[p]=sorted[i].id;});}
         const drop=new Set(cfg.semantic?known.filter(r=>!s(r).related&&!direct(r.item)).map(r=>r.id):[]);
-        rank={ids:ids.filter(id=>!drop.has(id)),method:'ai',error:''};aiRelated=new Set(known.filter(r=>s(r).related).map(r=>r.id));
+        rank={ids:ids.filter(id=>!drop.has(id)),method:'ai',error:''};aiDropped=ids.filter(id=>drop.has(id));aiRelated=new Set(known.filter(r=>s(r).related).map(r=>r.id));
       }
     }
   }
@@ -13339,7 +13339,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   // the limit, the lowest-ranked optional items leave one at a time until it fits; required items and latest-date logs stay.
   // K11: the first pass keeps relationship rows; still over the limit, the pass as before (totalLength's pick: that pass only).
   for(const all of options.totalLength?[true]:[false,true])for(let n=rank.ids.length-1;n>=0&&selectedTotal>fitLimit;n--){const item=optional[rank.ids[n]];if(!item||item.autoType==='recent-log'||(!all&&injectionCadenceKind(item)==='relationship')||!selected.includes(item))continue;if(!all)RecallSeat.stats.k11++;selected=selected.filter(i=>i!==item);selectedTotal=exactSize(selected);}
-  return {items:selected,method:rank.method,error:rank.error,total:selectedTotal,fullTotal:whole,omitted:items.length-selected.length+spill.length,limit,...(spill.length?{spill}:{}),rankedKeys:rank.ids.map(id=>optional[id]).filter(Boolean).map(pendingItemIdentity),...(threadsOut?{threadsOut:true}:{}),...(seatOff?{seatOff:true}:{}),...(seatBranches?{seatBranches}:{}),...(seatHeadOver?{seatHeadOver:true}:{}),...(rankedOver?{rankedKeysOver:rankedOver.map(id=>optional[id]).filter(Boolean).map(pendingItemIdentity)}:options.preferredKeys&&options.preferredKeysOver?{rankedKeysOver:options.preferredKeysOver}:{}),...(reviewTotal!==whole?{reviewTotal}:{}),...(reserve?{reserved:true}:{})};
+  return {items:selected,method:rank.method,error:rank.error,total:selectedTotal,fullTotal:whole,omitted:items.length-selected.length+spill.length,limit,...(spill.length?{spill}:{}),rankedKeys:[...rank.ids,...aiDropped.filter(id=>!rank.ids.includes(id))].map(id=>optional[id]).filter(Boolean).map(pendingItemIdentity),...(threadsOut?{threadsOut:true}:{}),...(seatOff?{seatOff:true}:{}),...(seatBranches?{seatBranches}:{}),...(seatHeadOver?{seatHeadOver:true}:{}),...(rankedOver?{rankedKeysOver:rankedOver.map(id=>optional[id]).filter(Boolean).map(pendingItemIdentity)}:options.preferredKeys&&options.preferredKeysOver?{rankedKeysOver:options.preferredKeysOver}:{}),...(reviewTotal!==whole?{reviewTotal}:{}),...(reserve?{reserved:true}:{})};
 
     } finally {finish();}
   }
