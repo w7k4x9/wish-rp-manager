@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.36
+// @version      2.3.37
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -3512,6 +3512,25 @@ const WLOG=(()=>{
         lid = GM_addValueChangeListener('wish-gpt-result', (k, o, v) => { if (!v || v.id !== id) return; done(); if (v.error) reject(new Error(v.error)); else resolve(String(v.text || '')); });
       });
     }
+    function keepAnswer(room, code, answer) {
+      const job = loadManualJob(room); if (!job || job.code !== code) return;
+      job.answer = String(answer || ''); job.answerAt = Date.now(); job.lastError = 'ChatGPT 답을 받아 두었어요 · 이 방을 열면 바로 적용해요'; job.lastFixable = false; saveManualJob(room, job); renderModalIfIdle();
+    }
+    // 보관한 답 적용: 지금 방에 보관된 답이 있으면 쉬는 틈에 적용한다(방을 열 때 · 15초마다 확인).
+    let applyingKept = false;
+    async function applyKept() {
+      const room = state.currentRoom; if (!room || applyingKept || running) return;
+      const job = loadManualJob(room); if (!job || !job.answer) return;
+      applyingKept = true;
+      try {
+        const ok = await applyManualAnswer(room, job.answer);
+        if (ok === true) notify('보관해 둔 ChatGPT 답을 기억에 적용했어요', 'success', 5000);
+        else if (ok && typeof ok === 'object') notify('ChatGPT 답에서 빠지는 글이 있어 확인이 필요해요 · [답 붙여넣기]에서 확인해 주세요', 'warn', 8000);
+        else { const left = loadManualJob(room); if (left && left.code === job.code && !left.answer) { left.answer = job.answer; left.answerAt = job.answerAt; saveManualJob(room, left); } }
+      } catch (e) { const left = loadManualJob(room); if (left && left.code === job.code) { delete left.answer; left.lastError = 'ChatGPT 자동: ' + String(e && e.message || e); saveManualJob(room, left); } notify('보관한 ChatGPT 답을 적용하지 못했어요: ' + String(e && e.message || e), 'warn', 8000); }
+      finally { applyingKept = false; renderModalIfIdle(); }
+    }
+    setInterval(() => { try { if (!document.hidden || Date.now() % 60000 < 15000) void applyKept(); } catch (_) {} }, 15000);
     async function runJob(room, code, text) {
       // 진행 중에 다시 보내면(탭을 직접 닫았거나 멈춘 경우 등) 이전 요청을 취소하고 새로 보낸다.
       if (running && cancelCurrent) { try { cancelCurrent(); } catch (_) {} await new Promise(r => setTimeout(r, 300)); }
@@ -3527,7 +3546,10 @@ const WLOG=(()=>{
             const answer = await ask(text, code);
             const job = loadManualJob(room);
             if (!job || job.code !== code) { notify('기다리던 작업이 바뀌어 ChatGPT 답은 적용하지 않았어요.', 'warn', 6000); return; }
+            // 2.3.37 답은 받았는데 지금 다른 방을 보고 있으면 ChatGPT에 다시 보내지 않는다: 답을 작업에 보관했다가 이 방을 열면 적용한다.
+            if (state.currentRoom !== room) { keepAnswer(room, code, answer); notify('ChatGPT 답을 받아 두었어요 · ' + (room.label || '그 방') + '을 열면 바로 적용해요', 'info', 7000); return; }
             const ok = await applyManualAnswer(room, answer);
+            if (ok !== true && !(ok && typeof ok === 'object') && /다른 방으로 이동|겹쳐 적용을 미뤘/.test(String(loadManualJob(room)?.lastError || ''))) { keepAnswer(room, code, answer); notify('ChatGPT 답을 받아 두었어요 · 잠시 뒤 또는 이 방을 다시 열면 적용해요', 'info', 7000); return; }
             if (ok === true) { notify('ChatGPT 답을 기억에 적용했어요' + (attempt > 1 ? ' (' + attempt + '번째 시도)' : ''), 'success', 5000); return; }
             if (ok && typeof ok === 'object') { notify('ChatGPT 답에서 빠지는 글이 있어 확인이 필요해요 · [답 붙여넣기]에서 확인해 주세요', 'warn', 8000); return; }
             why = (loadManualJob(room)?.lastError) || '답을 적용하지 못했어요';
@@ -3552,7 +3574,7 @@ const WLOG=(()=>{
     // 2.3.18 중국어 번역용: 정리와 따로, 가장 낮은 추론으로 한 번 묻는다. 정리가 진행 중이면 부르지 않는다(정리 우선).
     let zhRunning = false;
     async function translate(text) { if (running) throw Object.assign(new Error('ChatGPT 정리 중'), { wait: true }); zhRunning = true; try { return await ask(text, 'ZH', { track: false, effort: 'low', minutes: 10 }); } finally { zhRunning = false; } }
-    return { enabled, set, runJob, every, setEvery, effort, setEffort, translate, busy: () => running, zhBusy: () => zhRunning };
+    return { enabled, set, runJob, every, setEvery, effort, setEffort, translate, applyKept, busy: () => running, zhBusy: () => zhRunning };
   })();
   async function exportManualJob(room, x) {
     const code = 'WJ-' + String(x.stamp).slice(0, 6).toUpperCase();
@@ -8198,7 +8220,7 @@ const p=plan(list,{...u,settings:settings(room)},force==='retry'||retrying?(u.fa
         // 외부 AI 복붙 방식은 자동 예약으로 복붙 창을 띄우지 않습니다. 차례만 알리고, 사용자가 누른 실행과 이어지는 구간만 진행합니다.
         if(!scope&&isManualAiProvider()){
           // 2.3.4 ChatGPT 자동 정리: 차례가 되면 알림 대신 바로 보낸다. 실패해 남은 작업은 새 대화가 쌓였으니 새 요청문으로 바꿔 보낸다.
-          if(GptBridge.enabled()&&state.currentRoom===room&&!GptBridge.busy()){const j=loadManualJob(room);if(!j||j.lastError||Date.now()-(j.at||0)>30*60000){if(j)clearManualJob(room);setTimeout(()=>{if(state.currentRoom!==room)return;U3.run(room,p.memory&&p.observe?'all':p.memory?'memory':'observe',true).catch(e=>notify('ChatGPT 자동 정리를 시작하지 못했어요: '+String(e&&e.message||e),'warn',8000));},800);return false;}}
+          if(GptBridge.enabled()&&state.currentRoom===room&&!GptBridge.busy()){const j=loadManualJob(room);if(j&&j.answer){setTimeout(()=>void GptBridge.applyKept(),300);return false;}if(!j||j.lastError||Date.now()-(j.at||0)>30*60000){if(j)clearManualJob(room);setTimeout(()=>{if(state.currentRoom!==room)return;U3.run(room,p.memory&&p.observe?'all':p.memory?'memory':'observe',true).catch(e=>notify('ChatGPT 자동 정리를 시작하지 못했어요: '+String(e&&e.message||e),'warn',8000));},800);return false;}}
           manualDueNotice(room,p);return false;
         }
         // 기억 묶음이 자료를 갱신하기 전에 방별 canonical 자동팩을 준비한다.
