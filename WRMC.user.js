@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.37
+// @version      2.3.38
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -3504,8 +3504,10 @@ const WLOG=(()=>{
       let tab = null;
       try { tab = GM_openInTab('https://chatgpt.com/?temporary-chat=true&wish_job=' + encodeURIComponent(id), { active: false, insert: true, setParent: true }); } catch (e) { return Promise.reject(new Error('ChatGPT 탭을 열지 못했습니다: ' + (e.message || e))); }
       return new Promise((resolve, reject) => {
-        let lid = null;
-        const done = () => { clearTimeout(timer); try { if (lid != null) GM_removeValueChangeListener(lid); } catch (_) {} try { tab && tab.close(); } catch (_) {} try { const cur = GM_getValue('wish-gpt-job', null); if (!cur || cur.id === id) GM_deleteValue('wish-gpt-job'); } catch (_) {} };
+        let lid = null, over = false;
+        // 2.3.38 ChatGPT 탭이 답을 주기 전에 닫히면(직접 닫음 · 크롬이 정리함) 25분을 기다리지 않고 바로 실패로 본다.
+        try { if (tab) tab.onclose = () => { if (over) return; setTimeout(() => { if (over) return; done(); reject(new Error('ChatGPT 탭이 답을 주기 전에 닫혔어요')); }, 1500); }; } catch (_) {}
+        const done = () => { over = true; clearTimeout(timer); try { if (lid != null) GM_removeValueChangeListener(lid); } catch (_) {} try { tab && tab.close(); } catch (_) {} try { const cur = GM_getValue('wish-gpt-job', null); if (!cur || cur.id === id) GM_deleteValue('wish-gpt-job'); } catch (_) {} };
         const timer = setTimeout(() => { done(); reject(new Error('ChatGPT 답을 ' + (opt.minutes || 25) + '분 안에 받지 못했습니다.')); }, (opt.minutes || 25) * 60000);
         if (opt.track === false) { lid = GM_addValueChangeListener('wish-gpt-result', (k, o, v) => { if (!v || v.id !== id) return; done(); if (v.error) reject(new Error(v.error)); else resolve(String(v.text || '')); }); return; }
         cancelCurrent = () => { done(); reject(Object.assign(new Error('새 요청으로 바꿔 이전 ChatGPT 요청은 취소했습니다.'), { replaced: true })); };
@@ -3569,7 +3571,7 @@ const WLOG=(()=>{
         const job = loadManualJob(room);
         if (job && job.code === code) { job.lastError = 'ChatGPT 자동: ' + String(e.message || e); job.lastFixable = false; saveManualJob(room, job); }
         notify('ChatGPT 자동 정리 실패: ' + String(e.message || e), 'error', 9000);
-      } finally { if (mine === runSeq) { running = false; cancelCurrent = null; } renderModalIfIdle(); }
+      } finally { if (mine === runSeq) { running = false; cancelCurrent = null; } renderModalIfIdle(); if (mine === runSeq) setTimeout(() => { try { const r = state.currentRoom; if (r && r !== room) { U3.invalidate(r); U3.schedule(r, 2000); } } catch (_) {} }, 0); }
     }
     // 2.3.18 중국어 번역용: 정리와 따로, 가장 낮은 추론으로 한 번 묻는다. 정리가 진행 중이면 부르지 않는다(정리 우선).
     let zhRunning = false;
@@ -8221,6 +8223,8 @@ const p=plan(list,{...u,settings:settings(room)},force==='retry'||retrying?(u.fa
         if(!scope&&isManualAiProvider()){
           // 2.3.4 ChatGPT 자동 정리: 차례가 되면 알림 대신 바로 보낸다. 실패해 남은 작업은 새 대화가 쌓였으니 새 요청문으로 바꿔 보낸다.
           if(GptBridge.enabled()&&state.currentRoom===room&&!GptBridge.busy()){const j=loadManualJob(room);if(j&&j.answer){setTimeout(()=>void GptBridge.applyKept(),300);return false;}if(!j||j.lastError||Date.now()-(j.at||0)>30*60000){if(j)clearManualJob(room);setTimeout(()=>{if(state.currentRoom!==room)return;U3.run(room,p.memory&&p.observe?'all':p.memory?'memory':'observe',true).catch(e=>notify('ChatGPT 자동 정리를 시작하지 못했어요: '+String(e&&e.message||e),'warn',8000));},800);return false;}}
+          // 2.3.38 다른 방 정리가 ChatGPT에서 진행 중이면 알림만 띄우고 멈추지 않는다: 끝나면 다시 확인한다(작업 끝에서도 다시 확인).
+          if(GptBridge.enabled()&&state.currentRoom===room&&GptBridge.busy()){checked.delete(room);schedule(room,120000);return false;}
           manualDueNotice(room,p);return false;
         }
         // 기억 묶음이 자료를 갱신하기 전에 방별 canonical 자동팩을 준비한다.
