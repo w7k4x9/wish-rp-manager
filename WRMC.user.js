@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.29
+// @version      2.3.30
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13164,11 +13164,15 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
   // A list that sits out is flagged (threadsOut) for the panel; it is not counted in omitted.
   const isThreads=i=>injectionCadenceKind(i)==='threads';let threadsOut=false;
   if(reserve&&size(required)>fitLimit){reserve=null;fitLimit=limit;}
-  if(size(required)>fitLimit&&required.some(isThreads)){
+  // 2.3.30 서브가 켜져 있으면 서사 고리를 먼저 줄이지 않는다(127자처럼 줄어 메인에 남던 문제): 넘치는 꼭 넣는 칸은 아래에서 서브로 넘기고,
+  // 그래도 넘칠 때만 줄인다.
+  const shrinkThreads=lim=>{
     const old=required.find(isThreads);let fit=null;
-    for(const cap of WishThreads.SHRINK_CAPS){const it=threadsPendingItem(safeMemoryThreadsRoom(room),cap),next=it&&{...old,content:it.content,reason:it.reason};if(next&&size(required.map(i=>isThreads(i)?next:i))<=fitLimit){fit=next;break;}}
+    for(const cap of WishThreads.SHRINK_CAPS){const it=threadsPendingItem(safeMemoryThreadsRoom(room),cap),next=it&&{...old,content:it.content,reason:it.reason};if(next&&size(required.map(i=>isThreads(i)?next:i))<=lim){fit=next;break;}}
     items=items.map(i=>isThreads(i)?fit:i).filter(Boolean);required=items.filter(allFitRequired);optional=items.filter(i=>!allFitRequired(i));threadsOut=!fit;
-  }
+  };
+  const subFirst=!options.totalLength&&overflowCarrierEnabled();
+  if(!subFirst&&size(required)>fitLimit&&required.some(isThreads))shrinkThreads(fitLimit);
   // Required fit (requiredFitPlan): still over the limit after the 서사 고리 shrink, where the line below stops the send, the fewest
   // steps that bring the required part within it, else all of them. The ranking below reads only the optional items, so the fit does
   // not move it; the fitted copies go in where the picks are made. A failure here fits nothing, and the line below stops the send as before.
@@ -13193,6 +13197,7 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
     for(const it of [...moved].reverse()){const tryKept=required.filter(x=>kept.includes(x)||x===it);if(size(tryKept)<=limit){kept=tryKept;moved.splice(moved.indexOf(it),1);}}
     if(size(kept)<=limit&&moved.length){const origs=moved.map(m=>back.get(m)||m),gone=new Set(origs);required=kept;items=items.filter(i=>!gone.has(i));spill=origs;}
   }catch(error){console.debug('[Wish] required spill skipped',error);spill=[];}
+  if(subFirst&&size(required)>limit&&required.some(isThreads))shrinkThreads(limit);
   if(size(required)>limit)throw Error('현재상태·인지·호칭·켜진 캐릭터/OOC·고정 자료와 AI 원문만으로 '+limit.toLocaleString()+'자를 넘습니다. 고정 항목 또는 이번 세션 포함 선택을 줄여 주세요. 원문과 저장 기억은 삭제하지 않았습니다.');
   // 수동 서버 복구는 같은 AI 장애를 다시 기다리지 않고 결정적인 로컬 순서로 재구성한다.
   const cfg=reviewTotal<=APP.carrierSafeChars?{semantic:false,selector:false}:recallSelectionSettings(room),settings=selectionAiSettings();
