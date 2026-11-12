@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.30
+// @version      2.3.31
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -17625,7 +17625,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     }
     const keys=chosen.map(pendingItemIdentity),same=prev&&prev.messageId===targetId&&rawText===built.text&&JSON.stringify(prev.keys)===JSON.stringify(keys);
     const titles=chosen.map(i=>String(i.title||'').trim()||String(i.content||'').trim().split('\n')[0]).filter(Boolean).slice(0,3).map(t=>t.slice(0,60));
-    next.overflow={messageId:targetId,keys,chars:built.block.length,count:chosen.length,titles,at:same?Number(prev.at)||Date.now():Date.now()};
+    next.overflow={messageId:targetId,keys,chars:built.block.length,count:chosen.length,titles,own:own.length,room:Math.max(0,limit-own.length),at:same?Number(prev.at)||Date.now():Date.now()};
     delete next.overflowError;
   }
 
@@ -21749,13 +21749,13 @@ function createWishUI(AD) {
     const mainBy={};for(const [k] of W_CATS)mainBy[k]=Number(g[k])||0;
     const overMain=(Number(g.guide)||0)+(Number(g.format)||0)+(Number(g.orig)||0),subSum=Object.values(subBy).reduce((a,b)=>a+b,0),overSub=ovc?Math.max(0,ovc-subSum):0;
     const amt=k=>view==='main'?mainBy[k]||0:view==='sub'?subBy[k]||0:(mainBy[k]||0)+(subBy[k]||0);
-    const overV=view==='main'?overMain:view==='sub'?overSub:overMain+overSub,totV=view==='main'?tot:view==='sub'?ovc:tot+ovc,capV=view==='all'?max*2:max;
+    const overV=view==='main'?overMain:view==='sub'?overSub:overMain+overSub,totV=view==='main'?tot:view==='sub'?ovc:tot+ovc,subCap=ovc&&Number(I.overflow?.room)>0?Number(I.overflow.room):max,capV=view==='all'?max+subCap:view==='sub'?subCap:max;
     const rank=W_CATS.map(([k])=>[k,(mainBy[k]||0)+(subBy[k]||0)]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
     const SH=['var(--w-b1)','var(--w-b2)','var(--w-b3)','var(--w-b4)','var(--w-g1)','var(--w-g2)','var(--w-g3)'],colorOf=k=>{const i=rank.indexOf(k);return i<0?'var(--w-track)':SH[Math.min(i,SH.length-1)];};
     const pctV=n=>totV>0?Math.round(n/totV*100)+'%':'0%';
     const segs=rank.filter(k=>amt(k)>0).map(k=>[k,W_CATS.find(c=>c[0]===k)[1],amt(k)]).sort((a,b)=>b[2]-a[2]);
     const bar=`<div class="w-bar w-sbar" role="img" aria-label="${esc(segs.map(([,l,n])=>l+' '+fmt(n)+'자').concat(overV?['기억 아님 '+fmt(overV)+'자']:[]).join(', '))}">${segs.map(([k,l,n])=>`<span data-cat="${k}" style="width:${Math.min(100,n/capV*100)}%;background:${colorOf(k)}"><em>${esc(l)} · ${fmt(n)}자 · ${pctV(n)}</em></span>`).join('')}${overV?`<span data-cat="over" class="w-hatch" style="width:${Math.min(100,overV/capV*100)}%"><em>기억 아님 · ${fmt(overV)}자</em></span>`:''}</div>`;
-    const capLine=view==='all'?`① 메인 ${fmt(tot)}자 + ② 서브 ${fmt(ovc)}자`:view==='main'?'직전 AI 답변 끝에 숨김 · '+(I.verified?'서버에서 확인했어요':I.matchesSaved?'서버 확인 중':'아직 보내기 전'):ovc?'그 전 AI 답변 끝에 숨김 · ①에 못 들어간 다음 순위 기억 '+fmt(I.overflow.count)+'개':I.overflowError?'이번엔 붙이지 못했어요 · '+esc(String(I.overflowError).slice(0,100)):'비어 있어요 · ①이 5만 자를 넘으면 여기에 더 넣어요';
+    const ownTxt=Number(I.overflow?.own)>0?` · 서브 자리 ${fmt(subCap)}자(그 전 답변 본문 ${fmt(Number(I.overflow.own))}자 제외)`:'';const capLine=view==='all'?`① 메인 ${fmt(tot)}자 + ② 서브 ${fmt(ovc)}자${ownTxt}`:view==='main'?'직전 AI 답변 끝에 숨김 · '+(I.verified?'서버에서 확인했어요':I.matchesSaved?'서버 확인 중':'아직 보내기 전'):ovc?'그 전 AI 답변 끝에 숨김 · ①에 못 들어간 다음 순위 기억 '+fmt(I.overflow.count)+'개':I.overflowError?'이번엔 붙이지 못했어요 · '+esc(String(I.overflowError).slice(0,100)):'비어 있어요 · ①이 5만 자를 넘으면 여기에 더 넣어요';
     const catOrder=[...W_CATS].sort((a,b)=>{const on=c=>c[3]?!!c[4]():true;return (on(b)&&amt(b[0])>0)-(on(a)&&amt(a[0])>0)||amt(b[0])-amt(a[0])||on(b)-on(a);});
     // 줄을 누르면 그 분류에 실제로 무엇이 들어갔는지 펼쳐 봐요(메인 · 서브 · 빠짐과 이유). 스위치는 따로.
     const itemPlace=i=>!i.off?'main':String(i.offReason||'').startsWith('보조 주입')?'sub':'out';
@@ -24387,7 +24387,7 @@ function WUIInjectionView(room, candidates) {
  const verified=matchesSaved&&pending?.verified===true&&!pending?.lastSyncError&&total<=allFitLimit(room);
  // KB view: a verified carrier counts in the encoding it went in; otherwise in the one the next PATCH would use.
  const body=carrierBody(carrierText,verified?pending.carrierEncoding:'');
- return {legacyExclusions:Number(pending?.quickLegacyRemovedItems?.length||0),overflow:pending?.overflow?.messageId?{chars:Number(pending.overflow.chars)||0,count:Number(pending.overflow.count)||0,titles:Array.isArray(pending.overflow.titles)?pending.overflow.titles:[]}:null,overflowError:String(pending?.overflowError||''),armed:!!pending,verified,firstTurn:!!pending?.messageId&&String(pending.messageId)===String(pending.baselineAssistantId||''),total,bytes:body.bytes,encoding:body.encoding,max:allFitLimit(room),groups,items:plan,hasCarrier:!!pending?.messageId,hasOriginal,matchesSaved,selection:matchesSaved?pending.selection||null:null,review:room.lastLoreSearch?{method:room.lastLoreSearch.reviewMethod,reason:room.lastLoreSearch.reviewReason,total:room.lastLoreSearch.reviewBaseTotal,limit:room.lastLoreSearch.reviewLimit,at:room.lastLoreSearch.at}:null,...pendingSyncIssue(pending)};
+ return {legacyExclusions:Number(pending?.quickLegacyRemovedItems?.length||0),overflow:pending?.overflow?.messageId?{chars:Number(pending.overflow.chars)||0,count:Number(pending.overflow.count)||0,own:Number(pending.overflow.own)||0,room:Number(pending.overflow.room)||0,titles:Array.isArray(pending.overflow.titles)?pending.overflow.titles:[]}:null,overflowError:String(pending?.overflowError||''),armed:!!pending,verified,firstTurn:!!pending?.messageId&&String(pending.messageId)===String(pending.baselineAssistantId||''),total,bytes:body.bytes,encoding:body.encoding,max:allFitLimit(room),groups,items:plan,hasCarrier:!!pending?.messageId,hasOriginal,matchesSaved,selection:matchesSaved?pending.selection||null:null,review:room.lastLoreSearch?{method:room.lastLoreSearch.reviewMethod,reason:room.lastLoreSearch.reviewReason,total:room.lastLoreSearch.reviewBaseTotal,limit:room.lastLoreSearch.reviewLimit,at:room.lastLoreSearch.at}:null,...pendingSyncIssue(pending)};
 }
 
 function WUIReadMonitor(){
