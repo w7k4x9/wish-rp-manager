@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.41
+// @version      2.3.42
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -17669,7 +17669,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     }
     const keys=chosen.map(pendingItemIdentity),same=prev&&prev.messageId===targetId&&rawText===built.text&&JSON.stringify(prev.keys)===JSON.stringify(keys);
     const titles=chosen.map(i=>String(i.title||'').trim()||String(i.content||'').trim().split('\n')[0]).filter(Boolean).slice(0,3).map(t=>t.slice(0,60));
-    next.overflow={messageId:targetId,keys,chars:built.block.length,count:chosen.length,titles,own:own.length,room:Math.max(0,limit-own.length),at:same?Number(prev.at)||Date.now():Date.now()};
+    next.overflow={messageId:targetId,keys,chars:built.block.length,count:chosen.length,titles,own:own.length,room:Math.max(0,limit-own.length),extraBy:(()=>{const inItems=new Set((next.items||[]).map(pendingItemIdentity)),VK={currentState:'state',threads:'threads',timeline:'timeline',cognition:'cog',speech:'speech',relationship:'relationship',log:'log',lore:'lore',character:'char',extra:'extra'},by={};for(const it of chosen){if(inItems.has(pendingItemIdentity(it)))continue;const k=VK[injectionCadenceKind(it)]||'misc';by[k]=(by[k]||0)+String(it.content||'').length;}return by;})(),at:same?Number(prev.at)||Date.now():Date.now()};
     delete next.overflowError;
   }
 
@@ -21790,6 +21790,8 @@ function createWishUI(AD) {
     const subOn=overflowCarrierEnabled(),ovc=subOn?Number(I.overflow?.chars)||0:0,view=!subOn?'main':['main','sub'].includes(S.usageTab)?S.usageTab:'all';
     const subItems=(I.items||[]).filter(i=>String(i.offReason||'').startsWith('보조 주입')),subBy={};
     for(const i of subItems){const k=W_CATS.some(c=>c[0]===i.kind)?i.kind:'misc';subBy[k]=(subBy[k]||0)+(Number(i.size)||0);}
+    // 2.3.42 후보 목록 밖에서 서브에 채운 날짜로그 등도 그 칸 숫자로 센다(전에는 '기억 아님'으로 잡혔다).
+    for(const [k,n] of Object.entries(I.overflow?.extraBy||{})){const kk=W_CATS.some(c=>c[0]===k)?k:'misc';subBy[kk]=(subBy[kk]||0)+(Number(n)||0);}
     const mainBy={};for(const [k] of W_CATS)mainBy[k]=Number(g[k])||0;
     const overMain=(Number(g.guide)||0)+(Number(g.format)||0)+(Number(g.orig)||0),subSum=Object.values(subBy).reduce((a,b)=>a+b,0),overSub=ovc?Math.max(0,ovc-subSum):0;
     const amt=k=>view==='main'?mainBy[k]||0:view==='sub'?subBy[k]||0:(mainBy[k]||0)+(subBy[k]||0);
@@ -24433,7 +24435,7 @@ function WUIInjectionView(room, candidates) {
  const verified=matchesSaved&&pending?.verified===true&&!pending?.lastSyncError&&total<=allFitLimit(room);
  // KB view: a verified carrier counts in the encoding it went in; otherwise in the one the next PATCH would use.
  const body=carrierBody(carrierText,verified?pending.carrierEncoding:'');
- return {legacyExclusions:Number(pending?.quickLegacyRemovedItems?.length||0),overflow:pending?.overflow?.messageId?{chars:Number(pending.overflow.chars)||0,count:Number(pending.overflow.count)||0,own:Number(pending.overflow.own)||0,room:Number(pending.overflow.room)||0,titles:Array.isArray(pending.overflow.titles)?pending.overflow.titles:[]}:null,overflowError:String(pending?.overflowError||''),armed:!!pending,verified,firstTurn:!!pending?.messageId&&String(pending.messageId)===String(pending.baselineAssistantId||''),total,bytes:body.bytes,encoding:body.encoding,max:allFitLimit(room),groups,items:plan,hasCarrier:!!pending?.messageId,hasOriginal,matchesSaved,selection:matchesSaved?pending.selection||null:null,review:room.lastLoreSearch?{method:room.lastLoreSearch.reviewMethod,reason:room.lastLoreSearch.reviewReason,total:room.lastLoreSearch.reviewBaseTotal,limit:room.lastLoreSearch.reviewLimit,at:room.lastLoreSearch.at}:null,...pendingSyncIssue(pending)};
+ return {legacyExclusions:Number(pending?.quickLegacyRemovedItems?.length||0),overflow:pending?.overflow?.messageId?{chars:Number(pending.overflow.chars)||0,count:Number(pending.overflow.count)||0,own:Number(pending.overflow.own)||0,room:Number(pending.overflow.room)||0,extraBy:pending.overflow.extraBy&&typeof pending.overflow.extraBy==='object'?pending.overflow.extraBy:{},titles:Array.isArray(pending.overflow.titles)?pending.overflow.titles:[]}:null,overflowError:String(pending?.overflowError||''),armed:!!pending,verified,firstTurn:!!pending?.messageId&&String(pending.messageId)===String(pending.baselineAssistantId||''),total,bytes:body.bytes,encoding:body.encoding,max:allFitLimit(room),groups,items:plan,hasCarrier:!!pending?.messageId,hasOriginal,matchesSaved,selection:matchesSaved?pending.selection||null:null,review:room.lastLoreSearch?{method:room.lastLoreSearch.reviewMethod,reason:room.lastLoreSearch.reviewReason,total:room.lastLoreSearch.reviewBaseTotal,limit:room.lastLoreSearch.reviewLimit,at:room.lastLoreSearch.at}:null,...pendingSyncIssue(pending)};
 }
 
 function WUIReadMonitor(){
