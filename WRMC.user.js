@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.42
+// @version      2.3.43
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -6417,6 +6417,11 @@ const U3 = (() => {
 [침묵은 변경이 아니다]
 - 신규 RP에서 언급되지 않았다는 것은 바뀌었다는 뜻이 아니다. 관계·약속·부상·계약·소유·비밀·지식은 실제 변경·완료·해제·소멸·정정·습득 근거가 있을 때만 바꾸고, 언급이 없는 기존 값은 그대로 둔다.
 
+[고정 설정과 묘사 일관성]
+- 외모(눈·머리 색, 체격, 흉터), 나이, 이름, 가족 관계처럼 잘 바뀌지 않는 설정은 [사용자 관리 설정]·캐릭터 설정·기존 저장 기억이 기준이다.
+- 신규 RP의 AI 답에만 기준과 다르게 나온 묘사는 AI의 실수로 본다. 그 묘사를 그대로 옮기지 않고 기준 값으로 적거나 그 부분을 빼고 쓴다(예: 기준이 '회녹색 눈'인데 답에 '갈색 눈'이 나오면 '회녹색 눈'으로 쓰거나 색을 빼고 쓴다).
+- 설정이 바뀐 것으로 기록하는 것은 USER가 정했거나(OOC 정정 포함) 이야기 안에서 실제로 바뀐 경우(염색·부상·렌즈 등)뿐이다.
+
 [PC 보호 / 과잉추론 금지]
 - USER 캐릭터(PC)의 감정·욕망·의도·관계 선택은 USER가 직접 확정한 범위만 기록한다.
 - 행동 하나만 보고 사랑·질투·용서·독점관계·성적 욕망 같은 결론을 자동 확정하지 않는다.
@@ -8538,6 +8543,7 @@ const R31=(()=>{
 각 영역을 다 검토하고 근거가 있는 내용만 채운다. 근거가 없으면 []로 둔다. 호칭·말투도 다른 영역과 똑같이 끝까지 검토한다.
 
 캐릭터 설정과 OOC·기타는 사용자가 직접 관리한다. 참고만 하고 결과에 옮기거나 고치지 않는다.
+외모(눈·머리 색, 체격, 흉터)·나이·이름·가족 관계 묘사가 원문 안에서 엇갈리면 캐릭터 설정 → USER가 정한 것 → 처음 확정된 묘사 → 가장 여러 번 나온 묘사 순으로 따른다. 이야기 속 실제 변화(염색·부상·렌즈 등)가 아닌 AI 답의 엇갈린 묘사는 기록하지 않는다.
 원문에 있는 것만 쓴다. 이름·사건·감정·동기·날짜·정보가 전해진 경로를 지어내지 않는다. 이 지침의 모든 예시(따옴표·괄호 안의 예, '예:'·'나쁜 예:' 뒤의 문장, 표현 예 묶음)에 나온 이름·사건·물건·장소는 형식을 보여 주려고 지어낸 것이다. RP에 같은 이름이 나와도 예시의 내용을 기억에 옮기지 않는다.
 중요한 정사 항목은 빼지 않는다. 답이 길어 중간에 끊겨도 괜찮다(사용자가 "이어서"를 보낸다). 한 번에 끝내려고 사건을 합치거나 본문을 줄이지 않는다.
 분량: 답의 절반 가까이를 events에 쓴다. 1/N부터 N/N까지 모든 파일에서 사건을 뽑고, 장면이 많은 파일에서는 사건도 많다. relationships와 speech에는 근거가 있는 방향을 모두 넣는다. 그중 이야기의 중심이 되는 관계 방향 4개 안팎은 자세히(current 400자 안팎, trajectory는 전환점마다 한 줄) 쓰고, 나머지 관계 방향은 current를 한두 줄로, 나머지 speech 방향은 address·register와 짧은 note로 쓴다.
@@ -24553,8 +24559,8 @@ const WishPromptGuides=(()=>{
   // A text saved against an older default: shown in the editor only. Each guide is compared with the version in which its own
   // default last changed (a saved text without a version counts as oldest); apiIndex and apiLoreConversion
   // have kept their defaults since saved texts carry a version.
-  const DEFAULT_CHANGED={apiMemory:'2.3.27',apiTimeline:'1.13.0',apiObserve:'2.3.27',apiLoreBundle:'1.9.0',apiThreads:'2.3.27',apiRelationships:'2.3.27',apiDelta:'1.8.0',apiRecall:'1.9.0',apiBundleMemory:'2.3.27',apiBundlePeople:'2.3.27',externalAll:'2.3.27',externalMemory:'2.3.27',externalPeople:'2.3.27',externalRelationships:'2.3.27',loreExternal:'2.0.4',externalSecondary:'2.2.2',apiSpeech:'2.3.27',apiDate:'1.9.0',
-    apiCommon:'2.0.3',manualRelay:'1.7.0',currentState:'1.7.0',logSummary:'1.7.0',loreAuto:'1.7.0'};
+  const DEFAULT_CHANGED={apiMemory:'2.3.43',apiTimeline:'1.13.0',apiObserve:'2.3.43',apiLoreBundle:'1.9.0',apiThreads:'2.3.27',apiRelationships:'2.3.27',apiDelta:'1.8.0',apiRecall:'1.9.0',apiBundleMemory:'2.3.43',apiBundlePeople:'2.3.43',externalAll:'2.3.43',externalMemory:'2.3.43',externalPeople:'2.3.43',externalRelationships:'2.3.27',loreExternal:'2.0.4',externalSecondary:'2.2.2',apiSpeech:'2.3.27',apiDate:'1.9.0',
+    apiCommon:'2.3.43',manualRelay:'1.7.0',currentState:'1.7.0',logSummary:'1.7.0',loreAuto:'1.7.0'};
   const versionParts=v=>{const m=String(v||'').match(/^(\d+)\.(\d+)\.(\d+)$/);return m?m.slice(1).map(Number):[0,0,0];};
   function stale(id){
     const r=readGuideRecord(id),since=DEFAULT_CHANGED[id];if(!r||!since)return false;
