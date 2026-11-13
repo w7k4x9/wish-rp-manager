@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.40
+// @version      2.3.41
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -17619,6 +17619,24 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       const k=pendingItemIdentity(item);if(!k||seen.has(k))continue;seen.add(k);
       if(String(item.content||'').trim())pool.push(item);
     }
+    // 2.3.41 서브 구성: 관계가 서브를 다 차지해 날짜로그(실제 이야기)가 한 줄도 안 들어가던 문제. 후보 목록에 없던 날짜로그도 최근 것부터
+    // 덧붙이고, 관계는 서브 자리의 40%까지만 먼저 넣은 뒤 날짜로그를 채우고, 남는 자리에 나머지 관계를 넣는다.
+    try{
+      const slot=(room.slots||[]).find(x=>x.id==='logSummary');
+      if(slot?.enabled&&room.autoLogRecallEnabled!==false&&String(slot.content||'').trim()){
+        const excluded=new Set((room.autoLogExcludedKeys||[]).map(String)),extra=[];
+        for(const b of [...parseDatedLogBlocks(slot.content)].reverse()){
+          if(!b||excluded.has(String(b.key)))continue;
+          const it=makeLogRecallItem(b,slot,'related-log','관련로그','서브 빈자리 · 최근 날짜부터',{score:0});
+          const k=pendingItemIdentity(it);if(!k||seen.has(k)||!String(it.content||'').trim())continue;seen.add(k);extra.push(it);
+          if(extra.length>=300)break;
+        }
+        const isRel=i=>injectionCadenceKind(i)==='relationship',head=pool.filter(i=>i.spilled),rest=pool.filter(i=>!i.spilled);
+        const relCap=Math.round(allFitLimit(room)*.4),relFirst=[],relLater=[];let relChars=0;
+        for(const r of rest.filter(isRel)){const n=String(r.content||'').length;if(relChars+n<=relCap){relFirst.push(r);relChars+=n;}else relLater.push(r);}
+        pool.length=0;pool.push(...head,...rest.filter(i=>!isRel(i)),...relFirst,...extra,...relLater);
+      }
+    }catch(error){console.debug('[Wish] overflow log fill skipped',error);}
     // 2.1.8 떡밥 자리: 메인이 꼭 넣는 칸(현재상태 · 호칭 · 인지 …)으로 꽉 차서 서사 고리가 줄었거나 빠졌으면, 서브 맨 앞에 전체 목록을 넣는다.
     try{
       const inMain=(ctx.active||[]).find(i=>injectionCadenceKind(i)==='threads'),full=threadsPendingItem(safeMemoryThreadsRoom(room));
