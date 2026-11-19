@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.48
+// @version      2.3.49
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -1674,7 +1674,7 @@
       unifiedAutomation: normalizeUnifiedAutomation(src.unifiedAutomation)||{enabled:true,memoryEnabled:true,observeEnabled:true,memoryEvery:4,observeEvery:2},
       apiEconomy: {delta:src.apiEconomy?.delta===true,index:src.apiEconomy?.index===true},
       recallSelection: {semantic:src.recallSelection?.semantic===true,selector:src.recallSelection?.selector===true},
-      rpMemo: {staleThreads:src.rpMemo?.staleThreads===true,awayPeople:src.rpMemo?.awayPeople===true,drawer:src.rpMemo?.drawer===true},
+      rpMemo: {staleThreads:src.rpMemo?.staleThreads===true,awayPeople:src.rpMemo?.awayPeople===true,drawer:src.rpMemo?.drawer===true,proof:src.rpMemo?.proof===true,proofAuto:src.rpMemo?.proofAuto===true},
       autoMemoryEnabled: src.autoMemoryEnabled !== false,
       memoryMinTurns,
       memoryMaxTurns,
@@ -18399,6 +18399,157 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
   function nameDetectionText(room){const s=room?.pending?state.nameSceneByChatId.get(String(room.chatId))||'':'',q=String(room?.autoRecallContextText||'');return s?q+'\n\n'+s:q;}
   // (C) rooms whose last reconcile took the full-history step below (page memory, at most 8): only these are warmed by the tick.
   const fullHistoryWanted=new Set();
+  // 답변 검수 (RP 메모의 「답변 검수」·「묻지 않고 고치기」 스위치): 주입 유지 중인 방에서 새 AI 답변이 끝나면, 그 답변이 읽은
+  // 기억(주입 블록, 없으면 켜진 기억 칸)과 정면으로 어긋나는 구절을 보조 AI에게 한 번 물어 찾는다. 기억이 기준이고 고치는 것은
+  // 답변 글이다. 묻고 고치기: 찾은 곳을 카드로 보여 주고 고른 것만 고친다. 묻지 않고 고치기: 바로 고치고 되돌리기를 남긴다.
+  // 답변마다 한 번만 묻고, 방을 처음 본 때의 최신 답변은 묻지 않는다(지난 답변을 소급하지 않음). 복붙(수동) 모드에서는 쉬고,
+  // 실패는 조용히 넘긴다(주입·전송과 무관). 메시지 수정은 patchMessage 하나로만 하며 운반 작업과 겹치지 않게 같은 잠금을 쓴다.
+  const WishProof=(()=>{
+    const seen=new Map(),running=new Set();let host=null;
+    const MAX_MEMORY=40000,MAX_ANSWER=12000,MAX_FIXES=5;
+    const SYSTEM=[
+      '너는 RP 기록 검수자다. [기억]은 지금까지 확정된 사실이고, [답변]은 방금 생성된 RP 본문이다.',
+      '[답변] 가운데 [기억]의 확정 사실과 정면으로 어긋나는 구절만 찾는다.',
+      '찾는 것: 인물의 이름·별명, 가족·관계상 위치, 직업·신분·재산 형편, 잘 안 바뀌는 외모(눈·머리 색, 체격, 흉터), 서로 부르는 호칭과 높임 관계, 이미 일어난 사건의 내용·순서, 날짜·장소.',
+      '찾지 않는 것: [답변] 안에서 새로 일어난 일로 상황이 바뀐 것(예: 파산해서 가난해짐), 인물의 거짓말·착각·농담·비유, [기억]에 없는 새 정보, 표현만 다른 것, [유저 입력]이 스스로 바꾼 것.',
+      '확신이 없으면 넣지 않는다. 대부분의 답변은 고칠 곳이 없다.',
+      '출력은 JSON 하나: {"fixes":[{"quote":"[답변]에서 글자 그대로 복사한 가장 짧은 구절(답변에 한 번만 나오게)","fix":"그 구절을 [기억]에 맞게 고친 글(문체와 길이는 그대로)","memory":"근거가 된 [기억] 구절","why":"무엇이 어긋나는지 한 줄"}]}',
+      '고칠 곳이 없으면 {"fixes":[]}. JSON 밖의 글은 쓰지 않는다.'
+    ].join('\n');
+    function memoryText(room){
+      const block=String(room?.pending?.contextBlock||'');
+      if(block.trim())return block.slice(0,MAX_MEMORY);
+      return (room?.slots||[]).filter(s=>s?.enabled!==false&&String(s?.content||'').trim()).map(s=>'## '+String(s.title||s.id||'')+'\n'+String(s.content)).join('\n\n').slice(0,MAX_MEMORY);
+    }
+    function parse(raw){
+      const text=String(raw||'').trim(),a=text.indexOf('{'),b=text.lastIndexOf('}');if(a<0||b<=a)return [];
+      try{const data=JSON.parse(text.slice(a,b+1));return Array.isArray(data?.fixes)?data.fixes:[];}catch(_){return [];}
+    }
+    // 답변에 딱 한 번 나오는 구절만, 숨김 주석을 만들 수 없는 글만, 서로 겹치지 않게.
+    function valid(own,fixes){
+      const out=[];
+      for(const f of fixes||[]){
+        const quote=String(f?.quote||''),fix=String(f?.fix||'');
+        if(quote.trim().length<2||!fix.trim()||quote===fix||own.split(quote).length!==2)continue;
+        if(fix.length>quote.length*3+60||/<!--|-->/.test(fix)||/<!--|-->/.test(quote))continue;
+        if(out.some(o=>o.quote.includes(quote)||quote.includes(o.quote)))continue;
+        out.push({quote,fix,memory:String(f?.memory||'').slice(0,200),why:String(f?.why||'').slice(0,200)});
+        if(out.length>=MAX_FIXES)break;
+      }
+      return out;
+    }
+    // 화면에 보이는 글도 맞춰 본다(구절이 한 글 조각 안에 있을 때만). 못 맞추면 새로고침 뒤에 보인다.
+    function paint(messageId,pairs,back=false){
+      try{
+        const box=exactMessageContainer(messageId);if(!box)return false;let n=0;
+        for(const p of pairs){
+          const from=back?p.fix:p.quote,to=back?p.quote:p.fix,walker=document.createTreeWalker(box,NodeFilter.SHOW_TEXT);
+          for(let node=walker.nextNode();node;node=walker.nextNode()){const at=node.nodeValue.indexOf(from);if(at>=0){node.nodeValue=node.nodeValue.slice(0,at)+to+node.nodeValue.slice(at+from.length);n++;break;}}
+        }
+        return n===pairs.length;
+      }catch(_){return false;}
+    }
+    function swap(text,pairs,back){let out=text;const done=[];for(const p of pairs){const from=back?p.fix:p.quote,to=back?p.quote:p.fix;if(out.split(from).length!==2)continue;out=out.replace(from,()=>to);done.push(p);}return {out,done};}
+    function write(room,messageId,pairs,back=false){
+      return withCarrierOperation(room,async()=>{
+        const rid=apiChatIdOf(room);
+        if(generationPending(rid))throw Error('AI가 답변을 만드는 중에는 고칠 수 없습니다.');
+        const current=await fetchMessage(rid,messageId,{anyText:true});if(!current)throw Error('고칠 답변이 사라졌습니다.');
+        const raw=messageTextOf(current),{out,done}=swap(raw,pairs,back);
+        if(!done.length)throw Error('답변 글이 그사이 바뀌어 고칠 구절을 찾지 못했습니다.');
+        await patchMessage(rid,messageId,out,raw);
+        // 이 답변이 지금 주입 블록을 싣고 있으면, 운반 작업이 기억해 둔 원문도 같이 맞춘다(해제 때 옛 글로 되돌아가지 않게).
+        const p=room.pending;
+        if(p&&String(p.messageId||'')===String(messageId)&&typeof p.originalText==='string'&&p.originalText){p.originalText=swap(p.originalText,done,back).out;await saveRoom(room).catch(()=>{});}
+        try{WishHistory.invalidate(rid);}catch(_){/* 다음 읽기가 새로 읽는다 */}
+        return {done,painted:paint(messageId,done,back),before:raw,after:out};
+      });
+    }
+    // 되돌리기: 고친 직후의 글 그대로일 때만, 고치기 전 글을 통째로 돌려놓는다.
+    function restore(room,messageId,result){
+      return withCarrierOperation(room,async()=>{
+        const rid=apiChatIdOf(room);
+        if(generationPending(rid))throw Error('AI가 답변을 만드는 중에는 되돌릴 수 없습니다.');
+        const current=await fetchMessage(rid,messageId,{anyText:true});if(!current)throw Error('되돌릴 답변이 사라졌습니다.');
+        if(messageTextOf(current)!==result.after)throw Error('고친 뒤에 글이 다시 바뀌어 되돌리지 않았습니다.');
+        await patchMessage(rid,messageId,result.before,result.after);
+        const p=room.pending;
+        if(p&&String(p.messageId||'')===String(messageId)&&typeof p.originalText==='string'&&p.originalText){p.originalText=messageOwnText(result.before);await saveRoom(room).catch(()=>{});}
+        try{WishHistory.invalidate(rid);}catch(_){/* 다음 읽기가 새로 읽는다 */}
+        return {done:result.done,painted:paint(messageId,result.done,true)};
+      });
+    }
+    // ---------- 카드 ----------
+    const CSS=`:host{all:initial}*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Pretendard","Malgun Gothic",system-ui,sans-serif;letter-spacing:-.01em}
+.card{--accent:#007AFF;--text:#1D1D1F;--text2:#6E6E73;--fill:rgba(120,120,128,.12);--glass:rgba(242,242,247,.94);--edge:rgba(255,255,255,.65);--ring:rgba(0,0,0,.1);--bad:#D70015;--ok:#1A7F37;width:340px;max-height:70vh;overflow:auto;background:var(--glass);color:var(--text);border:.5px solid var(--edge);border-radius:16px;padding:14px;font-size:13px;line-height:1.45;box-shadow:0 0 0 .5px var(--ring),0 22px 60px rgba(0,0,0,.22);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);word-break:keep-all}
+@media (prefers-color-scheme:dark){.card{--accent:#0A84FF;--text:#F5F5F7;--text2:#A1A1A6;--fill:rgba(120,120,128,.26);--glass:rgba(30,30,32,.86);--edge:rgba(255,255,255,.1);--ring:rgba(0,0,0,.5);--bad:#FF453A;--ok:#30D158}}
+.hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.hd b{font-size:15px}.x{width:24px;height:24px;border-radius:12px;border:0;background:var(--fill);color:var(--text2);cursor:pointer;font-size:14px;padding:0}
+.sub{color:var(--text2);font-size:12px;margin:0 0 8px}.row{display:flex;gap:8px;padding:8px 0;border-top:.5px solid var(--fill)}.row input{margin:3px 0 0;accent-color:var(--accent)}
+.q{color:var(--bad);text-decoration:line-through}.f{color:var(--ok)}.m{color:var(--text2);font-size:11.5px;margin-top:3px}
+.acts{display:flex;gap:8px;margin-top:10px}.btn{flex:1;border:0;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff}.btn.sub2{background:var(--fill);color:var(--text)}.btn:disabled{opacity:.45}`;
+    function close(){try{host?.remove();}catch(_){/* 이미 없음 */}host=null;}
+    function open(build){
+      close();host=document.createElement('div');host.style.cssText='position:fixed;left:16px;bottom:16px;z-index:2147483600;';
+      const root=host.attachShadow({mode:'open'}),style=document.createElement('style'),card=document.createElement('div');
+      style.textContent=CSS;card.className='card';root.append(style,card);
+      const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;};
+      const head=el('div','hd');head.append(el('b','','답변 검수'));const x=el('button','x','×');x.onclick=close;head.append(x);card.append(head);
+      build(card,el);document.documentElement.appendChild(host);
+    }
+    function showDone(room,messageId,result,back=false){
+      open((card,el)=>{
+        card.append(el('p','sub',back?`${result.done.length}곳을 원래 글로 되돌렸어요.`:`${result.done.length}곳을 기억에 맞게 고쳤어요.`+(result.painted?'':' 화면에는 새로고침하면 보여요.')));
+        if(!back)for(const f of result.done){const row=el('div','row'),body=el('div');body.append(el('div','q',f.quote),el('div','f',f.fix));row.append(body);card.append(row);}
+        const acts=el('div','acts');
+        if(!back){const undo=el('button','btn sub2','되돌리기');undo.onclick=async()=>{undo.disabled=true;try{showDone(room,messageId,await restore(room,messageId,result),true);}catch(error){showError(error);}};acts.append(undo);}
+        const ok=el('button','btn','닫기');ok.onclick=close;acts.append(ok);card.append(acts);
+      });
+      if(back)setTimeout(()=>{if(host)close();},6000);
+    }
+    function showError(error){open((card,el)=>{card.append(el('p','sub','고치지 못했어요: '+String(error?.message||error)));const acts=el('div','acts'),ok=el('button','btn','닫기');ok.onclick=close;acts.append(ok);card.append(acts);});}
+    function showAsk(room,messageId,fixes){
+      open((card,el)=>{
+        card.append(el('p','sub',`방금 답변에서 기억과 다른 곳을 ${fixes.length}개 찾았어요. 고칠 것을 고르세요.`));
+        const boxes=[];
+        for(const f of fixes){
+          const row=el('label','row'),box=el('input');box.type='checkbox';box.checked=true;boxes.push(box);
+          const body=el('div');body.append(el('div','q',f.quote),el('div','f',f.fix));if(f.memory||f.why)body.append(el('div','m',[f.why,f.memory&&'기억: '+f.memory].filter(Boolean).join(' · ')));
+          row.append(box,body);card.append(row);
+        }
+        const acts=el('div','acts'),skip=el('button','btn sub2','그대로 두기'),go=el('button','btn','고른 것 고치기');
+        skip.onclick=close;
+        go.onclick=async()=>{const picked=fixes.filter((_,i)=>boxes[i].checked);if(!picked.length)return close();go.disabled=true;try{showDone(room,messageId,await write(room,messageId,picked));}catch(error){showError(error);}};
+        acts.append(skip,go);card.append(acts);
+      });
+    }
+    async function run(room,messageId,answer,userText,auto){
+      const memory=memoryText(room),own=String(answer||'');
+      if(!memory.trim()||own.trim().length<20)return;
+      const settings=loadAiSettings();
+      const reply=await callAiProvider(settings,SYSTEM,JSON.stringify({'기억':memory,'유저 입력':String(userText||'').slice(0,4000),'답변':own.slice(0,MAX_ANSWER)}),{taskKind:'select',responseMimeType:'application/json',operationLabel:'답변 검수',maxOutputTokens:2048,timeoutMs:90000});
+      const fixes=valid(own,parse(reply?.text??reply));
+      if(!fixes.length||state.currentRoom!==room)return;
+      if(auto){try{showDone(room,messageId,await write(room,messageId,fixes));}catch(error){console.debug('[Wish] proof auto-fix held',error);showAsk(room,messageId,fixes);}}
+      else showAsk(room,messageId,fixes);
+    }
+    function watch(room,frame,reason){
+      const on=rpMemoSettings();if(!on.proof||reason==='before-send'||reason==='before-reroll')return;
+      const rid=String(apiChatIdOf(room)||''),latest=frame?.latest,id=String(messageIdOf(latest)||'');
+      if(!rid||!id||messageRoleOf(latest)!=='assistant'||generationPending(rid))return;
+      const key='wish-proof-seen:'+rid;let last=seen.get(rid);
+      if(last===undefined){try{last=localStorage.getItem(key)||'';}catch(_){last='';}}
+      const remember=()=>{seen.set(rid,id);try{localStorage.setItem(key,id);}catch(_){/* 저장 못 해도 이 탭에서는 기억 */}};
+      if(!last){remember();return;}
+      if(last===id||running.has(id))return;
+      const settings=loadAiSettings();if(isManualAiProvider(settings)||!isAiProviderReady(settings))return;
+      remember();running.add(id);
+      const answer=messageOwnText(messageTextOf(latest)),at=(frame.messages||[]).indexOf(latest),user=(frame.messages||[]).slice(Math.max(0,at+1)).find(m=>messageRoleOf(m)==='user');
+      const userText=user?stripOurContextBlock(messageTextOf(user)).text:'';
+      wishIdle(()=>{run(room,id,answer,userText,!!on.proofAuto).catch(error=>console.debug('[Wish] proof skipped',error)).finally(()=>running.delete(id));});
+    }
+    return {watch,valid,parse,swap};
+  })();
+
   function reconcileStableCarrier(){const __t=performance.now();try{return reconcileStableCarrier__perf.apply(this,arguments);}finally{__wpfAdd('reconcileStableCarrier',performance.now()-__t);}}
   async function reconcileStableCarrier__perf(room,reason='update',knownFrame=null,control=null) {
     control?.assertActive?.();
@@ -18519,6 +18670,8 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     // Cards those messages turn on whose text alone passes the limit: dropped at once, before any pick reads them.
     if(sendReason&&state.nameSceneByChatId.get(String(room.chatId))&&cardsPastLimit(room))dropScene();
     const latestId=String(messageIdOf(frame.latest)||'');
+    // 답변 검수: 새 답변이 끝난 걸 여기서 본다. 기다리지 않고, 실패해도 주입과 무관하다.
+    try{WishProof.watch(room,frame,reason);}catch(error){console.debug('[Wish] proof watch skipped',error);}
     if(reason==='before-reroll')RecallPrefetch.drop(latestId);
     const newId=carrierId;
     const carrierChanged=p.baselineAssistantId!==latestId;
@@ -22744,8 +22897,8 @@ function mRelationships() {
           
           (eng==='deepl'?`<div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-zh-deepl">DeepL 키</label></span><span class="w-sub">무료 키는 끝이 :fx</span></span><span class="w-acts"><input id="wish-zh-deepl" type="text" class="m3-keymask" data-bind="zh.deeplKey" value="${esc(z.deeplKey||'')}" placeholder="DeepL API 키"${NO_FILL} style="width:220px"></span></div>`:'')+
           W_R('번역해 둔 기억',`${(()=>{try{const r=state.currentRoom,items=r?.pending?.items||[],p=SecondaryRebuild.projector(r,{contextNotation:true}),rs=WishZh.roomStatus(items.map(p.item));return rs.all?'이 방 '+fmt(rs.ok)+' / '+fmt(rs.all)+'개 · ':'';}catch(_){return '';}})()}전체 ${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.why?' · 지금: '+esc(z.why):''}${z.error?' · 문제: '+esc(z.error):''}`,btn('지금 번역','zhNow',{cls:'mini primary'})+btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
-      W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시 세 가지를 덧붙입니다. 끄면 지금과 같습니다. 바꾸면 다음 전송부터 적용됩니다.'),savedTag('rpMemo'))+
-      `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}${W_TG('기억 서랍','rpMemo.drawer',m.drawer,'기억 칸에 없는 예전 장면을 대화 원문에서 찾아 줘요','보내는 글에 나온 낱말 가운데 기억 칸(현재상태·날짜로그 등)과 최근 대화 40개에는 없고 예전 대화에만 있는 낱말을 찾아, 그 장면을 한두 줄(줄마다 220자까지) 발췌해 현재상태 끝에 덧붙입니다. 날짜로그에 올라가지 않은 사소한 장면을 다시 꺼낼 때 쓰입니다. 낱말이 겹쳐야 찾습니다. API를 쓰지 않고 저장하는 것도 없으며, 전체 대화를 아직 읽지 못한 첫 전송에는 붙지 않습니다. 자리가 모자라면 먼저 빠집니다.')}</div>`+
+      W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시를 덧붙이고(위 세 가지), 새 답변을 기억과 맞춰 봅니다(아래 두 가지). 끄면 지금과 같습니다. 바꾸면 다음 전송·다음 답변부터 적용됩니다.'),savedTag('rpMemo'))+
+      `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}${W_TG('기억 서랍','rpMemo.drawer',m.drawer,'기억 칸에 없는 예전 장면을 대화 원문에서 찾아 줘요','보내는 글에 나온 낱말 가운데 기억 칸(현재상태·날짜로그 등)과 최근 대화 40개에는 없고 예전 대화에만 있는 낱말을 찾아, 그 장면을 한두 줄(줄마다 220자까지) 발췌해 현재상태 끝에 덧붙입니다. 날짜로그에 올라가지 않은 사소한 장면을 다시 꺼낼 때 쓰입니다. 낱말이 겹쳐야 찾습니다. API를 쓰지 않고 저장하는 것도 없으며, 전체 대화를 아직 읽지 못한 첫 전송에는 붙지 않습니다. 자리가 모자라면 먼저 빠집니다.')}${W_TG('답변 검수','rpMemo.proof',m.proof,'새 답변이 기억과 다른 곳을 찾아 고칠지 물어봐요','주입 유지 중인 방에서 AI 답변이 끝날 때마다 보조 AI에게 한 번 물어, 그 답변이 읽은 기억(이름·가족·직업·재산·외모·호칭·지난 사건)과 정면으로 어긋나는 구절을 찾습니다. 찾으면 화면 왼쪽 아래 카드에 「답변 구절 → 고친 글」을 보여 주고, 고른 것만 답변 글에서 고칩니다. 기억이 기준이고 기억은 바꾸지 않습니다. 이야기 속에서 새로 바뀐 일·거짓말·농담은 고치지 않게 했습니다. 답변마다 API를 한 번 씁니다(복붙 모드에서는 쉼).')}${W_TG('묻지 않고 고치기','rpMemo.proofAuto',m.proofAuto,'답변 검수가 찾은 곳을 바로 고치고 되돌리기를 남겨요','답변 검수가 켜져 있을 때만 쓰입니다. 찾은 구절을 묻지 않고 답변 글에서 바로 고친 뒤, 무엇을 고쳤는지와 [되돌리기]를 카드로 보여 줍니다. 고치지 못하면 물어보는 카드로 바뀝니다.')}</div>`+
       W_SECH('문제 해결')+
       `<div class="w-grp" data-key="error-log-settings">${W_R('실패 · 주의 기록','최근 오류를 봐요 · API 키는 가려요 · 남에게 보내기 전에 내용을 한 번 확인해 주세요',btn('실패 기록 보기','errorLogs',{cls:'mini',icon:'doc'}))}${W_R('자동 시작점 '+help('아직 정리하지 않은 과거 대화를 건너뛰고 이후 새 대화부터 셉니다. 저장된 기억·인지·자료는 유지합니다. 과거 내용을 다시 읽으려면 전체 재구축을 사용하세요.'),'아직 정리 안 한 지난 대화는 건너뛰고 지금부터 세요 · 저장된 기억은 그대로',btn('지금으로 맞추기','memoryBase',{cls:'mini',icon:'clock'}),'','automation-baseline')}</div>`;
   }
@@ -25183,7 +25336,7 @@ WUI_ADAPTER.bind['recall.mode']=value=>{
  if(!pair)return;const draft=WUISettingsDraft();draft['recall.semantic']=pair[0];draft['recall.selector']=pair[1];
 };
 for(const name of ['semantic','selector'])WUI_ADAPTER.bind['recall.'+name]=value=>{WUISettingsDraft()['recall.'+name]=!!value;};
-for(const name of ['staleThreads','awayPeople','drawer'])WUI_ADAPTER.bind['rpMemo.'+name]=value=>{WUISettingsDraft()['rpMemo.'+name]=!!value;};
+for(const name of ['staleThreads','awayPeople','drawer','proof','proofAuto'])WUI_ADAPTER.bind['rpMemo.'+name]=value=>{WUISettingsDraft()['rpMemo.'+name]=!!value;};
  for(const [key,field] of [['pol.char','characterEvery'],['pol.extra','extraEvery'],['cogInclude','cognitionEvery']])WUI_ADAPTER.bind[key]=async value=>{
   const room=state.currentRoom,before=room.injectionPolicy[field];room.injectionPolicy[field]=value?1:0;
   try{await saveRoom(room);}catch(e){room.injectionPolicy[field]=before;throw e;}
@@ -25193,7 +25346,7 @@ for(const name of ['staleThreads','awayPeople','drawer'])WUI_ADAPTER.bind['rpMem
 Object.assign(WUI_ADAPTER.act,{errorDetail:id=>(WLOG.viewed(),WUI.openSheet('errorDetail',{errorId:id,errorRow:WLOG.find(id)})),errorDetailCopy:async id=>{const d=WUI.ui.dlg(id),row=d&&(WLOG.find(d.errorId)||d.errorRow);if(!row)return;const ok=await copyPlainText(JSON.stringify({...row,...WLOG.describe(row)},null,2));notify(ok?'오류 내용을 복사했습니다.':'복사하지 못했습니다.',ok?'success':'error',3000,{kind:'COPY_FAIL_LOG'});},errorLogs:()=>(WLOG.viewed(),WUI.openSheet('errorLogs')),errorLogsCopy:async()=>{const ok=await copyPlainText(WLOG.exportText());notify(ok?'실패·주의 기록을 복사했습니다.':'복사하지 못했습니다.',ok?'success':'error',3000,{kind:'COPY_FAIL_LOG'});},errorLogsClear:()=>{if(confirm('이 브라우저에 저장된 실패 기록만 비울까요?'))WLOG.clear();}});
 const WUIAutoSave=(()=>{
  const records=new Map();let tail=Promise.resolve();
- const fields={unified:['memoryEnabled','observeEnabled','memoryEvery','observeEvery',...U3.AREAS.map(r=>r[2])],apiEconomy:['delta','index'],recall:['semantic','selector'],rpMemo:['staleThreads','awayPeople','drawer']};
+ const fields={unified:['memoryEnabled','observeEnabled','memoryEvery','observeEvery',...U3.AREAS.map(r=>r[2])],apiEconomy:['delta','index'],recall:['semantic','selector'],rpMemo:['staleThreads','awayPeople','drawer','proof','proofAuto']};
  const snapshot=(group,vm)=>Object.fromEntries(fields[group].map(k=>[k,vm[group][k]]));
  const clearDrafts=(group,values)=>{for(const draft of WUICache.settings.values()){for(const [field,value]of Object.entries(values)){const path=group+'.'+field;if(draft[path]===value)delete draft[path];}}};
  async function commit(group,room,values,epoch){
