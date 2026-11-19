@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.53
+// @version      2.3.54
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -13976,9 +13976,10 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
     }
   }
 
-  // 기억 서랍이 유저 메시지 끝에 붙인 숨김 주석. 우리 도구가 메시지를 읽을 때는 언제나 빼고 읽는다(carrier 블록이 아니므로 found에는 안 잡힌다).
-  const WISH_DRAWER_BLOCK=/\s*(?:\\|\?)?(?:<!--|&lt;!--)RP_DRAWER_START\b[\s\S]*?RP_DRAWER_END--(?:>|&gt;)/gi;
-  function stripDrawerBlock(text){const src=String(text||'');return src.includes('RP_DRAWER_START')?src.replace(WISH_DRAWER_BLOCK,''):src;}
+  // 기억 서랍이 유저 메시지 끝에 붙인 주석. 우리 도구가 메시지를 읽을 때는 언제나 빼고 읽는다(carrier 블록이 아니므로 found에는 안 잡힌다).
+  // 지금 형식은 마크다운 주석 줄([//]: # (RP_DRAWER|…))이고, 2.3.52~53이 붙인 HTML 주석(RP_DRAWER_START … END)도 함께 뺀다.
+  const WISH_DRAWER_BLOCK=/\s*(?:\\|\?)?(?:<!--|&lt;!--)RP_DRAWER_START\b[\s\S]*?RP_DRAWER_END--(?:>|&gt;)/gi,WISH_DRAWER_LINE=/^[ \t]*\\?\[\/\/\]: # \(RP_DRAWER\|[^\n]*$/gm;
+  function stripDrawerBlock(text){const src=String(text||'');if(!src.includes('RP_DRAWER'))return src;const out=src.replace(WISH_DRAWER_BLOCK,'').replace(WISH_DRAWER_LINE,'');return out===src?src:out.replace(/\s+$/,'');}
   function stripOurContextBlock(text, cutCopy = true) {
     const src = stripDrawerBlock(text);
     let found = false;
@@ -15930,17 +15931,19 @@ ${AI_JSON_TEXT_RULE}
   // renders them; the envelope id's width is read on the built text), and put on copies of the items only where that text is built
   // (rpMemoAttach: the mark on the row today's list still holds, within the list's own cap; the line on a 현재상태 with text). A
   // verified write leaves them on the pending items the same way, so the panel reads the sent text. OFF: nothing is read or reserved.
-  // 기억 서랍 (RP 메모 셋째 스위치): 보내는 글의 낱말로 예전 장면을 찾아, 한두 줄 발췌를 **보내는 유저 메시지 끝에 숨김 주석**
-  // (<!--RP_DRAWER_START … RP_DRAWER_END-->)으로 붙인다. 5만 자 주입(carrier)과는 별개라 그 자리를 쓰지 않는다. 로어 인젝터처럼
+  // 기억 서랍 (RP 메모 셋째 스위치): 보내는 글의 낱말로 예전 장면을 찾아, 한두 줄 발췌를 **보내는 유저 메시지 끝에 마크다운 주석**
+  // (한 줄에 하나씩 [//]: # (RP_DRAWER|…))으로 붙인다. 크랙의 유저 말풍선은 HTML 주석을 글자 그대로 보여 주고 마크다운 주석만 숨긴다. 5만 자 주입(carrier)과는 별개라 그 자리를 쓰지 않는다. 로어 인젝터처럼
   // 그 메시지에 남아 대화가 흘러가면 함께 밀려난다. 찾는 순서: ① 사소한 장면 목록(제목·낱말) ② 이번 주입에도 최근 대화에도 없는
   // 낱말을 예전 원문에서 ③ 뜻으로 찾기(임베딩). 한 번 붙인 장면은 그 뒤 전송 15번 동안 다시 붙이지 않는다.
   // 우리 도구가 메시지를 읽을 때는 이 주석을 빼고 읽는다(stripOurContextBlock → stripDrawerBlock).
   const WishDrawer=(()=>{
     const docs=new WeakMap(),lastByRoom=new Map();
-    const SKIP_RECENT=40,MAX_ROWS=2,ROW_CHARS=220,MIN_TERM=2,MAX_TERMS=8;
+    const SKIP_RECENT=40,MAX_ROWS=2,ROW_CHARS=220,MIN_TERM=2,MAX_TERMS=8,BURST_SPAN=10,BURST_MIN=3;
     const JOSA=/(?:이라고|이라는|에서는|에서도|에게서|한테서|으로는|으로도|라고|라는|에서|에게|한테|으로|이랑|처럼|까지|부터|마다|보다|이야|하고|은|는|이|가|을|를|의|에|와|과|도|로|랑|만|야)$/;
     // 서술어로 끝나는 낱말(하자·했다·있어 …)은 장면을 가리키지 않으므로 검색어로 쓰지 않는다.
     const VERBISH=/(?:하자|했다|한다|하고|해서|했던|하는|하던|했어|할까|할게|하면|해요|해줘|합니다|했지|하지|하네|했네|이다|였다|였어|있어|없어|있다|없다|있던|없던|같아|같은|싶어|싶다|었다|았다|였지|겠다|겠어|는다|니까|는데|은데|잖아|거든|구나|네요|어요|아요|세요|었어|았어|지만|면서|려고|나요|까요|ㄹ까)$/;
+    // 활용 어미로 끝나는 말(아프면·걱정돼·망한다구·없으면 …)도 장면을 가리키지 않는다.
+    const ENDING=/(?:으면|면서|[가-힣]면|니까|는데|은데|던데|지만|려고|도록|다가|거나|든지|어서|아서|해서|하게|다구|다고|라구|라고|냐고|자고|을까|까봐|을게|돼|됐어|됐다|더라|는지|은지|을지|구나|네요|어요|아요|세요|니다|라도|이라)$/;
     const docOf=m=>{
       let d=docs.get(m);
       if(!d){
@@ -15955,7 +15958,7 @@ ${AI_JSON_TEXT_RULE}
       const out=[];
       for(const raw of tokenizeRecallText(userText)){
         const cut=raw.replace(JOSA,''),term=cut.length>=MIN_TERM?cut:raw;
-        if(term.length<MIN_TERM||LOG_STOPWORDS.has(term)||/^\d+$/.test(term)||VERBISH.test(raw)||out.includes(term))continue;
+        if(term.length<MIN_TERM||LOG_STOPWORDS.has(term)||/^\d+$/.test(term)||VERBISH.test(raw)||ENDING.test(raw)||out.includes(term))continue;
         out.push(term);
       }
       return out;
@@ -16003,20 +16006,28 @@ ${AI_JSON_TEXT_RULE}
       const turnsAt=index=>{let n=0;for(let k=0;k<index;k++)if(docOf(messages[k]).user)n++;return n;};
       let noted=null;try{noted=noteRow(String(apiChatIdOf(room)||''),query,messages);}catch(_){noted=null;}
       const first=noted?[{id:noted.id,turns:turnsAt(noted.i),user:noted.user,title:noted.title,text:noted.text}]:[];
+      // 목록에서 찾았으면 그것만 붙인다. 원문 낱말 찾기는 목록에 없을 때만 쓰는 보조 수단이다.
+      if(first.length)return first;
       // AI가 이번 턴에 실제로 받는 기억(주 주입 블록)과 최근 대화에 이미 있는 낱말은 찾지 않는다. 주입 전이면 기억 칸 전체로 본다.
       const known=[String(room?.pending?.contextBlock||'')||(room?.slots||[]).map(s=>String(s?.content||'')).join('\n'),messages.slice(0,SKIP_RECENT).map(m=>docOf(m).text).join('\n')].join('\n').toLowerCase();
-      const fresh=termsOf(query).filter(t=>!known.includes(t)).slice(0,MAX_TERMS);if(!fresh.length)return first;
+      const fresh=termsOf(query).filter(t=>!known.includes(t)).slice(0,MAX_TERMS);if(!fresh.length)return [];
       const old=messages.slice(SKIP_RECENT).map(docOf),N=old.length,cap=Math.max(6,Math.floor(N*0.03));
-      const idf=new Map();
-      for(const t of fresh){let n=0;for(const d of old)if(d.lower.includes(t))n++;if(n>0&&n<=cap)idf.set(t,Math.log(1+N/n)*(1+Math.min(t.length,6)/6));}
-      if(!idf.size)return first;
+      // 장면을 가리키는 낱말(이름·물건·놀이)은 그 장면 안에서 여러 번 몰려 나오고, 그냥 쓰인 말(아프면·박살)은 여기저기 한 번씩 흩어진다.
+      // 그래서 글 10개 안에 3번 이상 몰려 나온 자리가 있는 낱말만 쓰고, 그 몰린 자리에서 가장 많이 나온 글(같으면 더 옛 글)을 고른다.
+      const count=(text,term)=>{let n=0,at=-1;while((at=text.indexOf(term,at+1))>=0)n++;return n;};
       const rows=[];
-      old.forEach((d,i)=>{let score=0,best='',bestW=0;for(const [t,w] of idf)if(d.lower.includes(t)){score+=w;if(w>bestW){bestW=w;best=t;}}if(score>0)rows.push({d,i,score,term:best});});
-      // 점수 높은 순, 같으면 더 옛 장면(처음 나온 자리)을 먼저. 둘째 줄은 첫째의 바로 앞뒤 글(같은 장면의 답)이거나 6개 넘게 떨어진 다른 장면.
+      for(const t of fresh){
+        const hits=[];old.forEach((d,i)=>{const c=d.lower.includes(t)?count(d.lower,t):0;if(c)hits.push({i,c});});
+        if(!hits.length||hits.length>cap)continue;
+        let best=null;
+        for(let a=0;a<hits.length;a++){let sum=0,top=hits[a];for(let k=a;k<hits.length&&hits[k].i-hits[a].i<BURST_SPAN;k++){sum+=hits[k].c;if(hits[k].c>top.c||(hits[k].c===top.c&&hits[k].i>top.i))top=hits[k];}if(sum>=BURST_MIN&&(!best||sum>best.sum||(sum===best.sum&&top.i>best.top.i)))best={sum,top};}
+        if(best)rows.push({d:old[best.top.i],i:best.top.i,score:best.sum*Math.log(1+N/hits.length)*(1+Math.min(t.length,6)/6),term:t});
+      }
+      if(!rows.length)return [];
       rows.sort((a,b)=>b.score-a.score||b.i-a.i);
-      const picked=[],room1=MAX_ROWS-first.length,notedAt=noted?noted.i-SKIP_RECENT:-99;
-      for(const r of rows){if(picked.length>=room1)break;if(Math.abs(r.i-notedAt)<=6||picked.some(p=>{const gap=Math.abs(p.i-r.i);return gap===0||(gap>1&&gap<=6);}))continue;picked.push(r);}
-      return [...first,...picked.sort((a,b)=>b.i-a.i).map(r=>({id:String(messageIdOf(messages[r.i+SKIP_RECENT])||''),turns:turnsAt(r.i+SKIP_RECENT),user:r.d.user,term:r.term,text:excerpt(r.d,r.term)})).filter(r=>r.text)];
+      const picked=[];
+      for(const r of rows){if(picked.length>=MAX_ROWS)break;if(picked.some(p=>Math.abs(p.i-r.i)<=6))continue;picked.push(r);}
+      return picked.sort((a,b)=>b.i-a.i).map(r=>({id:String(messageIdOf(messages[r.i+SKIP_RECENT])||''),turns:turnsAt(r.i+SKIP_RECENT),user:r.d.user,term:r.term,text:excerpt(r.d,r.term)})).filter(r=>r.text);
     }
 
     // ---------- 뜻으로 찾기 (RP 메모 「서랍: 뜻으로 찾기」) ----------
@@ -16111,8 +16122,10 @@ ${AI_JSON_TEXT_RULE}
       prepared={rid,query,rows,at:Date.now()};
     }
     // ---------- 보내는 메시지에 붙이기 ----------
-    const OPEN='<!--RP_DRAWER_START',CLOSE='RP_DRAWER_END-->',COOL=15,COMMENT_MAX=900,sentKey=rid=>'wish-drawer-sent:'+rid;
-    const safe=s=>String(s||'').replace(/<!--/g,'<\u200B!--').replace(/-->/g,'--\u200B>');
+    // 마크다운 주석 한 줄: [//]: # (RP_DRAWER|글). 괄호 제목 안에서는 ( ) \ 를 쓸 수 없어 전각 글자로 바꾸고, 줄바꿈은 없앤다.
+    const MARK='[//]: # (RP_DRAWER|',COOL=15,sentKey=rid=>'wish-drawer-sent:'+rid;
+    const safe=s=>String(s||'').replace(/\s+/g,' ').replace(/\(/g,'（').replace(/\)/g,'）').replace(/\\/g,'＼').trim();
+    const note=s=>MARK+safe(s)+')';
     function sentOf(rid){try{const v=JSON.parse(localStorage.getItem(sentKey(rid))||'null');return v&&typeof v==='object'&&v.ids&&typeof v.ids==='object'?{n:Number(v.n)||0,ids:v.ids}:{n:0,ids:{}};}catch(_){return {n:0,ids:{}};}}
     // 이번 전송에 붙일 줄. 전체 대화 사본이 아직 없으면 뒤에서 읽어 두기만 하고 이번엔 건너뛴다.
     function pick(room,userText){
@@ -16128,9 +16141,8 @@ ${AI_JSON_TEXT_RULE}
       return {rid,rows,sent};
     }
     function commentOf(rows){
-      let body=rows.map(r=>`· 약 ${r.turns}턴 전${r.title?' 「'+safe(r.title)+'」':''}${r.user?' 유저 입력':''}: “${safe(r.text)}”`).join('\n');
-      if(body.length>COMMENT_MAX)body=body.slice(0,COMMENT_MAX)+'…';
-      return OPEN+'\n(대화 관리 도구가 붙인 기억 참고다. 유저가 쓴 글이 아니고 지금 벌어지는 일도 아니다. 유저가 방금 꺼낸 말과 이어지는 예전 장면이니 기억으로만 참고하고, 이 주석을 답변에 옮겨 적지 않는다.)\n'+body+'\n'+CLOSE;
+      return [note('대화 관리 도구가 붙인 기억 참고다. 유저가 쓴 글이 아니고 지금 벌어지는 일도 아니다. 유저가 방금 꺼낸 말과 이어지는 예전 장면이니 기억으로만 참고하고, 이 줄들을 답변에 옮겨 적지 않는다.'),
+        ...rows.map(r=>note(`약 ${r.turns}턴 전${r.title?' 「'+r.title+'」':''}${r.user?' 유저 입력':''}: “${r.text}”`))].join('\n');
     }
     // 전송 프레임(socket.io 42[...])의 유저 글 끝에 주석을 붙여 돌려준다. 어떤 실패든 원래 프레임을 그대로 돌려준다.
     function attach(raw,room,userText){
@@ -16139,7 +16151,7 @@ ${AI_JSON_TEXT_RULE}
         const got=pick(room,userText);
         const m=/^42(\/[^,]+,)?(\d*)(\[.*)$/s.exec(raw);if(!m)return raw;
         const arr=JSON.parse(m[3]),p=arr[1],key=['message','content','text'].find(k=>typeof p?.[k]==='string');
-        if(!key||p[key].includes(OPEN))return raw;
+        if(!key||p[key].includes(MARK))return raw;
         if(got){
           // 전송 횟수는 붙이든 안 붙이든 센다(쉬는 기간이 전송 수로 흐르게).
           for(const id of Object.keys(got.sent.ids))if(got.sent.n-Number(got.sent.ids[id])>COOL)delete got.sent.ids[id];
@@ -23162,7 +23174,7 @@ function mRelationships() {
           (eng==='deepl'?`<div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-zh-deepl">DeepL 키</label></span><span class="w-sub">무료 키는 끝이 :fx</span></span><span class="w-acts"><input id="wish-zh-deepl" type="text" class="m3-keymask" data-bind="zh.deeplKey" value="${esc(z.deeplKey||'')}" placeholder="DeepL API 키"${NO_FILL} style="width:220px"></span></div>`:'')+
           W_R('번역해 둔 기억',`${(()=>{try{const r=state.currentRoom,items=r?.pending?.items||[],p=SecondaryRebuild.projector(r,{contextNotation:true}),rs=WishZh.roomStatus(items.map(p.item));return rs.all?'이 방 '+fmt(rs.ok)+' / '+fmt(rs.all)+'개 · ':'';}catch(_){return '';}})()}전체 ${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.why?' · 지금: '+esc(z.why):''}${z.error?' · 문제: '+esc(z.error):''}`,btn('지금 번역','zhNow',{cls:'mini primary'})+btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
       W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시를 덧붙이고(묵은 떡밥·퇴장한 인물·기억 서랍), 답변이 끝나면 보조 AI가 사소한 장면을 모으거나 답변을 기억과 맞춰 봅니다(사소한 장면 모으기·답변 검수). 끄면 지금과 같습니다. 바꾸면 다음 전송·다음 답변부터 적용됩니다.'),savedTag('rpMemo'))+
-      `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}${W_TG('기억 서랍','rpMemo.drawer',m.drawer,'보내는 글과 이어지는 예전 장면을 그 메시지에 숨겨 붙여요','보내는 글의 낱말로 예전 장면을 찾아 한두 줄(줄마다 220자까지) 발췌를 보내는 메시지 끝에 숨김 주석으로 붙입니다. 5만 자 주입과는 별개라 그 자리를 쓰지 않고, 로어 인젝터처럼 그 메시지에 남아 대화와 함께 흘러갑니다. 먼저 아래 사소한 장면 목록(제목·낱말)에서 찾고, 없으면 이번 주입에도 최근 대화 40개에도 없는 낱말을 예전 원문에서 찾습니다. 한 번 붙인 장면은 그 뒤 전송 15번 동안 다시 붙이지 않고, 붙일 때마다 짧은 알림이 뜹니다. 주입 유지 중인 방에서만 동작하며, 전체 대화를 아직 읽지 못한 첫 전송에는 붙지 않습니다.')}${W_TG('사소한 장면 모으기','rpMemo.drawerNotes',m.drawerNotes,'놀이·농담·별명 같은 장면에 한 줄 제목을 붙여 모아 둬요','AI 답변이 끝날 때마다 보조 AI에게 물어, 줄거리 요약에는 안 남을 사소한 장면(둘만의 놀이·장난·별명·작은 내기 등)에 한 줄 제목과 낱말을 붙여 방마다 모아 둡니다(이 브라우저에만, 2,000줄까지). 기억 서랍이 켜져 있으면 원문보다 이 목록에서 먼저 찾아서, "그때 그 놀이"처럼 종류만 말해도 찾을 수 있습니다. 켠 뒤의 답변부터 모이고, 그 전 대화는 아래 「지난 대화에서 모으기」로 채웁니다. 답변 검수와 같은 호출에 얹으므로 둘 다 켜도 답변마다 API는 한 번입니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 하고, 그것도 없으면 쉽니다.')}${(()=>{try{const s=WishDrawer.fillStatus(state.currentRoom);return W_R('지난 대화에서 모으기 '+help('예전 턴을 15턴씩 묶어 보조 AI에게 읽혀, 사소한 장면 목록을 채웁니다(15턴에 API 한 번). 기억·날짜로그는 건드리지 않고 재구축과도 무관합니다. 범위를 골라 일부만 할 수 있고, 뒤에서 돌아가므로 그동안 RP를 계속해도 됩니다. 멈춰도 읽은 데까지는 남고 다시 누르면 이어서 합니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 합니다.'),s.running?'모으는 중 · '+fmt(s.running.done)+' / '+fmt(s.running.total)+'묶음 · 지금까지 '+fmt(s.running.added)+'줄':'지금 '+fmt(s.notes)+'줄 모여 있어요 · 범위를 골라 누르세요',s.running?btn('멈추기','drawerFillStop',{cls:'mini',icon:'pause'}):btn('최근 200턴','drawerFill',{cls:'mini',arg:200,dis:s.busy})+btn('최근 500턴','drawerFill',{cls:'mini',arg:500,dis:s.busy})+btn('전체','drawerFill',{cls:'mini',arg:0,dis:s.busy})+btn('목록 보기','drawerList',{cls:'mini',icon:'doc'}),'','drawer-fill');}catch(_){return '';}})()}${W_TG('서랍: 뜻으로 찾기','rpMemo.drawerDeep',m.drawerDeep,'낱말이 안 겹쳐도 뜻이 가까운 예전 장면을 찾아요','예전 대화를 턴 단위로 임베딩해 이 브라우저에 모아 두고(뒤에서 조금씩, 한 번에 48턴), 보내는 글이 "그때·저번에·또 하자"처럼 예전 일을 꺼내는 말투인데 낱말과 장면 목록으로는 못 찾았을 때만 뜻이 가장 가까운 턴 하나를 찾아 같은 숨김 주석으로 붙입니다. 다른 턴들보다 뚜렷이 가까울 때만 붙고, 애매하면 붙이지 않습니다. 기억 서랍이 켜져 있어야 하며 AI 설정의 Gemini API Key를 씁니다(의미 검색과 같은 모델). 주 AI가 복붙·ChatGPT 웹인 동안에는 의미 검색과 마찬가지로 쉽니다. 색인을 만드는 동안 임베딩 비용이 들고, 그 뒤로는 새 턴과 해당 전송에만 듭니다. 전송은 길어야 5초 기다립니다.')}${W_TG('답변 검수','rpMemo.proof',m.proof,'새 답변이 기억과 다른 곳을 찾아 고칠지 물어봐요','주입 유지 중인 방에서 AI 답변이 끝날 때마다 보조 AI에게 한 번 물어, 그 답변이 읽은 기억(이름·가족·직업·재산·외모·호칭·지난 사건)과 정면으로 어긋나는 구절을 찾습니다. 찾으면 화면 왼쪽 아래 카드에 「답변 구절 → 고친 글」을 보여 주고, 고른 것만 답변 글에서 고칩니다. 기억이 기준이고 기억은 바꾸지 않습니다. 이야기 속에서 새로 바뀐 일·거짓말·농담은 고치지 않게 했습니다. 답변마다 API를 한 번 씁니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 하고, 그것도 없으면 쉽니다.')}${W_TG('묻지 않고 고치기','rpMemo.proofAuto',m.proofAuto,'답변 검수가 찾은 곳을 바로 고치고 되돌리기를 남겨요','답변 검수가 켜져 있을 때만 쓰입니다. 찾은 구절을 묻지 않고 답변 글에서 바로 고친 뒤, 무엇을 고쳤는지와 [되돌리기]를 카드로 보여 줍니다. 고치지 못하면 물어보는 카드로 바뀝니다.')}</div>`+
+      `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}${W_TG('기억 서랍','rpMemo.drawer',m.drawer,'보내는 글과 이어지는 예전 장면을 그 메시지에 숨겨 붙여요','보내는 글의 낱말로 예전 장면을 찾아 한두 줄(줄마다 220자까지) 발췌를 보내는 메시지 끝에 마크다운 주석([//]: # (…))으로 붙입니다. 말풍선에는 보이지 않습니다. 5만 자 주입과는 별개라 그 자리를 쓰지 않고, 로어 인젝터처럼 그 메시지에 남아 대화와 함께 흘러갑니다. 먼저 아래 사소한 장면 목록(제목·낱말)에서 찾고, 목록에 없을 때만 예전 원문에서 찾습니다(이번 주입에도 최근 대화 40개에도 없고, 예전 대화의 한 대목에 3번 이상 몰려 나온 낱말만). 한 번 붙인 장면은 그 뒤 전송 15번 동안 다시 붙이지 않고, 붙일 때마다 짧은 알림이 뜹니다. 주입 유지 중인 방에서만 동작하며, 전체 대화를 아직 읽지 못한 첫 전송에는 붙지 않습니다.')}${W_TG('사소한 장면 모으기','rpMemo.drawerNotes',m.drawerNotes,'놀이·농담·별명 같은 장면에 한 줄 제목을 붙여 모아 둬요','AI 답변이 끝날 때마다 보조 AI에게 물어, 줄거리 요약에는 안 남을 사소한 장면(둘만의 놀이·장난·별명·작은 내기 등)에 한 줄 제목과 낱말을 붙여 방마다 모아 둡니다(이 브라우저에만, 2,000줄까지). 기억 서랍이 켜져 있으면 원문보다 이 목록에서 먼저 찾아서, "그때 그 놀이"처럼 종류만 말해도 찾을 수 있습니다. 켠 뒤의 답변부터 모이고, 그 전 대화는 아래 「지난 대화에서 모으기」로 채웁니다. 답변 검수와 같은 호출에 얹으므로 둘 다 켜도 답변마다 API는 한 번입니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 하고, 그것도 없으면 쉽니다.')}${(()=>{try{const s=WishDrawer.fillStatus(state.currentRoom);return W_R('지난 대화에서 모으기 '+help('예전 턴을 15턴씩 묶어 보조 AI에게 읽혀, 사소한 장면 목록을 채웁니다(15턴에 API 한 번). 기억·날짜로그는 건드리지 않고 재구축과도 무관합니다. 범위를 골라 일부만 할 수 있고, 뒤에서 돌아가므로 그동안 RP를 계속해도 됩니다. 멈춰도 읽은 데까지는 남고 다시 누르면 이어서 합니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 합니다.'),s.running?'모으는 중 · '+fmt(s.running.done)+' / '+fmt(s.running.total)+'묶음 · 지금까지 '+fmt(s.running.added)+'줄':'지금 '+fmt(s.notes)+'줄 모여 있어요 · 범위를 골라 누르세요',s.running?btn('멈추기','drawerFillStop',{cls:'mini',icon:'pause'}):btn('최근 200턴','drawerFill',{cls:'mini',arg:200,dis:s.busy})+btn('최근 500턴','drawerFill',{cls:'mini',arg:500,dis:s.busy})+btn('전체','drawerFill',{cls:'mini',arg:0,dis:s.busy})+btn('목록 보기','drawerList',{cls:'mini',icon:'doc'}),'','drawer-fill');}catch(_){return '';}})()}${W_TG('서랍: 뜻으로 찾기','rpMemo.drawerDeep',m.drawerDeep,'낱말이 안 겹쳐도 뜻이 가까운 예전 장면을 찾아요','예전 대화를 턴 단위로 임베딩해 이 브라우저에 모아 두고(뒤에서 조금씩, 한 번에 48턴), 보내는 글이 "그때·저번에·또 하자"처럼 예전 일을 꺼내는 말투인데 낱말과 장면 목록으로는 못 찾았을 때만 뜻이 가장 가까운 턴 하나를 찾아 같은 마크다운 주석으로 붙입니다. 다른 턴들보다 뚜렷이 가까울 때만 붙고, 애매하면 붙이지 않습니다. 기억 서랍이 켜져 있어야 하며 AI 설정의 Gemini API Key를 씁니다(의미 검색과 같은 모델). 주 AI가 복붙·ChatGPT 웹인 동안에는 의미 검색과 마찬가지로 쉽니다. 색인을 만드는 동안 임베딩 비용이 들고, 그 뒤로는 새 턴과 해당 전송에만 듭니다. 전송은 길어야 5초 기다립니다.')}${W_TG('답변 검수','rpMemo.proof',m.proof,'새 답변이 기억과 다른 곳을 찾아 고칠지 물어봐요','주입 유지 중인 방에서 AI 답변이 끝날 때마다 보조 AI에게 한 번 물어, 그 답변이 읽은 기억(이름·가족·직업·재산·외모·호칭·지난 사건)과 정면으로 어긋나는 구절을 찾습니다. 찾으면 화면 왼쪽 아래 카드에 「답변 구절 → 고친 글」을 보여 주고, 고른 것만 답변 글에서 고칩니다. 기억이 기준이고 기억은 바꾸지 않습니다. 이야기 속에서 새로 바뀐 일·거짓말·농담은 고치지 않게 했습니다. 답변마다 API를 한 번 씁니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 하고, 그것도 없으면 쉽니다.')}${W_TG('묻지 않고 고치기','rpMemo.proofAuto',m.proofAuto,'답변 검수가 찾은 곳을 바로 고치고 되돌리기를 남겨요','답변 검수가 켜져 있을 때만 쓰입니다. 찾은 구절을 묻지 않고 답변 글에서 바로 고친 뒤, 무엇을 고쳤는지와 [되돌리기]를 카드로 보여 줍니다. 고치지 못하면 물어보는 카드로 바뀝니다.')}</div>`+
       W_SECH('문제 해결')+
       `<div class="w-grp" data-key="error-log-settings">${W_R('실패 · 주의 기록','최근 오류를 봐요 · API 키는 가려요 · 남에게 보내기 전에 내용을 한 번 확인해 주세요',btn('실패 기록 보기','errorLogs',{cls:'mini',icon:'doc'}))}${W_R('자동 시작점 '+help('아직 정리하지 않은 과거 대화를 건너뛰고 이후 새 대화부터 셉니다. 저장된 기억·인지·자료는 유지합니다. 과거 내용을 다시 읽으려면 전체 재구축을 사용하세요.'),'아직 정리 안 한 지난 대화는 건너뛰고 지금부터 세요 · 저장된 기억은 그대로',btn('지금으로 맞추기','memoryBase',{cls:'mini',icon:'clock'}),'','automation-baseline')}</div>`;
   }
