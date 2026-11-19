@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.47
+// @version      2.3.48
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -1674,7 +1674,7 @@
       unifiedAutomation: normalizeUnifiedAutomation(src.unifiedAutomation)||{enabled:true,memoryEnabled:true,observeEnabled:true,memoryEvery:4,observeEvery:2},
       apiEconomy: {delta:src.apiEconomy?.delta===true,index:src.apiEconomy?.index===true},
       recallSelection: {semantic:src.recallSelection?.semantic===true,selector:src.recallSelection?.selector===true},
-      rpMemo: {staleThreads:src.rpMemo?.staleThreads===true,awayPeople:src.rpMemo?.awayPeople===true},
+      rpMemo: {staleThreads:src.rpMemo?.staleThreads===true,awayPeople:src.rpMemo?.awayPeople===true,drawer:src.rpMemo?.drawer===true},
       autoMemoryEnabled: src.autoMemoryEnabled !== false,
       memoryMinTurns,
       memoryMaxTurns,
@@ -14172,7 +14172,9 @@ async function chooseAllFitItems__perf(room, items, original, query='', options=
       document.addEventListener('visibilitychange',()=>{if(!document.hidden){const rid=String(apiChatIdOf(state.currentRoom)||'');if(rid)expire(rid);}});
     }
     function hasMessage(room,id){const rid=String(apiChatIdOf(room)),record=records.get(rid);if(!record||!record.verifiedAt||record.scope!==scope(rid)||ExternalReplay.pending(rid))return null;return record.ids.has(String(id));}
-    return {hasMessage,begin,seed,read,invalidate,expire,warm,changed,install};
+    // 기억 서랍: 지금 들고 있는 전체 대화 사본(낡았어도)을 그대로 보여 준다. 읽기를 시작하지 않고, 없으면 null.
+    function peek(rid){const r=records.get(String(rid||''));return r&&r.scope===scope(String(rid||''))?r.messages:null;}
+    return {hasMessage,begin,seed,read,invalidate,expire,warm,changed,install,peek};
   })();
   function observeFullRoomHistory(){const __t=performance.now();try{return observeFullRoomHistory__perf.apply(this,arguments);}finally{__wpfAdd('observeFullRoomHistory',performance.now()-__t);}}
   async function observeFullRoomHistory__perf(room,head=null,options){return WishHistory.read(room,head,options);}
@@ -15925,15 +15927,84 @@ ${AI_JSON_TEXT_RULE}
   // renders them; the envelope id's width is read on the built text), and put on copies of the items only where that text is built
   // (rpMemoAttach: the mark on the row today's list still holds, within the list's own cap; the line on a 현재상태 with text). A
   // verified write leaves them on the pending items the same way, so the panel reads the sent text. OFF: nothing is read or reserved.
-  function rpMemoRead(room,on,stage){
+  // 기억 서랍 (RP 메모 셋째 스위치): 보내는 글에 나온 낱말 가운데 기억 칸(현재상태·날짜로그 등 슬롯 전체)에도, 최근 대화에도 없는
+  // 낱말을 예전 대화 원문에서 찾아, 그 장면을 한두 줄 발췌해 현재상태 끝의 RP 메모 줄에 덧붙인다(awayLine과 같은 자리·같은 예약).
+  // 읽기만 한다: 저장하는 것이 없고, 전송을 기다리게 하지 않는다. 전체 대화 사본(WishHistory)이 아직 없으면 이번 전송은 건너뛰고
+  // 뒤에서 읽어 두기만 한다(warm). 자리가 모자라면 RP 메모가 먼저 빠지는 규칙을 그대로 따른다.
+  const WishDrawer=(()=>{
+    const docs=new WeakMap(),lastByRoom=new Map();
+    const SKIP_RECENT=40,MAX_ROWS=2,ROW_CHARS=220,MIN_TERM=2,MAX_TERMS=8;
+    const JOSA=/(?:이라고|이라는|에서는|에서도|에게서|한테서|으로는|으로도|라고|라는|에서|에게|한테|으로|이랑|처럼|까지|부터|마다|보다|이야|하고|은|는|이|가|을|를|의|에|와|과|도|로|랑|만|야)$/;
+    // 서술어로 끝나는 낱말(하자·했다·있어 …)은 장면을 가리키지 않으므로 검색어로 쓰지 않는다.
+    const VERBISH=/(?:하자|했다|한다|하고|해서|했던|하는|하던|했어|할까|할게|하면|해요|해줘|합니다|했지|하지|하네|했네|이다|였다|였어|있어|없어|있다|없다|있던|없던|같아|같은|싶어|싶다|었다|았다|였지|겠다|겠어|는다|니까|는데|은데|잖아|거든|구나|네요|어요|아요|세요|었어|았어|지만|면서|려고|나요|까요|ㄹ까)$/;
+    const docOf=m=>{
+      let d=docs.get(m);
+      if(!d){
+        let text='';try{text=stripAutomationNoise(stripOurContextBlock(messageTextOf(m)).text);}catch(_){text='';}
+        text=String(text||'').replace(/\s+/g,' ').trim();
+        d={text,lower:text.toLowerCase(),user:messageRoleOf(m)==='user'};docs.set(m,d);
+      }
+      return d;
+    };
+    // 보내는 글의 낱말 → 조사 한 겹을 뗀 검색어. 숫자·불용어·너무 짧은 것은 뺀다.
+    function termsOf(userText){
+      const out=[];
+      for(const raw of tokenizeRecallText(userText)){
+        const cut=raw.replace(JOSA,''),term=cut.length>=MIN_TERM?cut:raw;
+        if(term.length<MIN_TERM||LOG_STOPWORDS.has(term)||/^\d+$/.test(term)||VERBISH.test(raw)||out.includes(term))continue;
+        out.push(term);
+      }
+      return out;
+    }
+    function excerpt(d,term){
+      const at=d.lower.indexOf(term);if(at<0)return '';
+      let from=Math.max(0,at-Math.floor(ROW_CHARS*0.4)),to=Math.min(d.text.length,from+ROW_CHARS);from=Math.max(0,Math.min(from,to-ROW_CHARS));
+      // 문장 머리·끝에 가깝게 맞춘다(30자 안에서만).
+      if(from>0){const head=d.text.slice(from,from+30).search(/[.!?。…"”』」]\s/);if(head>=0)from+=head+2;}
+      if(to<d.text.length){const tail=d.text.slice(to-30,to),k=Math.max(tail.lastIndexOf('. '),tail.lastIndexOf('! '),tail.lastIndexOf('? '),tail.lastIndexOf('” '),tail.lastIndexOf('" '));if(k>=0)to=to-30+k+1;}
+      return (from>0?'…':'')+d.text.slice(from,to).trim()+(to<d.text.length?'…':'');
+    }
+    function search(room,userText,messages){
+      const query=String(userText||'').trim();if(!query||!Array.isArray(messages)||messages.length<=SKIP_RECENT)return [];
+      const known=[(room?.slots||[]).map(s=>String(s?.content||'')).join('\n'),messages.slice(0,SKIP_RECENT).map(m=>docOf(m).text).join('\n')].join('\n').toLowerCase();
+      const fresh=termsOf(query).filter(t=>!known.includes(t)).slice(0,MAX_TERMS);if(!fresh.length)return [];
+      const old=messages.slice(SKIP_RECENT).map(docOf),N=old.length,cap=Math.max(6,Math.floor(N*0.03));
+      const idf=new Map();
+      for(const t of fresh){let n=0;for(const d of old)if(d.lower.includes(t))n++;if(n>0&&n<=cap)idf.set(t,Math.log(1+N/n)*(1+Math.min(t.length,6)/6));}
+      if(!idf.size)return [];
+      const rows=[];
+      old.forEach((d,i)=>{let score=0,best='',bestW=0;for(const [t,w] of idf)if(d.lower.includes(t)){score+=w;if(w>bestW){bestW=w;best=t;}}if(score>0)rows.push({d,i,score,term:best});});
+      // 점수 높은 순, 같으면 더 옛 장면(처음 나온 자리)을 먼저. 둘째 줄은 첫째의 바로 앞뒤 글(같은 장면의 답)이거나 6개 넘게 떨어진 다른 장면.
+      rows.sort((a,b)=>b.score-a.score||b.i-a.i);
+      const picked=[];
+      for(const r of rows){if(picked.some(p=>{const gap=Math.abs(p.i-r.i);return gap===0||(gap>1&&gap<=6);}))continue;picked.push(r);if(picked.length>=MAX_ROWS)break;}
+      return picked.sort((a,b)=>b.i-a.i).map(r=>{
+        const index=r.i+SKIP_RECENT;let turns=0;for(let k=0;k<index;k++)if(docOf(messages[k]).user)turns++;
+        return {turns,user:r.d.user,term:r.term,text:excerpt(r.d,r.term)};
+      }).filter(r=>r.text);
+    }
+    function line(room,userText){
+      const rid=String(apiChatIdOf(room)||'');if(!rid)return '';
+      const messages=WishHistory.peek(rid);
+      if(!messages){try{WishHistory.warm(room);}catch(_){/* 뒤에서 읽어 두기 실패는 이번 전송과 무관 */}lastByRoom.set(rid,{at:Date.now(),rows:[],waiting:true});return '';}
+      const rows=search(room,userText,messages);lastByRoom.set(rid,{at:Date.now(),rows});
+      if(!rows.length)return '';
+      return '- 예전 대화에서 찾은 장면(유저가 방금 꺼낸 말과 이어짐 · 지금 벌어지는 일이 아니라 기억 참고용):\n'+rows.map(r=>`· 약 ${r.turns}턴 전${r.user?' 유저 입력':''}: “${r.text}”`).join('\n');
+    }
+    return {line,search,termsOf,last:room=>lastByRoom.get(String(apiChatIdOf(room)||''))||null};
+  })();
+  function rpMemoRead(room,on,stage,userText=''){
     if(!stage)return null;
     try{
-      const row=on.staleThreads?String(WishThreads.injection(room,{scene:stage}).text||'').split('\n').find(l=>l.endsWith(WishThreads.MEMO)):'',line=on.awayPeople?awayPeopleLine(room,stage):'';
+      const row=on.staleThreads?String(WishThreads.injection(room,{scene:stage}).text||'').split('\n').find(l=>l.endsWith(WishThreads.MEMO)):'',away=on.awayPeople?awayPeopleLine(room,stage):'';
+      // 기억 서랍: 보내는 글(userText)이 있을 때만, 실패해도 다른 두 메모는 그대로 간다.
+      let drawer='';if(on.drawer&&userText){try{drawer=WishDrawer.line(room,userText);}catch(error){console.debug('[Wish] drawer skipped',error);}}
+      const line=[away,drawer].filter(Boolean).join('\n');
       return row||line?{mark:row?row.slice(0,-WishThreads.MEMO.length):'',line}:null;
     }catch(error){console.debug('[Wish] rp memo skipped',error);return null;}
   }
   function rpMemoKept(pending,on){
-    const items=pending?.items||[],th=on.staleThreads?items.find(i=>injectionCadenceKind(i)==='threads'):null,st=on.awayPeople?items.find(i=>i.slotId==='currentState'):null;
+    const items=pending?.items||[],th=on.staleThreads?items.find(i=>injectionCadenceKind(i)==='threads'):null,st=on.awayPeople||on.drawer?items.find(i=>i.slotId==='currentState'):null;
     const row=String(th?.content||'').split('\n').find(l=>l.endsWith(WishThreads.MEMO)),line=typeof st?.awayLine==='string'?st.awayLine:'';
     return row||line?{mark:row?row.slice(0,-WishThreads.MEMO.length):'',line}:null;
   }
@@ -16486,7 +16557,7 @@ function loreEntrySourceHashCached(entry) { const text = loreEntrySourceText(ent
     const includeChoice=key=>pending.quickIncludes?.[key]||previous.get(key)?.quickChoice;
     // RP 메모: the reconcile rebuilds the pending items before this (memo: its read, or null); a caller outside it (a lore change, the
     // prefetch) reads them as the last write left them, so the memos come off (rpMemoFree) while a switch is on.
-    let base=(memo===undefined&&(on=>on.staleThreads||on.awayPeople)(rpMemoSettings())?rpMemoFree(pending.items||[]):(pending.items||[])).filter(item=>!['log','lore','timeline'].includes(injectionCadenceKind(item)));
+    let base=(memo===undefined&&(on=>on.staleThreads||on.awayPeople||on.drawer)(rpMemoSettings())?rpMemoFree(pending.items||[]):(pending.items||[])).filter(item=>!['log','lore','timeline'].includes(injectionCadenceKind(item)));
     const suppressed=new Set(quickRemovedPendingItems(pending).map(pendingItemIdentity));
     const logTarget=Math.max(1,Math.min(4,Number(room.autoLogRelatedBlocks)||APP.defaultRelatedLogBlocks));
     const loreTarget=Math.max(1,Math.min(10,Number(room.loreConfig?.maxEntries)||APP.defaultLoreEntries));
@@ -18463,12 +18534,12 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     // reconcile that builds nothing fresh carries it and adds none; a fresh build (refreshing — a send, a reroll, the start, a refresh
     // whose inputs changed) reads the memos anew on the stage the 관계 한 줄 reads (rpMemoRead). Off, nothing is read. Either way the
     // items anything measures are without them: they go on the carrier text where it is built (rpMemoAttach, below).
-    const memoOn=rpMemoSettings(),kept=memoOn.staleThreads||memoOn.awayPeople?rpMemoKept(p,memoOn):null;
+    const memoOn=rpMemoSettings(),kept=memoOn.staleThreads||memoOn.awayPeople||memoOn.drawer?rpMemoKept(p,memoOn):null;
     replaceThreadsPendingItem(room);
     ensureDirectReleasePendingItems(room,p);
     const refreshing=reason==='start'||reason==='before-send'||reason==='before-reroll'||carrierChanged||!!p.recallNeedsRefresh;
     unrankedLogsRead=null;
-    let memo=!refreshing?kept:memoOn.staleThreads||memoOn.awayPeople?rpMemoRead(room,memoOn,relationshipOpts.stage||''):null;
+    let memo=!refreshing?kept:memoOn.staleThreads||memoOn.awayPeople||memoOn.drawer?rpMemoRead(room,memoOn,relationshipOpts.stage||'',sendReason?recallUser:''):null;
     let allFitCarrierRead=null,recallBranches=null;
     if(refreshing){
       WishRelationships.replacePending(room,relationshipOpts);
@@ -22673,8 +22744,8 @@ function mRelationships() {
           
           (eng==='deepl'?`<div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-zh-deepl">DeepL 키</label></span><span class="w-sub">무료 키는 끝이 :fx</span></span><span class="w-acts"><input id="wish-zh-deepl" type="text" class="m3-keymask" data-bind="zh.deeplKey" value="${esc(z.deeplKey||'')}" placeholder="DeepL API 키"${NO_FILL} style="width:220px"></span></div>`:'')+
           W_R('번역해 둔 기억',`${(()=>{try{const r=state.currentRoom,items=r?.pending?.items||[],p=SecondaryRebuild.projector(r,{contextNotation:true}),rs=WishZh.roomStatus(items.map(p.item));return rs.all?'이 방 '+fmt(rs.ok)+' / '+fmt(rs.all)+'개 · ':'';}catch(_){return '';}})()}전체 ${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.why?' · 지금: '+esc(z.why):''}${z.error?' · 문제: '+esc(z.error):''}`,btn('지금 번역','zhNow',{cls:'mini primary'})+btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
-      W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시 두 가지를 덧붙입니다. 끄면 지금과 같습니다. 바꾸면 다음 전송부터 적용됩니다.'),savedTag('rpMemo'))+
-      `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}</div>`+
+      W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시 세 가지를 덧붙입니다. 끄면 지금과 같습니다. 바꾸면 다음 전송부터 적용됩니다.'),savedTag('rpMemo'))+
+      `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}${W_TG('기억 서랍','rpMemo.drawer',m.drawer,'기억 칸에 없는 예전 장면을 대화 원문에서 찾아 줘요','보내는 글에 나온 낱말 가운데 기억 칸(현재상태·날짜로그 등)과 최근 대화 40개에는 없고 예전 대화에만 있는 낱말을 찾아, 그 장면을 한두 줄(줄마다 220자까지) 발췌해 현재상태 끝에 덧붙입니다. 날짜로그에 올라가지 않은 사소한 장면을 다시 꺼낼 때 쓰입니다. 낱말이 겹쳐야 찾습니다. API를 쓰지 않고 저장하는 것도 없으며, 전체 대화를 아직 읽지 못한 첫 전송에는 붙지 않습니다. 자리가 모자라면 먼저 빠집니다.')}</div>`+
       W_SECH('문제 해결')+
       `<div class="w-grp" data-key="error-log-settings">${W_R('실패 · 주의 기록','최근 오류를 봐요 · API 키는 가려요 · 남에게 보내기 전에 내용을 한 번 확인해 주세요',btn('실패 기록 보기','errorLogs',{cls:'mini',icon:'doc'}))}${W_R('자동 시작점 '+help('아직 정리하지 않은 과거 대화를 건너뛰고 이후 새 대화부터 셉니다. 저장된 기억·인지·자료는 유지합니다. 과거 내용을 다시 읽으려면 전체 재구축을 사용하세요.'),'아직 정리 안 한 지난 대화는 건너뛰고 지금부터 세요 · 저장된 기억은 그대로',btn('지금으로 맞추기','memoryBase',{cls:'mini',icon:'clock'}),'','automation-baseline')}</div>`;
   }
@@ -25112,7 +25183,7 @@ WUI_ADAPTER.bind['recall.mode']=value=>{
  if(!pair)return;const draft=WUISettingsDraft();draft['recall.semantic']=pair[0];draft['recall.selector']=pair[1];
 };
 for(const name of ['semantic','selector'])WUI_ADAPTER.bind['recall.'+name]=value=>{WUISettingsDraft()['recall.'+name]=!!value;};
-for(const name of ['staleThreads','awayPeople'])WUI_ADAPTER.bind['rpMemo.'+name]=value=>{WUISettingsDraft()['rpMemo.'+name]=!!value;};
+for(const name of ['staleThreads','awayPeople','drawer'])WUI_ADAPTER.bind['rpMemo.'+name]=value=>{WUISettingsDraft()['rpMemo.'+name]=!!value;};
  for(const [key,field] of [['pol.char','characterEvery'],['pol.extra','extraEvery'],['cogInclude','cognitionEvery']])WUI_ADAPTER.bind[key]=async value=>{
   const room=state.currentRoom,before=room.injectionPolicy[field];room.injectionPolicy[field]=value?1:0;
   try{await saveRoom(room);}catch(e){room.injectionPolicy[field]=before;throw e;}
@@ -25122,7 +25193,7 @@ for(const name of ['staleThreads','awayPeople'])WUI_ADAPTER.bind['rpMemo.'+name]
 Object.assign(WUI_ADAPTER.act,{errorDetail:id=>(WLOG.viewed(),WUI.openSheet('errorDetail',{errorId:id,errorRow:WLOG.find(id)})),errorDetailCopy:async id=>{const d=WUI.ui.dlg(id),row=d&&(WLOG.find(d.errorId)||d.errorRow);if(!row)return;const ok=await copyPlainText(JSON.stringify({...row,...WLOG.describe(row)},null,2));notify(ok?'오류 내용을 복사했습니다.':'복사하지 못했습니다.',ok?'success':'error',3000,{kind:'COPY_FAIL_LOG'});},errorLogs:()=>(WLOG.viewed(),WUI.openSheet('errorLogs')),errorLogsCopy:async()=>{const ok=await copyPlainText(WLOG.exportText());notify(ok?'실패·주의 기록을 복사했습니다.':'복사하지 못했습니다.',ok?'success':'error',3000,{kind:'COPY_FAIL_LOG'});},errorLogsClear:()=>{if(confirm('이 브라우저에 저장된 실패 기록만 비울까요?'))WLOG.clear();}});
 const WUIAutoSave=(()=>{
  const records=new Map();let tail=Promise.resolve();
- const fields={unified:['memoryEnabled','observeEnabled','memoryEvery','observeEvery',...U3.AREAS.map(r=>r[2])],apiEconomy:['delta','index'],recall:['semantic','selector'],rpMemo:['staleThreads','awayPeople']};
+ const fields={unified:['memoryEnabled','observeEnabled','memoryEvery','observeEvery',...U3.AREAS.map(r=>r[2])],apiEconomy:['delta','index'],recall:['semantic','selector'],rpMemo:['staleThreads','awayPeople','drawer']};
  const snapshot=(group,vm)=>Object.fromEntries(fields[group].map(k=>[k,vm[group][k]]));
  const clearDrafts=(group,values)=>{for(const draft of WUICache.settings.values()){for(const [field,value]of Object.entries(values)){const path=group+'.'+field;if(draft[path]===value)delete draft[path];}}};
  async function commit(group,room,values,epoch){
