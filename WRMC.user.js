@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🪽 Wish RP Manager Core
 // @namespace    local.rp.context.manager
-// @version      2.3.50
+// @version      2.3.51
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  Crack RP용 컨텍스트 주입·인지·자동 장기기억·자료집·전체 재구축을 하나로 관리합니다.
@@ -1674,7 +1674,7 @@
       unifiedAutomation: normalizeUnifiedAutomation(src.unifiedAutomation)||{enabled:true,memoryEnabled:true,observeEnabled:true,memoryEvery:4,observeEvery:2},
       apiEconomy: {delta:src.apiEconomy?.delta===true,index:src.apiEconomy?.index===true},
       recallSelection: {semantic:src.recallSelection?.semantic===true,selector:src.recallSelection?.selector===true},
-      rpMemo: {staleThreads:src.rpMemo?.staleThreads===true,awayPeople:src.rpMemo?.awayPeople===true,drawer:src.rpMemo?.drawer===true,proof:src.rpMemo?.proof===true,proofAuto:src.rpMemo?.proofAuto===true,drawerNotes:src.rpMemo?.drawerNotes===true},
+      rpMemo: {staleThreads:src.rpMemo?.staleThreads===true,awayPeople:src.rpMemo?.awayPeople===true,drawer:src.rpMemo?.drawer===true,proof:src.rpMemo?.proof===true,proofAuto:src.rpMemo?.proofAuto===true,drawerNotes:src.rpMemo?.drawerNotes===true,drawerDeep:src.rpMemo?.drawerDeep===true},
       autoMemoryEnabled: src.autoMemoryEnabled !== false,
       memoryMinTurns,
       memoryMaxTurns,
@@ -16013,15 +16013,109 @@ ${AI_JSON_TEXT_RULE}
       for(const r of rows){if(picked.length>=room1)break;if(Math.abs(r.i-notedAt)<=6||picked.some(p=>{const gap=Math.abs(p.i-r.i);return gap===0||(gap>1&&gap<=6);}))continue;picked.push(r);}
       return [...first,...picked.sort((a,b)=>b.i-a.i).map(r=>({turns:turnsAt(r.i+SKIP_RECENT),user:r.d.user,term:r.term,text:excerpt(r.d,r.term)})).filter(r=>r.text)];
     }
+
+    // ---------- 뜻으로 찾기 (RP 메모 「서랍: 뜻으로 찾기」) ----------
+    // 예전 대화를 턴(유저 입력+AI 답변) 단위로 임베딩해 이 브라우저의 IndexedDB(wish-drawer)에 모아 두고, 보내는 글이 예전 일을
+    // 꺼내는 말투(그때·저번에·또 하자 …)인데 낱말·목록으로는 못 찾았을 때만, 보내는 글의 임베딩과 가장 가까운 턴 하나를 찾는다.
+    // 색인은 주입 유지 중 뒤에서 조금씩 만든다(한 번에 48턴, 15초 쉬고). 임베딩은 의미 검색과 같은 Gemini 키·모델·차원을 쓴다.
+    const CUE=/(예전|옛날|그때|그 ?날|저번|지난 ?번|전에|기억|했던|했었|하던|또 |다시|처음에|그거|그 ?놀이|그 ?얘기|그 ?이야기|그 ?일)/;
+    const DEEP_BATCH=48,DEEP_REST_MS=15000,DEEP_WAIT_MS=2000,DEEP_TEXT=4000;
+    const idb=(()=>{
+      let opened=null;
+      const open=()=>opened||(opened=new Promise((res,rej)=>{const r=indexedDB.open('wish-drawer',1);r.onupgradeneeded=()=>r.result.createObjectStore('rooms');r.onsuccess=()=>res(r.result);r.onerror=()=>{opened=null;rej(r.error);};}));
+      const tx=async(mode,fn)=>{const db=await open();return new Promise((res,rej)=>{const t=db.transaction('rooms',mode),q=fn(t.objectStore('rooms'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error);});};
+      return {get:k=>tx('readonly',s=>s.get(k)),set:(k,v)=>tx('readwrite',s=>s.put(v,k))};
+    })();
+    const indexes=new Map(),told=new Set();let building=false,nextAt=0,prepared=null;
+    const shape=room=>String(room?.loreConfig?.embeddingModel||APP.loreEmbeddingModel)+'|'+normalizeIntegerRange(room?.loreConfig?.embeddingDimensions,APP.loreEmbeddingDimensions,128,1536);
+    async function loadIndex(rid,room){
+      const want=shape(room);let ix=indexes.get(rid);
+      if(!ix){try{ix=await idb.get(rid);}catch(_){ix=null;}}
+      if(!ix||ix.shape!==want||!(ix.vecs instanceof Float32Array)||!Array.isArray(ix.ids))ix={shape:want,dims:0,ids:[],hashes:[],vecs:new Float32Array(0)};
+      indexes.set(rid,ix);return ix;
+    }
+    // 턴 목록(옛 것부터): AI 답변 하나와 바로 앞 유저 입력. id는 AI 답변의 id.
+    function turnsOf(messages){
+      const out=[];
+      for(let i=messages.length-1;i>=0;i--){
+        const m=messages[i];if(messageRoleOf(m)!=='assistant')continue;
+        const id=String(messageIdOf(m)||''),a=docOf(m),prev=messages[i+1],u=prev&&messageRoleOf(prev)==='user'?docOf(prev):null;
+        const text=((u?u.text+'\n':'')+a.text).slice(0,DEEP_TEXT).trim();
+        if(id&&text.length>=40)out.push({id,i,text,hash:simpleHash(text),user:u?u.text:''});
+      }
+      return out;
+    }
+    async function build(room,rid,messages){
+      const ix=await loadIndex(rid,room),turns=turnsOf(messages),at=new Map(ix.ids.map((id,k)=>[id,k]));
+      const todo=turns.filter(t=>{const k=at.get(t.id);return k===undefined||ix.hashes[k]!==t.hash;}).slice(0,DEEP_BATCH);
+      if(!todo.length){if(turns.length&&!told.has(rid+'|done')){told.add(rid+'|done');console.debug('[Wish] drawer index ready',turns.length);}return 0;}
+      if(!told.has(rid+'|start')){told.add(rid+'|start');try{notify(`기억 서랍 색인을 만드는 중 · 남은 ${turns.filter(t=>at.get(t.id)===undefined).length}턴 (뒤에서 조금씩)`,'info',5000);}catch(_){/* 알림 없이도 진행 */}}
+      const vectors=await embedSemanticTexts(todo.map(t=>t.text),room,'RETRIEVAL_DOCUMENT');
+      const dims=vectors.find(v=>Array.isArray(v)&&v.length)?.length||0;if(!dims)return 0;
+      if(ix.dims&&ix.dims!==dims){ix.ids=[];ix.hashes=[];ix.vecs=new Float32Array(0);at.clear();}
+      ix.dims=dims;
+      // 사라진 턴은 버리고, 바뀐 턴은 제자리에, 새 턴은 뒤에 붙인다.
+      const alive=new Set(turns.map(t=>t.id)),keep=ix.ids.map((id,k)=>alive.has(id)?k:-1).filter(k=>k>=0);
+      const add=todo.filter((t,n)=>Array.isArray(vectors[n])&&vectors[n].length===dims&&at.get(t.id)===undefined);
+      const next=new Float32Array((keep.length+add.length)*dims),ids=[],hashes=[];
+      keep.forEach((k,n)=>{next.set(ix.vecs.subarray(k*dims,(k+1)*dims),n*dims);ids.push(ix.ids[k]);hashes.push(ix.hashes[k]);});
+      const where=new Map(ids.map((id,n)=>[id,n]));
+      todo.forEach((t,n)=>{const v=vectors[n];if(!Array.isArray(v)||v.length!==dims)return;let k=where.get(t.id);if(k===undefined){k=ids.length;ids.push(t.id);hashes.push(t.hash);where.set(t.id,k);}else hashes[k]=t.hash;next.set(v,k*dims);});
+      ix.ids=ids;ix.hashes=hashes;ix.vecs=next;
+      try{await idb.set(rid,ix);}catch(error){console.debug('[Wish] drawer index not saved',error);}
+      return todo.length;
+    }
+    // 주입 유지 중 폴링마다 불린다. 폴링은 carrier 잠금 안에서 돌기 때문에 2초 뒤(잠금이 풀린 뒤) 다시 보고,
+    // 전송·생성·다른 정리 작업 중이 아니고 임베딩이 쉬는 중(429)이 아닐 때만 한 묶음을 만든다.
+    function tend(room,reason){
+      const on=rpMemoSettings();if(!on.drawer||!on.drawerDeep||building||reason==='before-send'||reason==='before-reroll'||Date.now()<nextAt)return;
+      const rid=String(apiChatIdOf(room)||'');
+      if(!rid||document.hidden||!semanticEmbedConnection()||semanticEmbedWaitMs()>0)return;
+      const messages=WishHistory.peek(rid);if(!messages){try{WishHistory.warm(room);}catch(_){/* 다음 폴링에 다시 */}nextAt=Date.now()+DEEP_REST_MS;return;}
+      building=true;
+      setTimeout(()=>{
+        const rest=()=>{building=false;nextAt=Date.now()+DEEP_REST_MS;};
+        if(state.currentRoom!==room||generationPending(rid)||semanticEmbedWaitMs()>0||semanticIndexBusy(rid)){rest();return;}
+        build(room,rid,messages).catch(error=>console.debug('[Wish] drawer index held',error)).finally(rest);
+      },DEEP_WAIT_MS);
+    }
+    // 전송 직전에 한 번: 낱말·목록으로 못 찾았고 예전 일을 꺼내는 말투일 때만 임베딩 한 번을 쓴다. 5초 안에 못 받으면 그냥 보낸다.
+    async function prepare(room,userText){
+      prepared=null;const query=String(userText||'').trim(),rid=String(apiChatIdOf(room)||'');
+      if(!rid||!query||!CUE.test(query)||!semanticEmbedConnection()||semanticEmbedWaitMs()>0)return;
+      const messages=WishHistory.peek(rid);if(!messages||messages.length<=SKIP_RECENT||search(room,query,messages).length)return;
+      const ix=await loadIndex(rid,room);if(!ix.dims||!ix.ids.length)return;
+      const q=(await embedSemanticTexts([query.slice(-2000)],room,'RETRIEVAL_QUERY',5000))[0];if(!Array.isArray(q)||q.length!==ix.dims)return;
+      const pos=new Map(messages.map((m,i)=>[String(messageIdOf(m)),i]));let best=null,sum=0,sq=0,n=0;
+      for(let k=0;k<ix.ids.length;k++){
+        const i=pos.get(ix.ids[k]);if(i===undefined||i<SKIP_RECENT)continue;
+        let dot=0;const off=k*ix.dims;for(let d=0;d<ix.dims;d++)dot+=ix.vecs[off+d]*q[d];
+        sum+=dot;sq+=dot*dot;n++;if(!best||dot>best.dot)best={dot,i};
+      }
+      if(!best||n<20)return;
+      // 다른 턴들보다 뚜렷이 가까울 때만 쓴다. n개 가운데 우연히 나오는 최댓값이 평균+√(2·ln n)σ쯤이라 그보다 위(적어도 3σ)여야 한다.
+      // 애매하면 넣지 않는다. 수치는 콘솔([Wish] drawer deep)에 남겨 실제 방에서 문턱을 맞출 수 있게 한다.
+      const mean=sum/n,sd=Math.sqrt(Math.max(0,sq/n-mean*mean)),z=sd>0?(best.dot-mean)/sd:0,need=Math.max(3,Math.sqrt(2*Math.log(n)));
+      console.debug('[Wish] drawer deep',{best:+best.dot.toFixed(3),mean:+mean.toFixed(3),sd:+sd.toFixed(3),z:+z.toFixed(2),need:+need.toFixed(2),turns:n,used:z>=need});
+      if(z<need)return;
+      const a=docOf(messages[best.i]),prev=messages[best.i+1],u=prev&&messageRoleOf(prev)==='user'?docOf(prev):null,rows=[];
+      let turns=0;for(let k=0;k<best.i;k++)if(docOf(messages[k]).user)turns++;
+      if(u&&u.text)rows.push({turns:turns+1,user:true,text:u.text.slice(0,120)+(u.text.length>120?'…':'')});
+      rows.push({turns,user:false,text:a.text.slice(0,ROW_CHARS)+(a.text.length>ROW_CHARS?'…':'')});
+      prepared={rid,query,rows,at:Date.now()};
+    }
     function line(room,userText){
       const rid=String(apiChatIdOf(room)||'');if(!rid)return '';
       const messages=WishHistory.peek(rid);
       if(!messages){try{WishHistory.warm(room);}catch(_){/* 뒤에서 읽어 두기 실패는 이번 전송과 무관 */}lastByRoom.set(rid,{at:Date.now(),rows:[],waiting:true});return '';}
-      const rows=search(room,userText,messages);lastByRoom.set(rid,{at:Date.now(),rows});
+      let rows=search(room,userText,messages);
+      // 뜻으로 찾기가 이 전송을 위해 방금 준비해 둔 결과(같은 방·같은 글, 30초 안)
+      if(!rows.length&&prepared&&prepared.rid===rid&&prepared.query===String(userText||'').trim()&&Date.now()-prepared.at<30000)rows=prepared.rows;
+      lastByRoom.set(rid,{at:Date.now(),rows});
       if(!rows.length)return '';
       return '- 예전 대화에서 찾은 장면(유저가 방금 꺼낸 말과 이어짐 · 지금 벌어지는 일이 아니라 기억 참고용):\n'+rows.map(r=>`· 약 ${r.turns}턴 전${r.title?' 「'+r.title+'」':''}${r.user?' 유저 입력':''}: “${r.text}”`).join('\n');
     }
-    return {line,search,termsOf,addNotes,notesOf,last:room=>lastByRoom.get(String(apiChatIdOf(room)||''))||null};
+    return {line,search,termsOf,addNotes,notesOf,prepare,tend,last:room=>lastByRoom.get(String(apiChatIdOf(room)||''))||null};
   })();
   function rpMemoRead(room,on,stage,userText='',sending=false){
     if(!stage)return null;
@@ -18726,6 +18820,8 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     const latestId=String(messageIdOf(frame.latest)||'');
     // 답변 검수: 새 답변이 끝난 걸 여기서 본다. 기다리지 않고, 실패해도 주입과 무관하다.
     try{WishProof.watch(room,frame,reason);}catch(error){console.debug('[Wish] proof watch skipped',error);}
+    // 기억 서랍 · 뜻으로 찾기: 전송 직전에는 이 글의 임베딩을 길어야 5.5초 기다리고, 그 밖에는 뒤에서 색인을 조금씩 만든다. 실패해도 주입과 무관하다.
+    try{const on=rpMemoSettings();if(on.drawer&&on.drawerDeep){if(reason==='before-send'&&recallUser)await Promise.race([WishDrawer.prepare(room,recallUser).catch(error=>console.debug('[Wish] drawer deep skipped',error)),new Promise(done=>setTimeout(done,5500))]);else WishDrawer.tend(room,reason);}}catch(error){console.debug('[Wish] drawer deep skipped',error);}
     if(reason==='before-reroll')RecallPrefetch.drop(latestId);
     const newId=carrierId;
     const carrierChanged=p.baselineAssistantId!==latestId;
@@ -22952,7 +23048,7 @@ function mRelationships() {
           (eng==='deepl'?`<div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-zh-deepl">DeepL 키</label></span><span class="w-sub">무료 키는 끝이 :fx</span></span><span class="w-acts"><input id="wish-zh-deepl" type="text" class="m3-keymask" data-bind="zh.deeplKey" value="${esc(z.deeplKey||'')}" placeholder="DeepL API 키"${NO_FILL} style="width:220px"></span></div>`:'')+
           W_R('번역해 둔 기억',`${(()=>{try{const r=state.currentRoom,items=r?.pending?.items||[],p=SecondaryRebuild.projector(r,{contextNotation:true}),rs=WishZh.roomStatus(items.map(p.item));return rs.all?'이 방 '+fmt(rs.ok)+' / '+fmt(rs.all)+'개 · ':'';}catch(_){return '';}})()}전체 ${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.why?' · 지금: '+esc(z.why):''}${z.error?' · 문제: '+esc(z.error):''}`,btn('지금 번역','zhNow',{cls:'mini primary'})+btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
       W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시를 덧붙이고(묵은 떡밥·퇴장한 인물·기억 서랍), 답변이 끝나면 보조 AI가 사소한 장면을 모으거나 답변을 기억과 맞춰 봅니다(사소한 장면 모으기·답변 검수). 끄면 지금과 같습니다. 바꾸면 다음 전송·다음 답변부터 적용됩니다.'),savedTag('rpMemo'))+
-      `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}${W_TG('기억 서랍','rpMemo.drawer',m.drawer,'기억 칸에 없는 예전 장면을 대화 원문에서 찾아 줘요','보내는 글에 나온 낱말 가운데 기억 칸(현재상태·날짜로그 등)과 최근 대화 40개에는 없고 예전 대화에만 있는 낱말을 찾아, 그 장면을 한두 줄(줄마다 220자까지) 발췌해 현재상태 끝에 덧붙입니다. 날짜로그에 올라가지 않은 사소한 장면을 다시 꺼낼 때 쓰입니다. 낱말이 겹쳐야 찾습니다. API를 쓰지 않고 저장하는 것도 없으며, 전체 대화를 아직 읽지 못한 첫 전송에는 붙지 않습니다. 자리가 모자라면 먼저 빠집니다.')}${W_TG('사소한 장면 모으기','rpMemo.drawerNotes',m.drawerNotes,'놀이·농담·별명 같은 장면에 한 줄 제목을 붙여 모아 둬요','AI 답변이 끝날 때마다 보조 AI에게 물어, 줄거리 요약에는 안 남을 사소한 장면(둘만의 놀이·장난·별명·작은 내기 등)에 한 줄 제목과 낱말을 붙여 방마다 모아 둡니다(이 브라우저에만, 400줄까지). 기억 서랍이 켜져 있으면 원문보다 이 목록에서 먼저 찾아서, "그때 그 놀이"처럼 종류만 말해도 찾을 수 있습니다. 켠 뒤의 답변부터 모입니다. 답변 검수와 같은 호출에 얹으므로 둘 다 켜도 답변마다 API는 한 번입니다(복붙 모드에서는 쉼).')}${W_TG('답변 검수','rpMemo.proof',m.proof,'새 답변이 기억과 다른 곳을 찾아 고칠지 물어봐요','주입 유지 중인 방에서 AI 답변이 끝날 때마다 보조 AI에게 한 번 물어, 그 답변이 읽은 기억(이름·가족·직업·재산·외모·호칭·지난 사건)과 정면으로 어긋나는 구절을 찾습니다. 찾으면 화면 왼쪽 아래 카드에 「답변 구절 → 고친 글」을 보여 주고, 고른 것만 답변 글에서 고칩니다. 기억이 기준이고 기억은 바꾸지 않습니다. 이야기 속에서 새로 바뀐 일·거짓말·농담은 고치지 않게 했습니다. 답변마다 API를 한 번 씁니다(복붙 모드에서는 쉼).')}${W_TG('묻지 않고 고치기','rpMemo.proofAuto',m.proofAuto,'답변 검수가 찾은 곳을 바로 고치고 되돌리기를 남겨요','답변 검수가 켜져 있을 때만 쓰입니다. 찾은 구절을 묻지 않고 답변 글에서 바로 고친 뒤, 무엇을 고쳤는지와 [되돌리기]를 카드로 보여 줍니다. 고치지 못하면 물어보는 카드로 바뀝니다.')}</div>`+
+      `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}${W_TG('기억 서랍','rpMemo.drawer',m.drawer,'기억 칸에 없는 예전 장면을 대화 원문에서 찾아 줘요','보내는 글에 나온 낱말 가운데 기억 칸(현재상태·날짜로그 등)과 최근 대화 40개에는 없고 예전 대화에만 있는 낱말을 찾아, 그 장면을 한두 줄(줄마다 220자까지) 발췌해 현재상태 끝에 덧붙입니다. 날짜로그에 올라가지 않은 사소한 장면을 다시 꺼낼 때 쓰입니다. 낱말이 겹쳐야 찾습니다. API를 쓰지 않고 저장하는 것도 없으며, 전체 대화를 아직 읽지 못한 첫 전송에는 붙지 않습니다. 자리가 모자라면 먼저 빠집니다.')}${W_TG('사소한 장면 모으기','rpMemo.drawerNotes',m.drawerNotes,'놀이·농담·별명 같은 장면에 한 줄 제목을 붙여 모아 둬요','AI 답변이 끝날 때마다 보조 AI에게 물어, 줄거리 요약에는 안 남을 사소한 장면(둘만의 놀이·장난·별명·작은 내기 등)에 한 줄 제목과 낱말을 붙여 방마다 모아 둡니다(이 브라우저에만, 400줄까지). 기억 서랍이 켜져 있으면 원문보다 이 목록에서 먼저 찾아서, "그때 그 놀이"처럼 종류만 말해도 찾을 수 있습니다. 켠 뒤의 답변부터 모입니다. 답변 검수와 같은 호출에 얹으므로 둘 다 켜도 답변마다 API는 한 번입니다(복붙 모드에서는 쉼).')}${W_TG('서랍: 뜻으로 찾기','rpMemo.drawerDeep',m.drawerDeep,'낱말이 안 겹쳐도 뜻이 가까운 예전 장면을 찾아요','예전 대화를 턴 단위로 임베딩해 이 브라우저에 모아 두고(뒤에서 조금씩, 한 번에 48턴), 보내는 글이 "그때·저번에·또 하자"처럼 예전 일을 꺼내는 말투인데 낱말과 장면 목록으로는 못 찾았을 때만 뜻이 가장 가까운 턴 하나를 찾아 붙입니다. 다른 턴들보다 뚜렷이 가까울 때만 붙고, 애매하면 붙이지 않습니다. 기억 서랍이 켜져 있어야 하며 AI 설정의 Gemini API Key를 씁니다(의미 검색과 같은 모델). 색인을 만드는 동안 임베딩 비용이 들고, 그 뒤로는 새 턴과 해당 전송에만 듭니다. 전송은 길어야 5초 기다립니다.')}${W_TG('답변 검수','rpMemo.proof',m.proof,'새 답변이 기억과 다른 곳을 찾아 고칠지 물어봐요','주입 유지 중인 방에서 AI 답변이 끝날 때마다 보조 AI에게 한 번 물어, 그 답변이 읽은 기억(이름·가족·직업·재산·외모·호칭·지난 사건)과 정면으로 어긋나는 구절을 찾습니다. 찾으면 화면 왼쪽 아래 카드에 「답변 구절 → 고친 글」을 보여 주고, 고른 것만 답변 글에서 고칩니다. 기억이 기준이고 기억은 바꾸지 않습니다. 이야기 속에서 새로 바뀐 일·거짓말·농담은 고치지 않게 했습니다. 답변마다 API를 한 번 씁니다(복붙 모드에서는 쉼).')}${W_TG('묻지 않고 고치기','rpMemo.proofAuto',m.proofAuto,'답변 검수가 찾은 곳을 바로 고치고 되돌리기를 남겨요','답변 검수가 켜져 있을 때만 쓰입니다. 찾은 구절을 묻지 않고 답변 글에서 바로 고친 뒤, 무엇을 고쳤는지와 [되돌리기]를 카드로 보여 줍니다. 고치지 못하면 물어보는 카드로 바뀝니다.')}</div>`+
       W_SECH('문제 해결')+
       `<div class="w-grp" data-key="error-log-settings">${W_R('실패 · 주의 기록','최근 오류를 봐요 · API 키는 가려요 · 남에게 보내기 전에 내용을 한 번 확인해 주세요',btn('실패 기록 보기','errorLogs',{cls:'mini',icon:'doc'}))}${W_R('자동 시작점 '+help('아직 정리하지 않은 과거 대화를 건너뛰고 이후 새 대화부터 셉니다. 저장된 기억·인지·자료는 유지합니다. 과거 내용을 다시 읽으려면 전체 재구축을 사용하세요.'),'아직 정리 안 한 지난 대화는 건너뛰고 지금부터 세요 · 저장된 기억은 그대로',btn('지금으로 맞추기','memoryBase',{cls:'mini',icon:'clock'}),'','automation-baseline')}</div>`;
   }
@@ -25390,7 +25486,7 @@ WUI_ADAPTER.bind['recall.mode']=value=>{
  if(!pair)return;const draft=WUISettingsDraft();draft['recall.semantic']=pair[0];draft['recall.selector']=pair[1];
 };
 for(const name of ['semantic','selector'])WUI_ADAPTER.bind['recall.'+name]=value=>{WUISettingsDraft()['recall.'+name]=!!value;};
-for(const name of ['staleThreads','awayPeople','drawer','drawerNotes','proof','proofAuto'])WUI_ADAPTER.bind['rpMemo.'+name]=value=>{WUISettingsDraft()['rpMemo.'+name]=!!value;};
+for(const name of ['staleThreads','awayPeople','drawer','drawerNotes','drawerDeep','proof','proofAuto'])WUI_ADAPTER.bind['rpMemo.'+name]=value=>{WUISettingsDraft()['rpMemo.'+name]=!!value;};
  for(const [key,field] of [['pol.char','characterEvery'],['pol.extra','extraEvery'],['cogInclude','cognitionEvery']])WUI_ADAPTER.bind[key]=async value=>{
   const room=state.currentRoom,before=room.injectionPolicy[field];room.injectionPolicy[field]=value?1:0;
   try{await saveRoom(room);}catch(e){room.injectionPolicy[field]=before;throw e;}
@@ -25400,7 +25496,7 @@ for(const name of ['staleThreads','awayPeople','drawer','drawerNotes','proof','p
 Object.assign(WUI_ADAPTER.act,{errorDetail:id=>(WLOG.viewed(),WUI.openSheet('errorDetail',{errorId:id,errorRow:WLOG.find(id)})),errorDetailCopy:async id=>{const d=WUI.ui.dlg(id),row=d&&(WLOG.find(d.errorId)||d.errorRow);if(!row)return;const ok=await copyPlainText(JSON.stringify({...row,...WLOG.describe(row)},null,2));notify(ok?'오류 내용을 복사했습니다.':'복사하지 못했습니다.',ok?'success':'error',3000,{kind:'COPY_FAIL_LOG'});},errorLogs:()=>(WLOG.viewed(),WUI.openSheet('errorLogs')),errorLogsCopy:async()=>{const ok=await copyPlainText(WLOG.exportText());notify(ok?'실패·주의 기록을 복사했습니다.':'복사하지 못했습니다.',ok?'success':'error',3000,{kind:'COPY_FAIL_LOG'});},errorLogsClear:()=>{if(confirm('이 브라우저에 저장된 실패 기록만 비울까요?'))WLOG.clear();}});
 const WUIAutoSave=(()=>{
  const records=new Map();let tail=Promise.resolve();
- const fields={unified:['memoryEnabled','observeEnabled','memoryEvery','observeEvery',...U3.AREAS.map(r=>r[2])],apiEconomy:['delta','index'],recall:['semantic','selector'],rpMemo:['staleThreads','awayPeople','drawer','drawerNotes','proof','proofAuto']};
+ const fields={unified:['memoryEnabled','observeEnabled','memoryEvery','observeEvery',...U3.AREAS.map(r=>r[2])],apiEconomy:['delta','index'],recall:['semantic','selector'],rpMemo:['staleThreads','awayPeople','drawer','drawerNotes','drawerDeep','proof','proofAuto']};
  const snapshot=(group,vm)=>Object.fromEntries(fields[group].map(k=>[k,vm[group][k]]));
  const clearDrafts=(group,values)=>{for(const draft of WUICache.settings.values()){for(const [field,value]of Object.entries(values)){const path=group+'.'+field;if(draft[path]===value)delete draft[path];}}};
  async function commit(group,room,values,epoch){
