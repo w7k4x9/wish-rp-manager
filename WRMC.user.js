@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.8
+// @version      2.5.9
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -196,7 +196,7 @@
     const previousVersion = runtimeText ? (separator >= 0 ? runtimeText.slice(separator + 1) : runtimeText) : String(previousRuntime.version || '');
     if ((!previousEdition || previousEdition === EDITION) && previousVersion === SCRIPT_VERSION) return;
     if (previousEdition && previousEdition !== EDITION) {
-      showRuntimeConflict('Wish RP Manager와 Manager Core가 동시에 켜져 있습니다. 하나만 켜고 새로고침해 주세요.');
+      showRuntimeConflict('예전 Wish RP Manager와 크랙 RP 도우미가 동시에 켜져 있습니다. 하나만 켜고 새로고침해 주세요.');
       return;
     }
     // 같은 판의 다른 버전은 기존 clean reload-once 경로를 유지합니다.
@@ -208,7 +208,7 @@
       return;
     }
     console.error(`[Wish RP Manager Core] 다른 버전의 RP 도우미 런타임이 동시에 설치되어 v${SCRIPT_VERSION}를 시작하지 않았습니다.`, previousRuntime);
-    showRuntimeConflict('🪽 Wish RP Manager Core 버전 충돌 · 중복 설치된 구버전 확프를 끄고 페이지를 새로고침해 주세요.');
+    showRuntimeConflict('크랙 RP 도우미가 두 개 켜져 있어요 · Tampermonkey에서 예전 것을 끄고 페이지를 새로고침해 주세요.');
     return;
   }
   try { sessionStorage.removeItem(RELOAD_GUARD_KEY); } catch (_) {}
@@ -11159,7 +11159,7 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
         }
       };
       req.onsuccess = () => {const db=req.result;db.onversionchange=()=>{db.close();notifyWishDbVersionClosed();};if(settled){db.close();return;}settled=true;resolve(db);};
-      req.onblocked = () => {if(!settled){settled=true;reject(WLOG.tag(new Error('Wish RP Manager/Core가 열린 다른 탭 때문에 저장소 업그레이드가 대기 중입니다. 다른 Crack 탭을 닫거나 새로고침한 뒤 다시 열어 주세요.'),'STORE_OPEN'));}};
+      req.onblocked = () => {if(!settled){settled=true;reject(WLOG.tag(new Error('크랙 RP 도우미(또는 예전 Wish)가 열린 다른 탭 때문에 저장소 업그레이드가 대기 중입니다. 다른 Crack 탭을 닫거나 새로고침한 뒤 다시 열어 주세요.'),'STORE_OPEN'));}};
       req.onerror = () => {if(!settled){settled=true;reject(WLOG.tag(req.error,'STORE_OPEN'));}};
     });
   }
@@ -20175,7 +20175,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     overlay.querySelectorAll('[data-v2-add]').forEach(b=>b.onclick=async()=>{try{const group=b.dataset.v2Add;const slot=makeDynamicSlot(group,group==='character'?`캐릭터 ${room.slots.filter(x=>x.group==='character').length+1}`:`기타 ${room.slots.filter(x=>x.group==='extra').length+1}`);room.slots.push(slot);state.v2Editor={type:'slot',slotId:slot.id};renderModal();await saveRoom(room).catch(e=>notify(`항목 저장 실패: ${e.message}`,'error',6000));}catch(e){notify(e.message,'error',6000,{error:e});}});
     overlay.querySelector('[data-v2-log-normalize]')?.addEventListener('click',async()=>{try{await runLogMaintenance(room,openLogDateNormalizerDialog,'log-date-normalize','날짜 표기를 정리했습니다.');}catch(e){notify(e.message,'error',6000,{error:e});}});
     overlay.querySelector('[data-v2-log-dedupe]')?.addEventListener('click',async()=>{try{await runLogMaintenance(room,openDuplicateLogResolverDialog,'log-date-dedupe','중복 날짜로그를 정리했습니다.');}catch(e){notify(e.message,'error',6000,{error:e});}});
-    overlay.querySelector('[data-v2-arm]')?.addEventListener('click',async()=>{const btn=overlay.querySelector('[data-v2-arm]');if(btn?.dataset.busy==='1')return;if(btn){btn.dataset.busy='1';btn.disabled=true;btn.textContent='주입 준비 중…';}notify('🪽 RP Manager 방식으로 주입을 준비합니다…','success',2200);try{await WLOG.show('주입 준비 중…',async()=>{await saveRoom(room);await armInjection(room);});if(room.armWhenReady){delete room.armWhenReady;await saveRoom(room).catch(()=>{});}renderModalIfOpen();}catch(e){if(NO_MEMORY_YET.test(String(e?.message||''))&&!room.pending){room.armWhenReady=true;try{await saveRoom(room);notify('켜 뒀어요. 아직 보낼 기억이 없어서, 정리가 처음 기억을 만들면 그때부터 AI에게 보내요.','success',7000);}catch(se){delete room.armWhenReady;notify(se.message,'error',7000,{error:se});}renderModalIfOpen();}else notify(e.message,'error',7000,{error:e});}finally{if(btn?.isConnected){delete btn.dataset.busy;btn.disabled=false;btn.textContent='주입 시작';}}});
+    overlay.querySelector('[data-v2-arm]')?.addEventListener('click',async()=>{const btn=overlay.querySelector('[data-v2-arm]');if(btn?.dataset.busy==='1')return;if(btn){btn.dataset.busy='1';btn.disabled=true;btn.textContent='주입 준비 중…';}notify('기억 보내기를 준비하는 중…','success',2200);try{await WLOG.show('주입 준비 중…',async()=>{await saveRoom(room);await armInjection(room);});if(room.armWhenReady){delete room.armWhenReady;await saveRoom(room).catch(()=>{});}renderModalIfOpen();}catch(e){if(NO_MEMORY_YET.test(String(e?.message||''))&&!room.pending){room.armWhenReady=true;try{await saveRoom(room);notify('켜 뒀어요. 아직 보낼 기억이 없어서, 정리가 처음 기억을 만들면 그때부터 AI에게 보내요.','success',7000);}catch(se){delete room.armWhenReady;notify(se.message,'error',7000,{error:se});}renderModalIfOpen();}else notify(e.message,'error',7000,{error:e});}finally{if(btn?.isConnected){delete btn.dataset.busy;btn.disabled=false;btn.textContent='주입 시작';}}});
     const bridge=cogBridge();
     overlay.querySelectorAll('[data-v2-review-dismiss]').forEach(b=>b.onclick=async()=>{try{await bridge?.dismissReview?.(apiChatIdOf(room),b.dataset.v2ReviewDismiss);state.v2Cognition=null;v2ScheduleAsyncRefresh(room);renderModal();}catch(e){notify(e.message,'error',5000,{error:e});}});
     overlay.querySelectorAll('[data-v2-review-accept]').forEach(b=>b.onclick=async()=>{try{const say=v2ReviewAcceptText((state.v2Cognition?.reviews||[]).find(r=>String(r.id)===String(b.dataset.v2ReviewAccept)),state.v2Cognition);if(!confirm(say.ask))return;await WLOG.show('검토 후보 반영 중',()=>bridge?.acceptReview?.(apiChatIdOf(room),b.dataset.v2ReviewAccept));state.v2Cognition=null;v2ScheduleAsyncRefresh(room);notify(say.done,'success',2200);renderModal();}catch(e){notify('반영하지 못했습니다: '+e.message,'warn',6500,{error:e});}});
