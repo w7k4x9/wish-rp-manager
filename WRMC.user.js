@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.5
+// @version      2.5.6
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -8554,7 +8554,7 @@ const p=plan(list,{...u,settings:settings(room)},force==='retry'||retrying?(u.fa
         if(waitingJobs.length)try{const r2=copy(room),ps2=copy(writableLorePacksForRoom(room)),rev=Number((staged.cog||cog).rev)||0,c2=await bridge().snapshotRaw(apiChatIdOf(room));if((Number(c2.rev)||0)!==rev)throw Error('cognition record written again after the commit');for(const follow of waitingJobs)await follow(c2,ps2,r2);}catch(e){console.warn('[Wish] 재구축 작업 기준 갱신 보류',e);}
         // Any context refresh failure is a post-save warning, not a failed AI request.
         let refreshStage='인지 화면 갱신';const ringMark=WLOG.ringMark();
-        try{await bridge().refresh();refreshStage='저장 후 주입 동기화';if(room.pending)await refreshPendingAfterAutomaticMemory(room);WLOG.ringOk('정리 저장 후 갱신',ringMark);WLOG.ringClearBefore(ringMark);}catch(e){WLOG.fail('정리 저장 후 갱신',e,{stage:refreshStage,outcome:'saved-refresh-pending',...(WLOG.kindOf(e)?{}:{kind:'MEM_REFRESH_AFTER_SAVE'})});if(refreshStage==='저장 후 주입 동기화')recordPendingSyncError(room,e);notify('정리는 저장됐습니다. 주입 갱신은 다음 전송 때 재시도합니다.','warn',6000,{kind:'MEM_REFRESH_AFTER_SAVE'});}
+        try{await bridge().refresh();refreshStage='저장 후 주입 동기화';if(room.pending)await refreshPendingAfterAutomaticMemory(room);else armWhenReadyLater(room);WLOG.ringOk('정리 저장 후 갱신',ringMark);WLOG.ringClearBefore(ringMark);}catch(e){WLOG.fail('정리 저장 후 갱신',e,{stage:refreshStage,outcome:'saved-refresh-pending',...(WLOG.kindOf(e)?{}:{kind:'MEM_REFRESH_AFTER_SAVE'})});if(refreshStage==='저장 후 주입 동기화')recordPendingSyncError(room,e);notify('정리는 저장됐습니다. 주입 갱신은 다음 전송 때 재시도합니다.','warn',6000,{kind:'MEM_REFRESH_AFTER_SAVE'});}
         try{state.v2Cognition=await (bridge().getView||bridge().getRoom).call(bridge(),apiChatIdOf(room));}catch{}
         // (B) a lane left out of the stop row (above) whose cursor the partial re-check did not read: its turns before the stop row
         // as this run's start read had them, the rest as read now (= 2.0.4's count over the whole chat while the older rows are unchanged).
@@ -9879,7 +9879,7 @@ const WishImportPeople=(()=>{
   // apply ran either read the applied data or is ahead of this sync on the carrier queue and is refreshed by it. A failure
   // stays on the injection card as a failed poll does (recordPendingSyncError); the next poll or send tries again.
   function refreshPendingAfterRebuild(room) {
-    if (!room?.pending) return;
+    if (!room?.pending) { armWhenReadyLater(room); return; }
     void syncPendingCarrier(room, 'rebuild-apply').catch(error => { recordPendingSyncError(room, error); renderModalIfOpen(); });
   }
 
@@ -9926,6 +9926,7 @@ const WishImportPeople=(()=>{
         scheduleAutomaticMemoryMaintenance(room,900);
         // 2.5.5 크랙 장기기억: 기억 주입이 꺼진 방도 답변마다 턴을 센다(주입 경로의 watch는 주입 중인 방에서만 돈다).
         CrackLtm.onReply(room);
+        armWhenReadyLater(room,3000);
 
         // Memory and lore share U3; one schedule is sufficient.
       });
@@ -19454,6 +19455,25 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     const task=withCarrierOperation(room,()=>armInjectionUnlocked(room));void task.then(()=>RecallWarm.schedule(room),()=>{});return task;
   }
 
+  // 2.5.6 기억이 생기면 켜기: 기억이 하나도 없을 때 「AI에게 기억 보내기」를 누르면 켜 둔 채(armWhenReady) 기다리다가,
+  // 정리가 처음 기억을 만들거나 답변이 끝났을 때 보낼 게 생겼으면 그때 주입을 시작한다(시작 방법은 버튼과 같은 armInjection).
+  const NO_MEMORY_YET=/^아직 주입할 기억이 없습니다/;
+  const armWaitRunning=new WeakSet();
+  function armWhenReadyLater(room,delay=1500){if(!room?.armWhenReady||room.pending)return;setTimeout(()=>{void armWhenReadyNow(room).catch(error=>console.debug('[Wish] arm-when-ready held',error));},delay);}
+  async function armWhenReadyNow(room){
+    if(!room?.armWhenReady||room.pending||armWaitRunning.has(room)||state.currentRoom!==room||generationPending(apiChatIdOf(room)))return false;
+    try{if(!safeMemoryItems(room,snapshotSelectedItems(room,'')).length)return false;}catch(_){/* 아래 armInjection이 다시 확인한다 */}
+    armWaitRunning.add(room);
+    try{
+      await armInjection(room);
+      delete room.armWhenReady;await saveRoom(room).catch(()=>{});
+      notify('기억이 생겨서 이제 AI에게 보내요. 다음 메시지부터 들어가요.','success',6000);
+      renderModalIfOpen();try{WUI&&WUI.paint();}catch(_){/* 패널 닫힘 */}
+      return true;
+    }catch(error){if(!NO_MEMORY_YET.test(String(error?.message||'')))console.debug('[Wish] arm-when-ready held',error);return false;}
+    finally{armWaitRunning.delete(room);}
+  }
+
   async function armInjectionUnlocked(room) {
     if(room.pending)throw new Error('이미 주입 유지가 활성화되어 있습니다.');
     if(generationPending(apiChatIdOf(room)))throw new Error('AI 생성이 끝난 뒤 주입을 시작해 주세요.');
@@ -20153,7 +20173,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     overlay.querySelectorAll('[data-v2-add]').forEach(b=>b.onclick=async()=>{try{const group=b.dataset.v2Add;const slot=makeDynamicSlot(group,group==='character'?`캐릭터 ${room.slots.filter(x=>x.group==='character').length+1}`:`기타 ${room.slots.filter(x=>x.group==='extra').length+1}`);room.slots.push(slot);state.v2Editor={type:'slot',slotId:slot.id};renderModal();await saveRoom(room).catch(e=>notify(`항목 저장 실패: ${e.message}`,'error',6000));}catch(e){notify(e.message,'error',6000,{error:e});}});
     overlay.querySelector('[data-v2-log-normalize]')?.addEventListener('click',async()=>{try{await runLogMaintenance(room,openLogDateNormalizerDialog,'log-date-normalize','날짜 표기를 정리했습니다.');}catch(e){notify(e.message,'error',6000,{error:e});}});
     overlay.querySelector('[data-v2-log-dedupe]')?.addEventListener('click',async()=>{try{await runLogMaintenance(room,openDuplicateLogResolverDialog,'log-date-dedupe','중복 날짜로그를 정리했습니다.');}catch(e){notify(e.message,'error',6000,{error:e});}});
-    overlay.querySelector('[data-v2-arm]')?.addEventListener('click',async()=>{const btn=overlay.querySelector('[data-v2-arm]');if(btn?.dataset.busy==='1')return;if(btn){btn.dataset.busy='1';btn.disabled=true;btn.textContent='주입 준비 중…';}notify('🪽 RP Manager 방식으로 주입을 준비합니다…','success',2200);try{await WLOG.show('주입 준비 중…',async()=>{await saveRoom(room);await armInjection(room);});renderModalIfOpen();}catch(e){notify(e.message,'error',7000,{error:e});}finally{if(btn?.isConnected){delete btn.dataset.busy;btn.disabled=false;btn.textContent='주입 시작';}}});
+    overlay.querySelector('[data-v2-arm]')?.addEventListener('click',async()=>{const btn=overlay.querySelector('[data-v2-arm]');if(btn?.dataset.busy==='1')return;if(btn){btn.dataset.busy='1';btn.disabled=true;btn.textContent='주입 준비 중…';}notify('🪽 RP Manager 방식으로 주입을 준비합니다…','success',2200);try{await WLOG.show('주입 준비 중…',async()=>{await saveRoom(room);await armInjection(room);});if(room.armWhenReady){delete room.armWhenReady;await saveRoom(room).catch(()=>{});}renderModalIfOpen();}catch(e){if(NO_MEMORY_YET.test(String(e?.message||''))&&!room.pending){room.armWhenReady=true;try{await saveRoom(room);notify('켜 뒀어요. 아직 보낼 기억이 없어서, 정리가 처음 기억을 만들면 그때부터 AI에게 보내요.','success',7000);}catch(se){delete room.armWhenReady;notify(se.message,'error',7000,{error:se});}renderModalIfOpen();}else notify(e.message,'error',7000,{error:e});}finally{if(btn?.isConnected){delete btn.dataset.busy;btn.disabled=false;btn.textContent='주입 시작';}}});
     const bridge=cogBridge();
     overlay.querySelectorAll('[data-v2-review-dismiss]').forEach(b=>b.onclick=async()=>{try{await bridge?.dismissReview?.(apiChatIdOf(room),b.dataset.v2ReviewDismiss);state.v2Cognition=null;v2ScheduleAsyncRefresh(room);renderModal();}catch(e){notify(e.message,'error',5000,{error:e});}});
     overlay.querySelectorAll('[data-v2-review-accept]').forEach(b=>b.onclick=async()=>{try{const say=v2ReviewAcceptText((state.v2Cognition?.reviews||[]).find(r=>String(r.id)===String(b.dataset.v2ReviewAccept)),state.v2Cognition);if(!confirm(say.ask))return;await WLOG.show('검토 후보 반영 중',()=>bridge?.acceptReview?.(apiChatIdOf(room),b.dataset.v2ReviewAccept));state.v2Cognition=null;v2ScheduleAsyncRefresh(room);notify(say.done,'success',2200);renderModal();}catch(e){notify('반영하지 못했습니다: '+e.message,'warn',6500,{error:e});}});
@@ -22737,11 +22757,12 @@ function createWishUI(AD) {
     if(V.ai.ready===false&&!V.ai.manual)alerts.push(`<div class="w-alert" data-key="manual-ai-offer">${W_RM('정리해 줄 AI가 연결되지 않았어요','API 키 없이도 ChatGPT·Gemini 같은 외부 AI에 복붙해서 정리할 수 있어요')}<button type="button" class="w-link" data-act="api">연결하기</button><button type="button" class="w-link" data-act="manualAiSetup">복붙으로 쓰기</button></div>`);
     const manual=V.ai.manual?`<div class="w-sec">외부 AI 복붙</div>${manualJobPanel()}<div class="w-grp">${W_ROW(W_RM('쌓인 대화',(u.pendingChars==null?'':fmt(u.pendingChars)+'자 · ')+fmt(Math.max(Number(m.committed)||0,Number(u.observePending)||0))+'턴'),`${V.ai.job&&GptBridge.enabled()?W_BTN('ChatGPT로 보내기','gptResend',null,jobLock):''}${V.ai.job?W_BTN('TXT 다시 받기','manualTxt',null,jobLock):''}${W_BTN('답 붙여넣기','manualPaste',null,jobLock||!V.ai.job)}`)}</div>`:'';
     // 상태
-    const sTxt=!I.armed?['','꺼져 있어요 · 저장된 기억은 그대로예요']:I.authWaiting?['warn','로그인 확인을 기다리는 중이에요']:I.error?['bad','확인 실패 · 위 알림을 봐 주세요']:I.verified?['ok','잘 들어가고 있어요 · 서버에서 확인했어요']:['warn','서버에 들어갔는지 확인하는 중…'];
+    const waitArm=!I.armed&&!!state.currentRoom?.armWhenReady;
+    const sTxt=waitArm?['warn','켜 둠 · 아직 보낼 기억이 없어요 · 정리가 처음 기억을 만들면 그때부터 보내요']:!I.armed?['','꺼져 있어요 · 저장된 기억은 그대로예요']:I.authWaiting?['warn','로그인 확인을 기다리는 중이에요']:I.error?['bad','확인 실패 · 위 알림을 봐 주세요']:I.verified?['ok','잘 들어가고 있어요 · 서버에서 확인했어요']:['warn','서버에 들어갔는지 확인하는 중…'];
     const memLeft=Math.max(0,(Number(m.target)||0)-(Number(m.committed)||0)),cogLeft=Math.max(0,(Number(c.every)||0)-(Number(u.observePending)||0));
     const autoSub=V.ai.manual?'외부 AI 복붙 방식이라 [함께 정리]로 진행해요':V.ai.ready===false?'정리해 줄 AI가 아직 없어요':(m.running||u.running)?'지금 정리하는 중이에요':u.enabled===false?'잠깐 멈춰 있어요':`기억 ${memLeft}턴 뒤 · 인물 ${cogLeft}턴 뒤에 알아서 정리해요`;
     const status=`<div class="w-grp" data-key="home-status">
-      ${W_ROW(W_RM('AI에게 기억 보내기','끄면 AI가 기억 없이 답해요. 저장된 기억은 그대로예요.'),W_SW(I.armed,I.armed?'release':'arm',null,'기억 보내기',jobLock))}
+      ${W_ROW(W_RM('AI에게 기억 보내기','끄면 AI가 기억 없이 답해요. 저장된 기억은 그대로예요.'),W_SW(I.armed||waitArm,I.armed||waitArm?'release':'arm',null,'기억 보내기',jobLock))}
       ${W_ROW(W_RM('상태'),`<span class="w-state ${sTxt[0]}"><i></i>${sTxt[1]}</span>`)}
       ${W_ROW(W_RM('자동 정리',autoSub),`${V.ai.manual&&V.ai.job?'':W_BTN('지금 정리','unifiedAll',null,jobLock)}${W_SW(u.enabled!==false,'unifiedToggle',null,'자동 정리')}`)}
       <button type="button" class="w-row w-rowbtn" data-act="preview">${W_RM('미리보기','AI가 실제로 받는 글을 그대로 봐요')}${W_CHEV}</button>
@@ -25783,7 +25804,7 @@ Object.assign(WUI_ADAPTER.act,{
  heldQueueExport:id=>WishHeldUI.queueAction(id,'export'),heldQueueDismiss:id=>WishHeldUI.queueAction(id,'dismiss'),heldQueueMove:id=>WishHeldUI.queueAction(id,'move'),
  heldQueuePick:arg=>{const [id,mode]=arg.split('|'),d=WUI.ui.dlg(id);if(d&&!d.busy){d.rows.forEach((r,i)=>d.draft.pick['k'+i]=mode==='all');WUI.paint();}},
  heldQueueMore:id=>{const d=WUI.ui.dlg(id);if(d&&!d.busy){d.draft.limit+=30;WUI.paint();}},
- release:()=>restorePending(state.currentRoom,'manual'),
+ release:async()=>{const r=state.currentRoom;if(r&&!r.pending&&r.armWhenReady){delete r.armWhenReady;await saveRoom(r);notify('기억 보내기를 껐어요.','info',3000);return;}return restorePending(r,'manual');},
  reverify:async()=>{const result=await reverifyPending(state.currentRoom);if(result?.deferred){notify('대화 갱신 대기 중 · 자동 확인을 이어갑니다.','warn',3000);scheduleRecovery(1000);renderModalIfOpen();return result;}notify(result.repaired?'저장된 주입본을 서버에 복구하고 재검증했습니다.':'서버 재검증 성공 ✓','success',5000);renderModalIfOpen();return result;},
  spSourceEdit:id=>{const x=resolvedSpeechRelations(state.currentRoom).find(r=>r.id===id);if(x?.sourcePackId)return WUIEditor('entry',x.sourceEntryId,{pack:x.sourcePackId});},spSourceDel:id=>{const x=resolvedSpeechRelations(state.currentRoom).find(r=>r.id===id);if(x?.sourcePackId)return WUIInvoke('lore-entry-delete','',{}, {type:'lore-entry',packId:x.sourcePackId,entryId:x.sourceEntryId});},
 
