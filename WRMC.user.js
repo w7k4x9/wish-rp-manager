@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.2
+// @version      2.5.3
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -15831,8 +15831,23 @@ ${AI_JSON_TEXT_RULE}
     return head+rows.map(row=>{const note=noteTransform?noteTransform(row):row.note;return `- ${row.speaker} → ${row.target}: ${row.address?'“'+row.address+'”'+(/[가-힣]$/.test(row.address)&&(row.address.charCodeAt(row.address.length-1)-0xAC00)%28?'이라고':'라고')+' 부름':'호칭 미확정'} · ${speechRegisterLabel(row.register)}${note?` · ${note}`:''}`;}).join('\n');
   }
 
+  // 2.5.3 호칭·말투는 이번 장면에 나온 인물(이름·별칭이 최근 대화에 나옴)과 PC 사이의 줄만 매 턴 넣는다. 전에는 아는 인물 사이를 전부 넣어
+  // 1000턴 방에서 163줄 8,038자였다. 인물 정보를 아직 못 읽었거나 고른 줄이 하나도 없으면 예전처럼 전부 넣는다.
+  function speechSceneKeep(room){
+    try{
+      const cog=state.v2Cognition&&String(state.v2Cognition.id)===String(apiChatIdOf(room))?state.v2Cognition:null;if(!cog)return null;
+      const scene=speechNameKey(String(room.recentRpContextText||'').slice(-8000)+'\n'+String(room.autoRecallContextText||'').slice(-4000));if(!scene)return null;
+      const actors=(cog.actors||[]).filter(a=>a&&a.name&&!a.archived),byName=new Map();
+      for(const a of actors)for(const n of [a.name,...(a.aliases||[])]){const k=speechNameKey(n);if(k&&!byName.has(k))byName.set(k,a);}
+      const here=name=>{const k=speechNameKey(name);if(!k)return false;const a=byName.get(k)||byName.get(speechNameKey(String(name).replace(/\s*\([^)]*\)\s*$/,'')));
+        if(a?.isPlayer)return true;return [k,...(a?[a.name,...(a.aliases||[])].map(speechNameKey):[])].some(x=>x&&x.length>=2&&scene.includes(x));};
+      return row=>here(row.speaker)&&here(row.target);
+    }catch(error){console.debug('[Wish] speech scene filter skipped',error);return null;}
+  }
   function currentSpeechPendingItem(room) {
-    const content=speechRelationsText(room);
+    const keep=speechSceneKeep(room);
+    let content=keep?speechRelationsText(room,{keep}):'';
+    if(!content)content=speechRelationsText(room);
     if(!content)return null;
     return {slotId:'__speech',sourceSlotId:'__speech',sourceKey:'current-speech',title:'현재 호칭·말투 — 과거 규칙보다 우선',group:'speech',content,totalTurns:0,usedTurns:0,autoType:'current-speech',recallReason:'화자→상대별 현재값 · 매턴 우선'};
   }
@@ -18115,6 +18130,16 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       const k=pendingItemIdentity(item);if(!k||seen.has(k))continue;seen.add(k);
       if(String(item.content||'').trim())pool.push(item);
     }
+    // 2.5.3 서브의 관계도 메인처럼: 두 사람이 다 이번 장면에 나오거나(또는 고정·주인공 짝) 할 때만 통째로, 나머지는 '현재:' 한 줄.
+    // 전에는 서브에 들어가는 관계가 모두 통째(1000턴 방 34개 47,294자)라 날짜로그가 거의 못 들어갔다.
+    try{
+      const rows=WishRelationships.normalize(room.relationships).filter(r=>r.enabled!==false),byId=new Map(rows.map(r=>['relationship:'+r.id,r]));
+      const rel=pool.map(i=>byId.get(String(i?.slotId||''))).filter(Boolean);
+      if(rel.length&&typeof RecallSeat!=='undefined'&&RecallSeat.relationshipForms){
+        const {forms}=RecallSeat.relationshipForms(rows,rel.map(r=>({id:r.id,len:WishRelationships.body(r).length})),String(room.recentRpContextText||'').slice(-6000));
+        for(let k=0;k<pool.length;k++){const r=byId.get(String(pool[k]?.slotId||''));if(!r||forms.get(r.id)!=='line')continue;const line=RecallSeat.relationshipLineText(r);pool[k]={...pool[k],content:line,relationshipLine:line,reason:'이번 장면 밖 관계 · 현재 한 줄'};}
+      }
+    }catch(error){console.debug('[Wish] overflow relationship lines skipped',error);}
     // 2.3.41 서브 구성: 관계가 서브를 다 차지해 날짜로그(실제 이야기)가 한 줄도 안 들어가던 문제. 후보 목록에 없던 날짜로그도 최근 것부터
     // 덧붙이고, 관계는 서브 자리의 40%까지만 먼저 넣은 뒤 날짜로그를 채우고, 남는 자리에 나머지 관계를 넣는다.
     try{
@@ -18145,7 +18170,28 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     const rawText=messageTextOf(live),own=messageOwnText(rawText);
     if(!own.trim()){delete next.overflow;return;}
     const limit=allFitLimit(room)-OVERFLOW_NOTE.length-200,measure=createWishContextMeasure(own,room),chosen=[];
-    for(const item of pool){if(measure.totalLength([...chosen,item])<=limit)chosen.push(item);}
+    // 2.5.3 목차 자리: 서브의 25%(최대 12,000자)는 먼저 비워 두고 채운 뒤, 목차가 없으면 그 자리도 마저 채운다.
+    const logIndexReserve=Math.min(12000,Math.round(limit*.25));
+    for(const item of pool){if(measure.totalLength([...chosen,item])<=limit-logIndexReserve)chosen.push(item);}
+    // 2.5.3 지난 사건 목차: 원문이 메인·서브 어디에도 못 들어간 날짜로그도 제목 한 줄은 남긴다(같은 날짜끼리 묶어 최근 날부터, 남은 자리만).
+    // 1000턴 방은 날짜로그 1,023개(제목 평균 52자) 중 원문이 들어가는 건 몇 개뿐이라, 나머지 날은 AI가 아예 몰랐다.
+    try{
+      const slot=(room.slots||[]).find(x=>x.id==='logSummary');
+      if(slot&&slot.enabled!==false&&room.autoLogRecallEnabled!==false){
+        const HEAD=/^\[([^\]\n｜]*)｜([^\]\n]*)\]$/gm,heads=[...String(slot.content||'').matchAll(HEAD)];
+        if(heads.length){
+          const have=new Set();for(const it of [...(ctx.active||[]),...chosen])for(const m of String(it?.content||'').matchAll(HEAD))have.add(m[0]);
+          const byDate=new Map();for(const m of heads){if(have.has(m[0]))continue;const d=m[1].trim()||'날짜 미상';if(!byDate.has(d))byDate.set(d,[]);byDate.get(d).push(m[2].trim());}
+          const head='원문이 위에 없는 지난 사건의 제목이다(최근 날짜부터). 제목 말고는 자세한 내용을 모르니 지어내지 않는다.\n';
+          const base={slotId:'__logIndex',sourceSlotId:'__logIndex',sourceKey:'log-index',title:'지난 사건 목차',group:'log-auto',autoType:'log-index',totalTurns:0,usedTurns:0,recallReason:'원문이 못 들어간 날짜로그 제목'};
+          const avail=limit-measure.totalLength(chosen)-400,lines=[];let size=head.length;
+          for(const d of [...byDate.keys()].reverse()){const l=d+': '+byDate.get(d).join(' · ');if(size+l.length+1>avail)break;lines.push(l);size+=l.length+1;}
+          while(lines.length&&measure.totalLength([...chosen,{...base,content:head+lines.join('\n')}])>limit)lines.pop();
+          if(lines.length)chosen.push({...base,content:head+lines.join('\n')});
+        }
+      }
+    }catch(error){console.debug('[Wish] log index skipped',error);}
+    if(!chosen.some(i=>i.slotId==='__logIndex'))for(const item of pool){if(!chosen.includes(item)&&measure.totalLength([...chosen,item])<=limit)chosen.push(item);}
     const build=xs=>{const block=overflowBlockOf(xs,room);return {block,text:buildInjectedMessage(own,block)};};
     let byteBudget=APP.carrierByteBudget,built=build(chosen);
     const shrink=()=>{while(chosen.length&&(built.text.length>allFitLimit(room)||carrierBodyBytes(built.text)>byteBudget)){chosen.pop();built=build(chosen);}};
