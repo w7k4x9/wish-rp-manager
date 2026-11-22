@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         기억
+// @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.4.2
+// @version      2.5.0
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
-// @description  기억 — 크랙 RP용 장기기억·인지·자료집을 관리하고 AI에게 넣어 줍니다. (예전 이름 Wish RP Manager Core)
+// @description  크랙 RP 도우미 — 크랙 RP용 장기기억·인지·자료집을 관리하고 AI에게 넣어 줍니다. (예전 이름 Wish RP Manager Core)
 // @author       User
 // @license      All Rights Reserved
 // @match        https://crack.wrtn.ai/*
@@ -40,7 +40,7 @@
 
 (function () {
   'use strict';
-  // 2.3.0 ChatGPT 자동 정리(실험): chatgpt.com에서는 기억 앱 화면을 띄우지 않고, 크랙의 기억 앱이 넘긴 요청문 하나만 처리한다.
+  // 2.3.0 ChatGPT 자동 정리(실험): chatgpt.com에서는 RP 도우미 화면을 띄우지 않고, 크랙의 RP 도우미가 넘긴 요청문 하나만 처리한다.
   // 흐름: 주소의 wish_job과 GM 저장소의 작업이 같을 때만 → 입력창에 붙여넣기(길면 TXT 첨부) → 보내기 → 답 완료 대기 → JSON 회수 → 크랙에 돌려줌.
   if (location.hostname === 'chatgpt.com') {
     const id = new URLSearchParams(location.search).get('wish_job');
@@ -207,7 +207,7 @@
       location.reload();
       return;
     }
-    console.error(`[Wish RP Manager Core] 다른 버전의 기억 앱 런타임이 동시에 설치되어 v${SCRIPT_VERSION}를 시작하지 않았습니다.`, previousRuntime);
+    console.error(`[Wish RP Manager Core] 다른 버전의 RP 도우미 런타임이 동시에 설치되어 v${SCRIPT_VERSION}를 시작하지 않았습니다.`, previousRuntime);
     showRuntimeConflict('🪽 Wish RP Manager Core 버전 충돌 · 중복 설치된 구버전 확프를 끄고 페이지를 새로고침해 주세요.');
     return;
   }
@@ -227,7 +227,7 @@
   // 2.4.2 앱 아이콘 (펄스·NAI 자동저장·툴박스와 같은 파란 둥근 사각형)
   const MEMORY_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
   const APP = {
-    name: '기억',
+    name: '크랙 RP 도우미',
     version: SCRIPT_VERSION,
     dbName: 'WishRPManagerDB_v2',
     dbVersion: 2,
@@ -562,7 +562,7 @@
   }
 
   let wishCarrierLookupCache=null;
-  // 기억 앱 단독 동작: Crack 순정 message id/group id를 가장 먼저 사용합니다.
+  // RP 도우미 단독 동작: Crack 순정 message id/group id를 가장 먼저 사용합니다.
   function exactMessageContainer(messageId) {
     let exact = null;
     try {
@@ -579,7 +579,7 @@
     if (exact) return exact;
 
     // DOM에 서버 messageId가 직접 노출되지 않는 화면은 서버 원문과 렌더 본문을
-    // 기억 앱 자체적으로 비교합니다. 다른 확프의 마커/함수에는 의존하지 않습니다.
+    // RP 도우미 자체적으로 비교합니다. 다른 확프의 마커/함수에는 의존하지 않습니다.
     // A virtualized/scrolled view may mount only the carrier; visual order is not server order.
     const cached=wishCarrierLookupCache;
     const cachedId=cached?.md?.closest('[data-message-id]')?.getAttribute('data-message-id');
@@ -1908,7 +1908,7 @@ const WLOG=(()=>{
     INJECT_NOTHING:{category:'작업 조건',cause:'주입이 켜진 항목이 없거나 내용이 비어 있습니다.',next:'기억 탭의 현재상태·캐릭터·기타 칸에서 주입을 켠 뒤 다시 시작해 주세요. 기억이 비어 있다면 몇 턴 진행하거나 [함께 정리]를 먼저 눌러 주세요.',toast:'주입할 항목이 꺼져 있거나 비어 있음 · 기억 탭에서 주입을 켜 주세요',match:r=>(/^(?:메시지 전송 준비|기억 주입 동기화|서버 재검증 중|주입 해제 중|화면 안내)$/.test(r.operation)||String(r.message).startsWith(r.operation))&&['아직 주입할 기억이 없습니다. 몇 턴 진행하거나 보조 AI를 연결해 기억을 만든 뒤 시작해 주세요.','현재 주입 설정에서 켜진 항목이 없습니다. 주입 설정 또는 선택 항목을 확인해 주세요.'].includes(r.message)},
     REVERIFY_NONE:{toast:'재검증할 주입이 아직 없음 · 다음 AI 답 뒤 다시',match:r=>(/^(?:메시지 전송 준비|기억 주입 동기화|서버 재검증 중|주입 해제 중|화면 안내)$/.test(r.operation)||String(r.message).startsWith(r.operation))&&['현재 예약된 임시 주입이 없습니다.','재검증할 저장 주입본이 없습니다. 주입을 해제한 뒤 다시 시작해 주세요.'].includes(r.message)},
     INJECT_MISSING_IN_MSG:{category:'주의 안내',cause:'크랙에 저장된 이 메시지에 기억 주입이 없습니다. 크랙 편집이나 다른 확장 앱이 본문을 바꿨을 수 있습니다.',next:'[서버 재검증]을 누르면 저장본으로 다시 넣습니다.',toast:'이 메시지에서 주입이 빠짐 · 서버 재검증을 눌러 주세요',match:r=>(/^(?:메시지 전송 준비|기억 주입 동기화|서버 재검증 중|주입 해제 중|화면 안내)$/.test(r.operation)||String(r.message).startsWith(r.operation))&&r.message==='이 메시지에는 현재 기억 주입이 없습니다.'},
-    CARRIER_BODY_EMPTY:{category:'주입 대상 본문',cause:'기억 앱이 주입할 이전 AI 답변의 정상 본문을 확보하지 못했습니다. 입력창 글의 유무와는 별개입니다.',next:'방을 새로고침한 뒤 해당 AI 답변이 정상 표시되는지 확인하세요. 계속되면 아래 메시지 ID와 상세 기록을 전달해 주세요. 기억 재구축은 필요하지 않습니다.',toast:'주입할 이전 AI 답변이 비어 있음 · 새로고침해 확인해 주세요',job:r=>String(r.message).startsWith(r.operation)?'화면 안내':'',match:r=>((/^(?:메시지 전송 준비|기억 주입 동기화|서버 재검증 중|주입 해제 중|화면 안내)$/.test(r.operation)||String(r.message).startsWith(r.operation))||r.operation==='주입 내용 확인 실패')&&(/^(?:WISH_CARRIER_BODY_EMPTY|WISH_CARRIER_READ_FAILED)$/.test(r.code)||r.message==='주입 대상 AI 답이 비어 있어 안전하게 재검증할 수 없습니다.')},
+    CARRIER_BODY_EMPTY:{category:'주입 대상 본문',cause:'RP 도우미가 주입할 이전 AI 답변의 정상 본문을 확보하지 못했습니다. 입력창 글의 유무와는 별개입니다.',next:'방을 새로고침한 뒤 해당 AI 답변이 정상 표시되는지 확인하세요. 계속되면 아래 메시지 ID와 상세 기록을 전달해 주세요. 기억 재구축은 필요하지 않습니다.',toast:'주입할 이전 AI 답변이 비어 있음 · 새로고침해 확인해 주세요',job:r=>String(r.message).startsWith(r.operation)?'화면 안내':'',match:r=>((/^(?:메시지 전송 준비|기억 주입 동기화|서버 재검증 중|주입 해제 중|화면 안내)$/.test(r.operation)||String(r.message).startsWith(r.operation))||r.operation==='주입 내용 확인 실패')&&(/^(?:WISH_CARRIER_BODY_EMPTY|WISH_CARRIER_READ_FAILED)$/.test(r.code)||r.message==='주입 대상 AI 답이 비어 있어 안전하게 재검증할 수 없습니다.')},
     CARRIER_TARGET_MOVING:{category:'작업 기준 변경',cause:'작업을 시작할 때의 방·설정·대화 기준과 현재 상태가 달라졌습니다.',next:'따로 할 일은 없습니다. 다음 보내기나 자동 확인 때 지금 대화에 맞춰 다시 주입합니다. 같은 기록이 계속 쌓이면 AI 답변이 끝난 뒤 [저장본으로 재검증]을, 그래도 같으면 [주입 해제] 뒤 [주입 시작]을 눌러 주세요.',toast:'주입할 AI 답변이 바뀌는 중 · 다음 확인 때 다시 맞춤',match:r=>(/^(?:메시지 전송 준비|기억 주입 동기화|서버 재검증 중|주입 해제 중|화면 안내)$/.test(r.operation)||String(r.message).startsWith(r.operation))&&r.operation!=='주입 해제 중'&&r.stage!=='주입 해제 중'&&['최신 AI 또는 생성 중인 대화에는 주입할 수 없습니다.','주입 대상이 현재 확정 대화에 없습니다.','수정 대상 메시지가 사라졌습니다.','주입 준비 중 AI 원문이 바뀌었습니다. 최신 원문으로 다시 확인해 주세요.'].includes(r.message)},
     CARRIER_413:{category:'요청 크기',cause:r=>(String(r.message).match(/^서버가 용량 한도 초과\(413\)로 거절해 [^.]*\./)||[''])[0],next:'기억 탭의 현재상태를 [원문 편집]으로 줄이거나, 캐릭터·기타(OOC) 칸의 주입을 끄거나, 동그란 버튼의 현재 주입에서 이번 세션 포함 항목을 빼 주세요. 원문과 저장 기억은 지워지지 않습니다.',toast:'주입이 크랙 용량 한도를 넘음 · 항상 넣는 자료를 줄여 주세요',match:r=>(/^(?:메시지 전송 준비|기억 주입 동기화|서버 재검증 중|주입 해제 중|화면 안내)$/.test(r.operation)||String(r.message).startsWith(r.operation))&&(String(r.message).startsWith('서버가 용량 한도 초과(413)로 거절해 ')||r.code!=='WISH_CARRIER_UTF8_REFIT'&&/^메시지 PATCH 실패 · /.test(r.message)&&/API 오류 413/.test(r.message))},
     CARRIER_PATCH_FAIL_AUTO:{category:'크랙 저장 실패',cause:'기억 블록을 붙인 AI 답변을 크랙에 저장(수정)한 것이 확인되지 않았습니다. 세 주소 모두 실패했거나, 성공이라고 답했지만 다시 읽어 보니 본문이 그대로였습니다.',next:'보내기는 기존 주입 상태로 계속되고 다음 턴에 다시 저장합니다. 계속되면 [저장본으로 재검증]을, 그래도 실패하면 [주입 해제] 뒤 [주입 시작]을 눌러 주세요. 크랙에서 AI 답변 수정이 되는지도 확인해 주세요.',toast:'주입 반영 실패 · 다음 보내기 때 다시 시도',bg:true,match:r=>r.operation==='기억 주입 동기화'&&!/^(?:서버 재검증 중|주입 해제 중)$/.test(r.stage)&&r.outcome!=='saved-refresh-pending'&&r.code!=='WISH_CARRIER_UTF8_REFIT'&&(/^메시지 PATCH 실패 · /.test(r.message)&&!/API 오류 413/.test(r.message)||['이전 AI 주입을 서버에서 확인하지 못했습니다. 복구 정보는 보존했습니다.','저장 주입본을 다시 적용했지만 서버 본문과 일치하지 않습니다.'].includes(r.message))},
@@ -1920,12 +1920,12 @@ const WLOG=(()=>{
     // bundles 4 + 6 (nf/b203/g49/b4): DOMException kinds come from match(); the others are tagged where the error is made.
     STORE_LS_QUOTA:{category:'저장 공간',cause:'크랙 사이트와 같이 쓰는 브라우저의 작은 저장칸(약 5MB)이 가득 찼습니다.',next:'편집한 글을 복사해 두고, 안 쓰는 지침을 [기본값]으로 저장해 칸을 비운 뒤 다시 저장해 주세요.',toast:'브라우저 저장 공간이 가득 차 저장하지 못함',match:(r,e)=>e?.name==='QuotaExceededError'&&/setItem|'Storage'/.test(String(e.message))},
     STORE_QUOTA:{category:'저장 공간',cause:'이 기기 브라우저가 크랙 사이트에 내준 저장 공간이 가득 차 이번 변경을 저장하지 못했습니다. 기존 저장본은 그대로입니다.',next:'편집 중인 글이 있으면 복사해 두세요. 자료 관리 → 백업 · 복원에서 [백업 저장]으로 파일을 받은 뒤 [로컬 데이터 정리]로 안 쓰는 방 기록을 지우고, 브라우저를 껐다 켠 뒤 다시 저장해 주세요. 그래도 안 되면 기기 저장 공간을 비워 주세요.',toast:'브라우저 저장 공간이 가득 차 저장하지 못함',match:(r,e)=>e?.name==='QuotaExceededError'},
-    STORE_CLOSED:{category:'저장·복원 확인',cause:'다른 탭에서 새 버전의 기억 앱이 저장소를 열어 이 탭의 저장소 연결을 닫았습니다. 이 탭을 새로고침해 주세요.',next:'편집 중인 글을 복사해 두고 이 탭을 새로고침해 주세요.',toast:'다른 탭에서 새 버전의 기억 앱이 저장소를 열어 이 탭의 저장소 연결을 닫았습니다. 이 탭을 새로고침해 주세요.',match:(r,e)=>e?.name==='InvalidStateError'&&/clos/i.test(String(e.message))},
-    STORE_OPEN:{category:'저장·복원 확인',cause:'이 탭에서 기억 앱 저장소를 열지 못했습니다. 다른 탭의 옛 판 기억 앱이 저장소를 쓰고 있거나, 시크릿 창·저장 공간 부족 때문에 브라우저가 열어 주지 않았을 수 있습니다.',next:'크랙 탭을 모두 닫고 한 탭만 다시 여세요. Tampermonkey에 기억 앱이 두 개 켜져 있으면 하나만 켜고, 시크릿 창이 아닌 일반 창에서 열어 주세요. 자동 정리가 멈춰 있으면 그 뒤 [다시 시도]를 눌러 주세요.',toast:'기억 앱 저장소를 열지 못함 · 다른 크랙 탭을 닫고 새로고침'},
+    STORE_CLOSED:{category:'저장·복원 확인',cause:'다른 탭에서 새 버전의 RP 도우미가 저장소를 열어 이 탭의 저장소 연결을 닫았습니다. 이 탭을 새로고침해 주세요.',next:'편집 중인 글을 복사해 두고 이 탭을 새로고침해 주세요.',toast:'다른 탭에서 새 버전의 RP 도우미가 저장소를 열어 이 탭의 저장소 연결을 닫았습니다. 이 탭을 새로고침해 주세요.',match:(r,e)=>e?.name==='InvalidStateError'&&/clos/i.test(String(e.message))},
+    STORE_OPEN:{category:'저장·복원 확인',cause:'이 탭에서 RP 도우미 저장소를 열지 못했습니다. 다른 탭의 옛 판 RP 도우미가 저장소를 쓰고 있거나, 시크릿 창·저장 공간 부족 때문에 브라우저가 열어 주지 않았을 수 있습니다.',next:'크랙 탭을 모두 닫고 한 탭만 다시 여세요. Tampermonkey에 RP 도우미가 두 개 켜져 있으면 하나만 켜고, 시크릿 창이 아닌 일반 창에서 열어 주세요. 자동 정리가 멈춰 있으면 그 뒤 [다시 시도]를 눌러 주세요.',toast:'RP 도우미 저장소를 열지 못함 · 다른 크랙 탭을 닫고 새로고침'},
     STORE_TX_FAIL:{category:'저장·복원 확인',cause:'자료 저장 또는 복원 완료를 확인하지 못했습니다.',next:'이 화면을 새로고침한 뒤 같은 작업을 한 번만 다시 해 주세요.'+' '+'현재 자료와 백업 상태를 먼저 확인하세요. 편집 중인 내용은 따로 보관하고, 저장 여부를 확인하기 전 방 초기화나 반복 복원은 피하세요.',toast:'이 기기 저장소 작업 실패 · 새로고침 뒤 다시 시도',match:(r,e)=>typeof e?.code==='number'&&(e.name==='UnknownError'||e.name==='AbortError'&&/transaction/i.test(String(e.message)))},
     STALE_ROOM_REV:{category:'동시 변경',cause:'같은 방이 다른 탭에서 먼저 저장·초기화·복원되어, 이 탭의 옛 자료로 덮어쓰지 않도록 멈췄습니다.',next:'편집 중인 글이 있으면 복사해 두고, 같은 방을 연 다른 탭을 닫은 뒤 이 탭을 새로고침해 다시 해 주세요.',toast:'다른 탭이 이 방을 먼저 저장함 · 이 탭을 새로고침해 주세요'},
-    GM_STORAGE_MISSING:{category:'작업 조건',cause:'사용 중인 확장 앱이 기억 앱 설정 저장 기능을 지원하지 않습니다.',next:'Tampermonkey(아이폰은 Safari용 Tampermonkey 또는 Stay)로 설치해 주세요.',toast:'이 확장 앱은 설정 저장을 지원하지 않음'},
-    CRACK_ROOMNAME:{cause:'크랙 서버가 방 이름 요청에 정상 답을 주지 않았습니다. 기억 자료와는 관계없습니다.',next:'잠시 뒤 [서버 이름 다시 확인]을 누르거나 [앱 안 이름만 사용]으로 기억 앱 안 이름만 바꿔 주세요.',toast:'크랙에서 방 이름을 확인하지 못함'},
+    GM_STORAGE_MISSING:{category:'작업 조건',cause:'사용 중인 확장 앱이 RP 도우미 설정 저장 기능을 지원하지 않습니다.',next:'Tampermonkey(아이폰은 Safari용 Tampermonkey 또는 Stay)로 설치해 주세요.',toast:'이 확장 앱은 설정 저장을 지원하지 않음'},
+    CRACK_ROOMNAME:{cause:'크랙 서버가 방 이름 요청에 정상 답을 주지 않았습니다. 기억 자료와는 관계없습니다.',next:'잠시 뒤 [서버 이름 다시 확인]을 누르거나 [앱 안 이름만 사용]으로 RP 도우미 안 이름만 바꿔 주세요.',toast:'크랙에서 방 이름을 확인하지 못함'},
     CRACK_ROOMNAME_SET:{cause:'크랙 서버가 제목 변경을 받아들이지 않았거나, 변경 뒤 확인을 끝내지 못해 반영 여부를 모릅니다.',next:'다시 변경하지 말고 [서버 이름 다시 확인]으로 지금 제목을 확인해 주세요. 바뀌지 않았으면 크랙에서 직접 바꾸거나 [앱 안 이름만 사용]을 눌러 주세요.',toast:'크랙 제목 변경을 확인하지 못함 · [서버 이름 다시 확인]'},
     CRACK_ROOMNAME_CHANGED:{category:'동시 변경',cause:'읽은 시점 이후 대상이 바뀌었거나 서버의 변경 조건을 만족하지 못했습니다.',next:'현재 목록·미리보기를 다시 열고 최신 자료를 확인한 뒤 적용하세요.',toast:'그 사이 크랙 제목이 바뀜 · 다시 확인해 주세요'},
     ROOM_COPY_CONFLICT:{category:'자료 형식·연결',cause:'원본 방과 이 방의 자료가 서로 맞지 않아 자동으로 합치면 내용이 틀어질 수 있어 복사를 멈췄습니다. 아무것도 복사하지 않았습니다.',next:'위 문구가 가리키는 항목을 선택에서 빼거나 원본·현재 방에서 이름·형식을 정리한 뒤 [적용 내용 확인]을 다시 눌러 주세요.',outcome:'not-applied',toast:'두 방 자료가 맞지 않아 복사하지 않음'},
@@ -1935,9 +1935,9 @@ const WLOG=(()=>{
     // name the kind where the toast is made; codes and messages stay. Texts that are not in the approval are 2.0.2's own rule
     // texts in describe() (JSON 해석 backup branch, 주의 안내, 작업 기준 변경, 연결 실패, 응답 시간 초과, 저장·복원 확인), reused.
     BACKUP_JSON_PARSE:{category:'JSON 해석',cause:'백업 파일을 JSON으로 읽지 못했습니다. 파일이 끝까지 저장되지 않았거나 백업이 아닌 파일일 수 있습니다.',next:'백업 파일이 끝까지 저장됐는지(크기가 0이 아닌지) 확인하고, 다른 백업 파일이 있으면 그것으로 다시 불러와 주세요. 백업 파일은 직접 고치거나 AI에게 고쳐 달라고 하지 마세요.',outcome:'not-applied',toast:'백업 파일이 비었거나 중간에 잘림'},
-    FILE_NOT_BACKUP:{category:'고른 파일 문제',cause:'고른 파일이 기억 앱 [백업 저장]으로 만든 백업 파일이 아닙니다.',next:'이름이 ‘Wish_RP_Manager_백업_날짜.json’인 파일을 골라 주세요(분리 전 백업은 ‘Wish_분리전_전체백업_…’). 자료집 파일은 자료 탭의 [팩 가져오기]로 넣습니다.',outcome:'not-applied',toast:'백업 파일이 아님 · [백업 저장]으로 만든 파일을 골라 주세요'},
-    BACKUP_BAD:{category:'고른 파일 문제',cause:'백업 파일 안의 자료 모양이 기억 앱이 만든 백업과 달라 복원하지 않았습니다(파일 손상·직접 편집 등). 이 기기의 자료는 바뀌지 않았습니다.',next:'다른 백업 파일이 있으면 그것으로 다시 불러와 주세요. 백업 파일은 직접 고치거나 AI에게 고쳐 달라고 하지 마세요.',outcome:'not-applied',toast:'백업 파일이 손상돼 복원하지 않음'},
-    BACKUP_NEWER:{category:'고른 파일 문제',cause:'더 새로운 판의 기억 앱이 만든 백업이라 이 판에서는 읽을 수 없습니다.',next:'Tampermonkey에서 기억 앱을 최신 판으로 업데이트한 뒤 다시 [백업 복원]을 눌러 주세요.',outcome:'not-applied',toast:'더 새 판의 백업 · 기억 앱 업데이트 뒤 복원해 주세요'},
+    FILE_NOT_BACKUP:{category:'고른 파일 문제',cause:'고른 파일이 RP 도우미 [백업 저장]으로 만든 백업 파일이 아닙니다.',next:'이름이 ‘Wish_RP_Manager_백업_날짜.json’인 파일을 골라 주세요(분리 전 백업은 ‘Wish_분리전_전체백업_…’). 자료집 파일은 자료 탭의 [팩 가져오기]로 넣습니다.',outcome:'not-applied',toast:'백업 파일이 아님 · [백업 저장]으로 만든 파일을 골라 주세요'},
+    BACKUP_BAD:{category:'고른 파일 문제',cause:'백업 파일 안의 자료 모양이 RP 도우미가 만든 백업과 달라 복원하지 않았습니다(파일 손상·직접 편집 등). 이 기기의 자료는 바뀌지 않았습니다.',next:'다른 백업 파일이 있으면 그것으로 다시 불러와 주세요. 백업 파일은 직접 고치거나 AI에게 고쳐 달라고 하지 마세요.',outcome:'not-applied',toast:'백업 파일이 손상돼 복원하지 않음'},
+    BACKUP_NEWER:{category:'고른 파일 문제',cause:'더 새로운 판의 RP 도우미가 만든 백업이라 이 판에서는 읽을 수 없습니다.',next:'Tampermonkey에서 RP 도우미를 최신 판으로 업데이트한 뒤 다시 [백업 복원]을 눌러 주세요.',outcome:'not-applied',toast:'더 새 판의 백업 · RP 도우미 업데이트 뒤 복원해 주세요'},
     BACKUP_TOO_BIG:{category:'고른 파일 문제',cause:'백업 파일이 앱의 복원 한도(100MB)보다 큽니다.',next:'안 쓰는 방을 [로컬 데이터 정리]로 지운 뒤 다시 [백업 저장]하거나, 클라우드 백업의 [방 골라 백업]으로 방을 나눠 보관해 주세요.',outcome:'not-applied'},
     RESTORE_PARTIAL:{category:'주의 안내',cause:'작업 중 확인이 필요한 안내입니다. 전체 작업 실패를 의미하지 않을 수 있습니다.',next:'크랙 페이지를 새로고침해 주세요. 공용 지침·프리셋이 돌아오지 않았으면 같은 백업에서 그 항목만 골라 다시 복원해 주세요.',toast:'자료는 복원됐고 일부 갱신이 남음 · 새로고침해 주세요'},
     STALE_PREVIEW:{category:'작업 기준 변경',cause:'작업을 시작할 때의 방·설정·대화 기준과 현재 상태가 달라졌습니다.',next:'원래 작업할 방과 최신 상태를 확인하고 미리보기를 다시 열어 주세요. 다른 방의 결과를 강제로 적용하지 마세요.',toast:'자료가 바뀌어 작업을 취소함 · 창을 다시 열어 주세요'},
@@ -2026,7 +2026,7 @@ const WLOG=(()=>{
     HELD_PARTIAL:{outcome:'일부 작업이 이미 반영됐을 수 있습니다. 현재 목록과 완료 항목부터 확인하세요.',toast:'보류 제안 정리가 덜 끝남 · 같은 버튼을 한 번 더 눌러 주세요',match:(row)=>/^(?:장부 처리는 저장됐지만 대기열 정리가 남았습니다\. .*)$/.test(row.message)},
     LOG_DATE_SPLIT:{category:'자료 형식·연결',cause:'바꾼 날짜 때문에 날짜로그가 다른 개수의 블록으로 읽혀 저장을 멈췄습니다.',next:'날짜를 2026년 9월 18일 형식으로 넣고, 한 번에 조금씩 적용하세요.',outcome:'not-applied',match:(row)=>/^(?:날짜 수정 후 블록 수가 달라져 저장을 중단했습니다\. 날짜 형식을 확인해 주세요\.|날짜 수정 후 블록 수가 달라져 적용을 중단했습니다\.|날짜 형식을 확인해 주세요\. 예: 2026년 9월 18일)$/.test(row.message)},
     LOG_DUP_EDIT:{category:'자료 형식·연결',cause:'날짜·사건 제목이 똑같은 블록은 하나로 취급되어 둘을 함께 저장할 수 없습니다.',next:'다른 사건이면 한쪽의 날짜나 사건 제목을 다르게 쓰고, 같은 사건이면 이미 있는 블록에 내용을 보태 주세요.',outcome:'not-applied',toast:'같은 날짜·제목 블록이 생겨 저장하지 않음',job:(r)=>r.operation==='편집 내용 검증·저장 중'?'기억 카드 저장':'',match:(row)=>/^(?:날짜·사건 제목이 같은 날짜로그 블록이 하나 더 생겨 저장하지 않았습니다: .*)$/.test(row.message)},
-    PROGRAM_BUG:{category:'프로그램 오류',cause:'기억 앱 코드의 오류입니다. 설정이나 기억 자료의 문제는 아닙니다.',next:'창을 닫았다 다시 열거나 페이지를 새로고침한 뒤 다시 해 보세요. 반복되면 [기록 복사]로 이 기록을 전달해 주세요.',toast:'내부 오류로 멈춤 · 다시 시도해 주세요',match:(row)=>/^(?:TypeError|ReferenceError|RangeError|InternalError|EvalError)$/.test(row.code)&&!/fetch|Load failed|NetworkError|network|cancel|abort|네트워크|연결/i.test(row.message)},
+    PROGRAM_BUG:{category:'프로그램 오류',cause:'RP 도우미 코드의 오류입니다. 설정이나 기억 자료의 문제는 아닙니다.',next:'창을 닫았다 다시 열거나 페이지를 새로고침한 뒤 다시 해 보세요. 반복되면 [기록 복사]로 이 기록을 전달해 주세요.',toast:'내부 오류로 멈춤 · 다시 시도해 주세요',match:(row)=>/^(?:TypeError|ReferenceError|RangeError|InternalError|EvalError)$/.test(row.code)&&!/fetch|Load failed|NetworkError|network|cancel|abort|네트워크|연결/i.test(row.message)},
     // G49:b8 end
   };
   const isKind=k=>typeof k==='string'&&Object.prototype.hasOwnProperty.call(WERR,k),entryOf=k=>isKind(k)?WERR[k]:null;
@@ -2120,7 +2120,7 @@ const WLOG=(()=>{
     else if(/TIMEOUT/i.test(c)||/시간(?:이|을)?\s*초과|시간(?:을)?\s*넘|제한 시간|timed? ?out/i.test(m)){category='응답 시간 초과';cause='정해진 시간 안에 작업 완료를 확인하지 못했습니다.';next='서비스 상태와 연결을 확인하세요. AI 정리는 구간을 줄여 시도할 수 있습니다. 시간 초과만으로 서버 처리나 요금 청구가 취소됐다고 볼 수는 없습니다.';}
     else if(/클립보드|복사하지 못|복사.*실패|clipboard/i.test(m)){category='복사 실패';cause='브라우저의 클립보드에 내용을 넣지 못했습니다.';next='브라우저의 복사 권한을 확인하고 복사 버튼을 직접 눌러 주세요. 계속 실패하면 표시된 내용을 직접 선택해 복사하세요.';}
     else if(/NETWORK/i.test(c)||/네트워크|Failed to fetch|Load failed|NetworkError|연결 실패/i.test(m)){category='연결 실패';cause='서버 응답을 받지 못했습니다. 네트워크·접근 권한·서버 상태 중 무엇이 원인인지는 아직 확정할 수 없습니다.';next='인터넷 연결과 확장 프로그램의 해당 사이트 접근 권한을 확인하세요. 저장 작업이었다면 서버 반영 여부를 먼저 확인하세요.';}
-    else if(/WISH_CARRIER_BODY_EMPTY|WISH_CARRIER_READ_FAILED/.test(c)||/AI (?:답변|원문).*비어|AI 본문|이전 AI 답변 확인 실패/.test(m)){category='주입 대상 본문';cause='기억 앱이 주입할 이전 AI 답변의 정상 본문을 확보하지 못했습니다. 입력창 글의 유무와는 별개입니다.';next='방을 새로고침한 뒤 해당 AI 답변이 정상 표시되는지 확인하세요. 계속되면 아래 메시지 ID와 상세 기록을 전달해 주세요. 기억 재구축은 필요하지 않습니다.';}
+    else if(/WISH_CARRIER_BODY_EMPTY|WISH_CARRIER_READ_FAILED/.test(c)||/AI (?:답변|원문).*비어|AI 본문|이전 AI 답변 확인 실패/.test(m)){category='주입 대상 본문';cause='RP 도우미가 주입할 이전 AI 답변의 정상 본문을 확보하지 못했습니다. 입력창 글의 유무와는 별개입니다.';next='방을 새로고침한 뒤 해당 AI 답변이 정상 표시되는지 확인하세요. 계속되면 아래 메시지 ID와 상세 기록을 전달해 주세요. 기억 재구축은 필요하지 않습니다.';}
     else if(/PARSE|SyntaxError/.test(c)||/JSON.*(?:파싱|읽지|해석)|JSON 형식|Unexpected token|Unexpected end/i.test(m)){category='JSON 해석';cause='응답이나 파일을 완전한 JSON으로 읽지 못했습니다. 잘림·빈 응답·문법 오류를 확인해야 합니다.';next='외부 파일이면 처음부터 끝까지 있는 JSON 파일인지 확인하세요. AI 응답이면 응답 길이·종료 사유를 확인하고 필요한 경우 처리 구간을 줄이세요.';}
     else if(/WISH_IMPORT_PERSON/.test(c)||/알 수 없는 인물|인물 (?:참조|연결)|인물 이름·별칭이 여러|외부 결과에 없는 인물/.test(m)){category='인물 연결';cause='인물 참조를 등록된 한 인물로 연결하지 못했거나 이름이 겹칩니다. RP에 등장하지 않는다는 뜻은 아닙니다.';next='문제 위치의 이름·별칭과 인물 목록을 비교하세요. 집단 표현을 임의의 한 인물로 바꾸지 마세요. 외부 가져오기라면 인물 연결 창에서 확인할 수 있습니다.';}
     else if(/복원.*폐기|방.*바뀌|방.*변경|다른 방으로 이동|설정.*바뀌|설정.*변경|분기|기준점|대화.*경로|원문.*바뀌/.test(m)){category='작업 기준 변경';cause='작업을 시작할 때의 방·설정·대화 기준과 현재 상태가 달라졌습니다.';next='원래 작업할 방과 최신 상태를 확인하고 미리보기를 다시 열어 주세요. 다른 방의 결과를 강제로 적용하지 마세요.';}
@@ -2151,7 +2151,7 @@ const WLOG=(()=>{
     else if(category==='JSON 해석'&&mode!=='api'){cause=(mode==='file'?'파일을':'붙여 넣은 답을')+' JSON으로 읽지 못했습니다. 위 문구가 이유입니다(중간에 끊김, JSON이 여러 개, 대사 속 큰따옴표 등).';next=mode==='file'?ask.file+' 끊겼다면 AI에 “이어서”를 보내 끝까지 받아 한 파일에 이어 저장해 주세요.':ask.manual;unsaved=true;}
     else if(category==='JSON 해석'&&aiRow){next='[다시 시도]를 한 번 눌러 주세요(AI를 한 번 더 부릅니다). 응답이 길어 잘렸다면(종료 사유 확인) 정리 주기(턴 수)를 줄여 주세요.';unsaved=true;}
     else if(aiRow&&category==='인물 연결'&&mode!=='file'){category='AI 답 · 인물 이름';cause='AI가 인물을 등록된 이름과 다르게 적었습니다(예: ‘세라 님’처럼 호칭을 붙임). RP에 없는 인물이라는 뜻은 아닙니다.';next=ask[mode];unsaved=true;}
-    else if(aiRow&&(category==='자료 형식·연결'||category==='확인 필요'&&!/바뀌|변경|중단|이동|삭제/.test(m)&&(/JSON 구조 확인|결과 형식·참조 확인/.test(r.stage)||mode==='file'&&/재구축 JSON 검증|자료집 JSON 검증|외부 AI 결과 확인|JSON 가져오기/.test(op)))){category='AI 답 형식';cause=(mode==='file'?'가져온 JSON이 기억 앱 양식과 조금 다릅니다':(mode==='manual'?'외부 ':'')+'AI가 정해진 양식과 조금 다르게 답했습니다')+where+'. 설정이나 기억이 잘못된 것은 아닙니다.';next=ask[mode];unsaved=true;}
+    else if(aiRow&&(category==='자료 형식·연결'||category==='확인 필요'&&!/바뀌|변경|중단|이동|삭제/.test(m)&&(/JSON 구조 확인|결과 형식·참조 확인/.test(r.stage)||mode==='file'&&/재구축 JSON 검증|자료집 JSON 검증|외부 AI 결과 확인|JSON 가져오기/.test(op)))){category='AI 답 형식';cause=(mode==='file'?'가져온 JSON이 RP 도우미 양식과 조금 다릅니다':(mode==='manual'?'외부 ':'')+'AI가 정해진 양식과 조금 다르게 답했습니다')+where+'. 설정이나 기억이 잘못된 것은 아닙니다.';next=ask[mode];unsaved=true;}
     // G-47: an AI request failure takes aiFailureHelp's texts; a part it leaves out stays as the rules above give it.
     const ai=aiFailureHelp(r,http,m,c);if(ai){category=ai.category||category;cause=ai.cause||cause;next=ai.next||next;}
     return withEntry(r,{category,cause,next,mode,relay,service,httpStatus:http,outcome:outcomes[r.outcome]||(unsaved?outcomes['not-applied']:'저장·전송 결과 확인 필요: 이 오류만으로 최종 반영 여부를 단정할 수 없습니다.'),...(ai?.toast?{toast:ai.toast}:{})},{http,m,c,mode,service});
@@ -2300,7 +2300,7 @@ const WLOG=(()=>{
         none: file ? `고른 파일에 결과 JSON이 없습니다(${label} 가져오기). JSON을 만든 AI 대화에서 결과 JSON 전체를 받아 .json 파일로 다시 저장해 주세요.` : '붙여 넣은 글에 결과(JSON)가 없습니다. 외부 AI가 거절하거나 되물었다면 ' + (how === 'relay' ? '[요청문 복사]' : '[TXT 다시 받기]') + '로 요청문을 새 대화에 보내 주세요.',
         cut: file ? `${label}이 중간에 끊겼습니다. JSON을 만든 AI에 “이어서”를 보내 끝까지 받은 뒤, 이어진 부분까지 순서대로 한 파일에 저장해 주세요.` : '답이 중간에 끊겼습니다. 외부 AI에 “이어서”라고 보내고, 이어진 부분까지 순서대로 모두 붙여 넣어 주세요.',
         multi: file ? `고른 파일에 서로 다른 JSON이 ${extra}개 들어 있습니다(${label} 가져오기). 최종본 하나만 남겨 저장해 주세요.` : `답에 서로 다른 JSON이 ${extra}개 들어 있습니다. 최종본 하나만 복사해 붙여 넣어 주세요.`,
-        shape: file ? `${label}이 기억 앱 결과 JSON이 아닙니다(최상위에 format·source 같은 키가 없습니다). JSON을 만든 AI 대화에서 결과 JSON 전체를 다시 받아 저장해 주세요.` : '붙여 넣은 JSON이 요청한 답의 모양이 아닙니다(최상위에 ' + keys.filter(k => k !== 'wish_job').join('·') + ' 같은 키가 없습니다). ' + (how === 'relay' ? '외부 AI에 출력 형식대로 JSON 전체를 다시 달라고 해 주세요.' : '[오류 문구 복사] → 같은 대화에 붙여 넣어 JSON 전체를 다시 받아 주세요.'),
+        shape: file ? `${label}이 RP 도우미 결과 JSON이 아닙니다(최상위에 format·source 같은 키가 없습니다). JSON을 만든 AI 대화에서 결과 JSON 전체를 다시 받아 저장해 주세요.` : '붙여 넣은 JSON이 요청한 답의 모양이 아닙니다(최상위에 ' + keys.filter(k => k !== 'wish_job').join('·') + ' 같은 키가 없습니다). ' + (how === 'relay' ? '외부 AI에 출력 형식대로 JSON 전체를 다시 달라고 해 주세요.' : '[오류 문구 복사] → 같은 대화에 붙여 넣어 JSON 전체를 다시 받아 주세요.'),
         // An "이어서" continuation that does not meet the cut: the answer closed early at the seam and goes on after it.
         seam: file ? `${label}의 “이어서” 이음매에서 앞부분 끝과 이어진 부분 첫머리가 맞지 않아 JSON이 중간에 닫혔습니다. JSON을 만든 AI에 결과 JSON 전체를 처음부터 다시 받아 저장해 주세요.` : '“이어서”로 이어 붙인 곳에서 앞부분 끝과 이어진 부분 첫머리가 맞지 않아 답이 중간에 닫혔습니다(겹치거나 빠진 글자가 있습니다). ' + (how === 'relay' ? '외부 AI에 답 전체를 처음부터 다시 출력해 달라고 해 주세요.' : '[오류 문구 복사] → 같은 대화에 붙여 넣어 답 전체를 처음부터 다시 받아 주세요.'),
         syntax: (file ? `${label}의 문법이` : '답의 JSON 문법이') + ' 깨졌습니다(' + (extra ? extra + ' · ' : '') + (single ? '키와 문자열은 작은따옴표(\')가 아니라 큰따옴표(")로 감싸야 합니다' : '대사 속 큰따옴표가 가장 흔한 원인입니다') + '). ' + (file ? 'JSON을 만든 AI에 이 오류를 보내 고친 JSON 전체를 다시 받아 주세요.' : how === 'relay' ? '외부 AI의 같은 대화에 이 오류를 보내 고친 답을 받아 주세요.' : '[오류 문구 복사] → 같은 대화에 붙여 넣어 고친 답을 받아 주세요.')
@@ -3441,7 +3441,7 @@ const WLOG=(()=>{
     return out + text.slice(run);
   }
   async function callManualAiRelay(systemPrompt, userPrompt, options = {}) {
-    if (typeof WUI === 'undefined' || !WUI) throw new Error('기억 앱 화면이 준비되지 않아 외부 AI 복붙 창을 열 수 없습니다. 잠시 뒤 다시 시도해 주세요.');
+    if (typeof WUI === 'undefined' || !WUI) throw new Error('RP 도우미 화면이 준비되지 않아 외부 AI 복붙 창을 열 수 없습니다. 잠시 뒤 다시 시도해 주세요.');
     const label = String(options.operationLabel || WLOG.current()?.operation || '보조 AI 요청').replace(/\s*요청 중$/, '');
     const request = buildManualAiRequest(systemPrompt, userPrompt, { ...options, operationLabel:label });
     const details = { provider:'manual', model:'외부 AI 복붙', inputChars:request.length };
@@ -4143,7 +4143,7 @@ const ExternalReplay=(()=>{
   function claim(rid,event){const t=tickets.get(String(rid));if(event!=='send'||!t||t.claimed||t.ready)return null;t.claimed=true;return t;}
   async function persist(t,newId){
     const rid=t.apiChatId,oldId=t.oldUserId;
-    if(!state.db)throw Error('기억 앱 저장소 준비 전에 ELR 교체가 도착했습니다.');
+    if(!state.db)throw Error('RP 도우미 저장소 준비 전에 ELR 교체가 도착했습니다.');
     await Promise.all([...storageWrites.values()].map(p=>p.catch(()=>{})));
     const names=[APP.storeName,APP.cognitionStoreName,APP.libraryStoreName,APP.runtimeStoreName,APP.historyStoreName];
     const changedRooms=new Map(),pendingBackups=new Map();
@@ -8472,7 +8472,7 @@ const p=plan(list,{...u,settings:settings(room)},force==='retry'||retrying?(u.fa
         // not. An API answer whose rows were left out above for a reason a refused answer is asked again for, or that carried keys the
         // form has no place for, is asked for once more with those reasons (slipReason), as a refused answer is (catch below). The second
         // answer, or this one when that call cannot be made, goes on without them, which the 주의 rows name.
-        if(!extra&&!manualResult){const s=(staged.slipped||[]).filter(x=>unifiedAnswerFault(x,unifiedStage)),why=s.length?Object.assign(Error(slipReason(s)),{code:s[0].code}):staged.drops?.length?Object.assign(Error('AI 답에 기억 앱 양식에 없는 내용이 있어 적용하지 않았습니다: '+staged.drops.slice(0,5).join(' · ')+(staged.drops.length>5?' 외 '+(staged.drops.length-5)+'건':'')),{code:'WISH_SCHEMA',diagnostic:{stage:'JSON 구조 확인'}}):null;if(why){why.answerFault=true;kept={staged,restage,stage:unifiedStage};throw why;}}
+        if(!extra&&!manualResult){const s=(staged.slipped||[]).filter(x=>unifiedAnswerFault(x,unifiedStage)),why=s.length?Object.assign(Error(slipReason(s)),{code:s[0].code}):staged.drops?.length?Object.assign(Error('AI 답에 RP 도우미 양식에 없는 내용이 있어 적용하지 않았습니다: '+staged.drops.slice(0,5).join(' · ')+(staged.drops.length>5?' 외 '+(staged.drops.length-5)+'건':'')),{code:'WISH_SCHEMA',diagnostic:{stage:'JSON 구조 확인'}}):null;if(why){why.answerFault=true;kept={staged,restage,stage:unifiedStage};throw why;}}
         break;
         }catch(error){
           // The extra call is recorded in the usage ledger under its own label and in the console; the 실패·주의 기록, the toast
@@ -11125,7 +11125,7 @@ function remapLogSelectionKeysByMatch(room,oldBlocks,newBlocks){
   // ---------------------------------------------------------------------------
 
   let wishDbVersionClosed=false;
-  function notifyWishDbVersionClosed(){if(wishDbVersionClosed)return;wishDbVersionClosed=true;try{notify('다른 탭에서 새 버전의 기억 앱이 저장소를 열어 이 탭의 저장소 연결을 닫았습니다. 이 탭을 새로고침해 주세요.','warn',12000,{kind:'STORE_CLOSED',background:true});}catch(e){console.warn('[Wish] 저장소 연결 닫힘',e);}}
+  function notifyWishDbVersionClosed(){if(wishDbVersionClosed)return;wishDbVersionClosed=true;try{notify('다른 탭에서 새 버전의 RP 도우미가 저장소를 열어 이 탭의 저장소 연결을 닫았습니다. 이 탭을 새로고침해 주세요.','warn',12000,{kind:'STORE_CLOSED',background:true});}catch(e){console.warn('[Wish] 저장소 연결 닫힘',e);}}
   function openDb() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(APP.dbName, APP.dbVersion);let settled=false;
@@ -14457,7 +14457,7 @@ function openDefaultExtraPresetDialog(room,group='extra'){const ch=group==='char
     const ready=c=>!!c.email&&!!c.password;
     const identity=c=>c.email+'\n'+c.password;
     const view=()=>{const c=config();if(account!==identity(c)){rows=[];account=identity(c);}return {ready:ready(c),device:'Koofr · 개인 저장소',enc:false,list:rows,busy,loading:false,error,last:status,step};};
-    const safeFile=id=>{if(!FILE.test(String(id)))throw Error('기억 앱 백업 파일명이 아닙니다.');return FOLDER+id;};
+    const safeFile=id=>{if(!FILE.test(String(id)))throw Error('RP 도우미 백업 파일명이 아닙니다.');return FOLDER+id;};
     function request(c,method,url,data,headers={},timeout=60000){
       if(!ready(c))throw Error('Koofr 이메일과 앱 비밀번호를 입력해 주세요.');
       if(!url.startsWith(BASE))throw Error('허용되지 않은 저장소 주소입니다.');
@@ -14637,7 +14637,7 @@ function formatLocalRecordTime(value){
       const ids=selected(d),chosen=new Set(ids);if(!ids.length)throw Error('지울 로컬 방을 선택해 주세요.');
       if(d.rows.some(r=>chosen.has(r.id)&&r.current))throw Error('현재 열어 둔 방은 여기서 지울 수 없습니다.');
       const injectedCount=d.rows.filter(r=>chosen.has(r.id)&&r.pending).length;
-      if(!confirm('선택한 '+ids.length+'개 방의 기억 앱 로컬 기록을 삭제할까요?\n'+(injectedCount?'주입 중인 방 '+injectedCount+'개가 포함돼 있습니다. 해제하지 않고 지우므로 Crack 메시지에 숨김 주석이 남을 수 있습니다.\n':'')+'방별 기억·인지·전용 자료·작업 이력을 함께 정리합니다. Crack 대화는 유지됩니다. 필요한 방은 먼저 파일 백업을 받으세요.'))return false;
+      if(!confirm('선택한 '+ids.length+'개 방의 RP 도우미 로컬 기록을 삭제할까요?\n'+(injectedCount?'주입 중인 방 '+injectedCount+'개가 포함돼 있습니다. 해제하지 않고 지우므로 Crack 메시지에 숨김 주석이 남을 수 있습니다.\n':'')+'방별 기억·인지·전용 자료·작업 이력을 함께 정리합니다. Crack 대화는 유지됩니다. 필요한 방은 먼저 파일 백업을 받으세요.'))return false;
       if(removing||aiUpdateRunning||automaticMemoryJob||automaticLoreJob||memoryImportRunning)throw Error('진행 중인 작업이 끝난 뒤 다시 시도해 주세요.');
       const selectedRows=d.rows.filter(r=>chosen.has(r.id)),apis=[...new Set(selectedRows.map(r=>r.api))],basis=new Map(selectedRows.map(r=>[r.id,r]));
       if(apis.some(api=>generationPending(api)))throw Error('AI 응답 또는 리롤이 끝난 뒤 다시 시도해 주세요.');
@@ -21126,7 +21126,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       console.log(`[위시RPManager] ${APP.name} v${APP.version} loaded`);
     } catch (e) {
       console.error('[RP매니저] init failed', e);
-      notify(`기억 초기화 실패: ${e.message}`,'error',7000,{error:e,operation:WLOG.current()?.operation||'기억 초기화 실패'});
+      notify(`크랙 RP 도우미 초기화 실패: ${e.message}`,'error',7000,{error:e,operation:WLOG.current()?.operation||'크랙 RP 도우미 초기화 실패'});
     }
   }
 
@@ -22075,7 +22075,7 @@ pre.m3-block.tall{max-height:none;min-height:340px}
 /* 외부 AI로 진행 · 요청문 보내기: 외부 AI로 재구축 줄과 같은 방식 (아이콘 유지, 여백·간격·글자만 줄여 한 줄에, 아주 좁은 폰에서는 줄바꿈) */
 #wish-rp-root [data-key="manual-send"]>.m3-actions{gap:4px}
 #wish-rp-root [data-key="manual-send"]>.m3-actions>.m3-btn{padding-left:6px;padding-right:6px;gap:4px;font-size:11px}
-/* 로컬 기억 앱 데이터 정리: 백업 버튼은 한 줄 전체, 선택 버튼 두 개는 아래 반씩 */
+/* 로컬 RP 도우미 데이터 정리: 백업 버튼은 한 줄 전체, 선택 버튼 두 개는 아래 반씩 */
 #wish-rp-root .m3-dialog-body>.m3-row:has(>[data-act="fileBackup"]){display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #wish-rp-root .m3-dialog-body>.m3-row>[data-act="fileBackup"]{grid-column:1/-1}
 #wish-rp-root .m3-dialog-body>.m3-row:has(>[data-act="fileBackup"])>.m3-btn{justify-content:center}
@@ -22164,7 +22164,7 @@ pre.m3-block.tall{max-height:none;min-height:340px}
 @media (pointer:coarse){#wish-rp-root .wp-tl-chart{--colmin:28px;--bandh:36px;--rowh:36px}#wish-rp-root .wp-tl-band::before,#wish-rp-root .wp-tl-bar::before{content:"";position:absolute;inset:-4px 0}#wish-rp-root .wp-tl-bar>span{height:22px;line-height:22px}#wish-rp-root .wp-tl-sumgrid{--sumh:40px}}
 `;
 /* =====================================================================
-   기억 앱 청묵 UI 모듈 (WUI) — 화면 전용. 이 함수 전체를 그대로 붙여 넣는다.
+   RP 도우미 청묵 UI 모듈 (WUI) — 화면 전용. 이 함수 전체를 그대로 붙여 넣는다.
    A(2.1.0)와의 연결은 createWishUI(WUI_ADAPTER)로 넘기는 어댑터에서만 한다.
    ===================================================================== */
 function createWishUI(AD) {
@@ -22247,7 +22247,7 @@ function createWishUI(AD) {
 
   /* ───────── 4. 뷰모델 기본값 — AD.vm()이 빠뜨린 값은 여기로 채운다 ───────── */
   const DEF = {
-    room: { name: '기억' }, version: '', save: { saving: false, at: '' }, job: null, features: {}, labels: {}, fresh: null, recent: [],
+    room: { name: '크랙 RP 도우미' }, version: '', save: { saving: false, at: '' }, job: null, features: {}, labels: {}, fresh: null, recent: [],
     inj: { armed: false, verified: false, total: 0, max: 50000, groups: {}, items: [] },
     memory: { enabled: false, committed: 0, target: 10, dirty: 0, mode: 'adaptive', min: 5, max: 10, fixed: 10, last: '' },
     cog: { auto: false, every: 1, budget: 1000, scope: 'recent', initial: 12, extra: '', lastAt: '', actors: [], facts: [] },
@@ -23133,7 +23133,7 @@ function mRelationships() {
     const rebuildHelp=helpSections([['읽는 범위','확정 RP를 AI 답변 끝 기준 약 20만 자씩 나눕니다. 한 턴이 더 길면 통째로 유지합니다.'],['분석과 적용','대화 읽기는 원문을 준비합니다. 이어서 분석은 외부 AI API를 사용합니다. 성공한 구간을 저장하고 실패한 구간부터 이어갑니다.'],['기존 기억','전체 결과 적용을 누르기 전까지 유지합니다.']]);
     const prog=j?'<div class="w-row w-block w-prog" data-key="rebuild-progress"><div class="m3-hbar"><i style="width:'+(rows.length?done/rows.length*100:0)+'%"></i></div><p class="w-sub">'+esc(j.message||'')+' · 판독 완료 '+done+'/'+rows.length+'</p>'+rows.map(s=>'<div class="m3-seg" data-key="segment-'+s.index+'"><span class="m3-n '+(s.status==='complete'?'m3-done':s.status==='running'?'m3-run':'')+'">'+s.index+'</span><span class="m3-t">'+s.messages+'메시지 · '+fmt(s.chars)+'자'+(s.error?'<br><small class="m3-error">'+esc(s.error)+'</small>':'')+'</span><span class="m3-s">'+esc(status[s.status]||s.status)+'</span></div>').join('')+'<div class="w-acts w-acts-b">'+(j.status==='complete'&&j.ready?btn('전체 결과 적용','rebuildApply',{cls:'primary mini',dis:run}):'')+btn('대화 다시 읽기','rebuildRead',{cls:'quiet mini',dis:run||!!V.ai.manual})+btn('구간 목록 비우기','rebuildClear',{cls:'danger mini',dis:run})+'</div></div>':'';
     return pageHead('자료 관리')+
-      W_SECH('백업 '+help(helpSections([['파일 백업','이 기기의 기억 앱 자료를 파일로 저장하고, 복원할 방과 자료를 선택합니다.'],['재구축과의 차이','백업 복원은 저장본을 되돌립니다. 전체 재구축은 과거 대화를 AI로 다시 읽습니다.']])))+
+      W_SECH('백업 '+help(helpSections([['파일 백업','이 기기의 RP 도우미 자료를 파일로 저장하고, 복원할 방과 자료를 선택합니다.'],['재구축과의 차이','백업 복원은 저장본을 되돌립니다. 전체 재구축은 과거 대화를 AI로 다시 읽습니다.']])))+
       `<div class="w-grp" data-key="backup">${W_R('파일로 백업','기억 · 인물 · 자료집을 파일로 받아 두고, 필요할 때 골라서 되돌려요',btn('백업 저장','fileBackup',{cls:'mini'})+btn('백업 복원','fileRestore',{cls:'mini'}))}${W_R('클라우드 백업','다른 컴퓨터 · 폰에서도 이어서 쓸 수 있게 올려 둬요',btn('클라우드 백업','kvOpen',{cls:'mini',icon:'cloud'}))}${W_R('로컬 데이터 정리','이 기기에 저장된 다른 방 기록을 골라 지워요 · 크랙 대화는 그대로',btn('로컬 데이터 정리','localRooms',{cls:'mini',icon:'database'}))}</div>`+
       W_SECH('가져오기 · 기록')+
       `<div class="w-grp" data-key="room-copy">${W_R('다른 방 자료 복사 '+help(helpSections([['독립 사본','원본 방과 연결하지 않고 현재 방 안에 독립 복사합니다. 이후 어느 한쪽이 자동 갱신돼도 다른 방은 바뀌지 않습니다.'],['선택 복사','현재상태·날짜로그·서사 고리·캐릭터/OOC·자료집·인물인지·은폐·호칭말투·관계감정선을 필요한 것만 체크해 복사합니다.'],['안전 범위','주입 중 상태, AI cursor·근거 manifest, 재구축 staging, 자동화 실행상태는 방 사이에 이식하지 않습니다.']])),'분기 · 새 방으로 옮길 때 · 섹션 · 사건 · 카드를 골라서 복사해요',btn('다른 방에서 선택 복사','roomCopy',{cls:'mini',icon:'copy',dis:run}))}${W_R('정리 전후 비교','자동 정리가 무엇을 바꿨는지 봐요 · 방마다 최근 10회 · AI 호출 없음',btn('정리 기록','memDiff',{cls:'mini',icon:'history'}),'','memdiff-settings')}</div>`+
@@ -23237,7 +23237,7 @@ function mRelationships() {
   }
   function roomNameDialogView(d){
     const local=d.draft.mode==='local';
-    return sheet(d,{title:local?'앱 안 표시 이름':'크랙 채팅방 이름 변경',desc:d.story?'작품·캐릭터: '+esc(d.story):'실제 방 ID: '+esc(shortId(apiChatIdOf(d.room))),body:`${d.busy?`<p class="m3-muted">서버 확인 중…</p>`:''}${d.error?`<div class="m3-status m3-warning"><span>${esc(d.error)}</span></div>`:''}${field('이름',inp(D(d,'title'),d.draft.title||'','채팅방 이름'))}<p class="m3-muted">${local?'현재는 기억 앱 안의 표시 이름만 바꿉니다. 실제 크랙 제목 변경으로 표시하지 않습니다.':'확인 후 실제 채팅방 title만 변경합니다. 작품·캐릭터 이름, 기억·대사·자료 본문은 수정하지 않습니다.'}</p>`,foot:`<span class="wp-foot-l">${btn('서버 이름 다시 확인','roomNameReload',{arg:d.id,cls:'quiet mini',icon:'refresh',dis:d.busy})}${!d.confirmed?btn('앱 안 이름만 사용','roomNameLocal',{arg:d.id,cls:'quiet mini',dis:d.busy}):''}${d.confirmed?btn('서버 이름으로 표시','roomNameUseServer',{arg:d.id,cls:'quiet mini',dis:d.busy}):''}</span>${SP}${closeBtn(d,'취소')}${btn(d.busy?'처리 중…':local?'표시 이름 저장':'크랙 제목 변경','roomNameSave',{arg:d.id,cls:'primary',dis:d.busy||(!local&&!d.confirmed)})}`});
+    return sheet(d,{title:local?'앱 안 표시 이름':'크랙 채팅방 이름 변경',desc:d.story?'작품·캐릭터: '+esc(d.story):'실제 방 ID: '+esc(shortId(apiChatIdOf(d.room))),body:`${d.busy?`<p class="m3-muted">서버 확인 중…</p>`:''}${d.error?`<div class="m3-status m3-warning"><span>${esc(d.error)}</span></div>`:''}${field('이름',inp(D(d,'title'),d.draft.title||'','채팅방 이름'))}<p class="m3-muted">${local?'현재는 RP 도우미 안의 표시 이름만 바꿉니다. 실제 크랙 제목 변경으로 표시하지 않습니다.':'확인 후 실제 채팅방 title만 변경합니다. 작품·캐릭터 이름, 기억·대사·자료 본문은 수정하지 않습니다.'}</p>`,foot:`<span class="wp-foot-l">${btn('서버 이름 다시 확인','roomNameReload',{arg:d.id,cls:'quiet mini',icon:'refresh',dis:d.busy})}${!d.confirmed?btn('앱 안 이름만 사용','roomNameLocal',{arg:d.id,cls:'quiet mini',dis:d.busy}):''}${d.confirmed?btn('서버 이름으로 표시','roomNameUseServer',{arg:d.id,cls:'quiet mini',dis:d.busy}):''}</span>${SP}${closeBtn(d,'취소')}${btn(d.busy?'처리 중…':local?'표시 이름 저장':'크랙 제목 변경','roomNameSave',{arg:d.id,cls:'primary',dis:d.busy||(!local&&!d.confirmed)})}`});
   }
   function loreSplitDialogView(d){
     const q=String(d.draft.query||'').trim().toLowerCase(),all=d.pack.entries.map((e,i)=>({key:'e'+i,title:e.name,body:loreTextAtLevel(e,'full'),type:e.type})),rows=all.filter(r=>!q||(r.title+'\n'+r.body).toLowerCase().includes(q)),n=all.filter(r=>d.draft.pick[r.key]).length;
@@ -23401,7 +23401,7 @@ summary::-webkit-details-marker{display:none}
  .two{display:grid;grid-template-columns:minmax(330px,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0;padding:0;overflow:hidden}
  .two>.pane-l,.two>.pane-r{padding:16px 18px;overflow:auto;min-height:0;scrollbar-width:thin;scrollbar-color:var(--m3-line) transparent}
  .two>.pane-r{border-left:1px solid var(--m3-line2);background:var(--m3-sheet)}
- [data-kind=map] .two{grid-template-columns:minmax(0,1.25fr) minmax(300px,1fr)}
+ [data-kind=map] .two{grid-template-columns:minmax(0,1fr) minmax(320px,1.15fr)}
 }
 
 /* ── 달력 ── */
@@ -23522,8 +23522,13 @@ summary::-webkit-details-marker{display:none}
 .rc{position:relative;border:1px solid var(--m3-line);border-radius:11px;background:var(--m3-card);box-shadow:var(--m3-shadow);margin-bottom:8px;animation:rise .4s var(--spring) both;animation-delay:calc(var(--i)*45ms)}
 .rc::after{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--m3-line)}
 .rc.hasrel::after{background:var(--c-rel)}
-.rc>summary{display:grid;grid-template-columns:auto minmax(0,1fr) 16px;gap:6px 8px;align-items:center;padding:11px 12px 11px 16px}
-.rc-n{font-size:13.5px;font-weight:650;white-space:nowrap;max-width:10em;overflow:hidden;text-overflow:ellipsis}
+.rc>summary{display:grid;grid-template-columns:minmax(0,1fr) 16px;gap:6px 8px;align-items:center;padding:11px 12px 11px 16px}
+.rc>summary>.chev{grid-column:2;grid-row:1}
+.rc>summary>.rc-tags{grid-column:1/-1;grid-row:2;justify-content:flex-start}
+.rc>summary>.rc-x{grid-row:3}
+.rc .tg{white-space:normal;overflow-wrap:anywhere}
+.map-more{font-size:11.5px;color:var(--m3-muted);margin:8px 2px 0}
+.rc-n{font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rc-tags{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end;min-width:0}
 .tg{font-size:10.5px;padding:1px 8px;border-radius:999px;background:var(--m3-card2);color:var(--m3-fg2);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .tg em{font-style:normal;color:var(--m3-muted);margin-left:4px}
@@ -23679,7 +23684,7 @@ map:`<div class="m3-shell">
    <div class="tools"><label class="search"><span data-ic="search"></span><input data-q placeholder="인물 찾기" aria-label="인물 찾기"></label>
     <div class="filters" data-f><button class="chipb" data-v="all" aria-pressed="true">전체</button><button class="chipb" data-v="rel" aria-pressed="false">관계 기록</button><button class="chipb" data-v="sec" aria-pressed="false">비밀</button></div></div>
    <div class="box map"><svg data-svg></svg><div class="key" data-key></div></div>
-   <p class="note map-n">저장된 호칭·말투 · 관계·감정선 · 인지 자료만 사용 · 추가 API 호출 없음</p>
+   <p class="note map-more"></p><p class="note map-n">저장된 호칭·말투 · 관계·감정선 · 인지 자료만 사용 · 추가 API 호출 없음</p>
   </div>
   <div class="pane-r" data-det></div>
  </div>
@@ -23863,20 +23868,27 @@ diff:`<div class="m3-shell">
     const KN=(typeof L!=='undefined'&&L.know)||{aware:'알고 있음',unaware:'모름',unverified:'확인 안 됨'};
     if(!nodes.length){q('.pane-l').innerHTML='<p class="empty">저장된 인물이 없어요. 인물·인지를 먼저 정리해 주세요.</p>';det.innerHTML='';return;}
     const center=nodes.find(n=>n.pc)||nodes[0],byId=new Map(nodes.map(n=>[n.id,n])),name=id=>byId.get(id)?.name||id;
+    let secretPair=null;d.draft.sel=byId.has(d.draft.sel)?d.draft.sel:center.id;
     q('[data-count]').textContent=`등장 ${nodes.length}명 · 연결 ${pairs.length}`;
     q('[data-key]').innerHTML=`<span><svg width="22" height="6"><path d="M1 3h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>관계·감정선 기록</span><span><svg width="22" height="6"><path d="M1 3h20" stroke="currentColor" stroke-width="1.3" stroke-dasharray="3 4" stroke-linecap="round"/></svg>호칭만 기록</span><span>${approvedIcon('lock')} 비밀</span><span class="hint">자물쇠를 누르면 비밀만 보기</span>`;
     const deg=new Map(nodes.map(n=>[n.id,0]));pairs.forEach(p=>{deg.set(p.a,(deg.get(p.a)||0)+1);deg.set(p.b,(deg.get(p.b)||0)+1);});
-    const nearC=new Set(pairs.filter(p=>p.a===center.id||p.b===center.id).map(p=>p.a===center.id?p.b:p.a));
-    const others=nodes.filter(n=>n!==center).sort((a,b)=>(nearC.has(b.id)-nearC.has(a.id))||(deg.get(b.id)-deg.get(a.id)));
-    const rings=[];for(let i=0,c=0;i<others.length;c++){const cap=[8,14,20][c]||28;rings.push(others.slice(i,i+cap));i+=cap;}
-    const W=440,H=[260,300,430,540,640][rings.length]||640,cx=W/2,cy=H/2,pos=new Map([[center.id,[cx,cy]]]);
+    // 2.4.3 관계도는 고른 사람과 가장 가까운 연결 24명까지만 그린다(전원을 그리면 200명쯤에서 이름이 다 겹친다). 나머지는 오른쪽 목록에 있다.
+    const EGO_MAX=24;let links=[],els=new Map(),shownIds=new Set();
+    function layout(){
+    const focus=byId.get(d.draft.sel)||center,mine=pairs.filter(p=>p.a===focus.id||p.b===focus.id),score=new Map();
+    mine.forEach(p=>{const o=p.a===focus.id?p.b:p.a;score.set(o,(p.relations.length?1000:0)+p.secrets.length*10+(deg.get(o)||0));});
+    const others=[...score.keys()].filter(id=>byId.has(id)).sort((a,b)=>score.get(b)-score.get(a)).slice(0,EGO_MAX).map(id=>byId.get(id));
+    const hidden=Math.max(0,score.size-others.length);shownIds=new Set([focus.id,...others.map(n=>n.id)]);
+    q('.map-more').textContent=hidden?`${focus.name}의 연결 ${score.size}명 중 가까운 ${others.length}명만 그렸어요 · 나머지도 목록에 다 있어요`:'';
+    const rings=[];for(let i=0,c=0;i<others.length;c++){const cap=[8,16][c]||16;rings.push(others.slice(i,i+cap));i+=cap;}
+    const W=440,H=[220,280,360][rings.length]||360,cx=W/2,cy=H/2,pos=new Map([[focus.id,[cx,cy]]]);
     const ringRx=(ri,ry)=>Math.min(Math.max(W/2-48-(rings.length-1-ri)*12,24),ry*1.55);
     rings.forEach((ring,ri)=>{const ry=(ri+1)*(H/2-30)/rings.length,rx=ringRx(ri,ry);ring.forEach((n,i)=>{const a=-Math.PI/2+(i+(ri%2?.5:0))*2*Math.PI/ring.length;pos.set(n.id,[cx+Math.cos(a)*rx,cy+Math.sin(a)*ry]);});});
     svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
     const NS='http://www.w3.org/2000/svg',mk=(t,a)=>{const el=document.createElementNS(NS,t);for(const k in a)el.setAttribute(k,a[k]);return el;};
     const gR=mk('g',{}),gE=mk('g',{}),gS=mk('g',{}),gL=mk('g',{}),gN=mk('g',{});svg.replaceChildren(gR,gE,gS,gL,gN);
     rings.forEach((_,ri)=>{const ry=(ri+1)*(H/2-30)/rings.length;gR.append(mk('ellipse',{class:'ring',cx,cy,rx:ringRx(ri,ry),ry}));});
-    const links=pairs.map((p,i)=>{const [ax,ay]=pos.get(p.a),[bx,by]=pos.get(p.b),len=Math.hypot(bx-ax,by-ay)||1,near=Math.abs((bx-ax)*(ay-cy)-(ax-cx)*(by-ay))/len,bend=(p.a===center.id||p.b===center.id)?0:near<46?110:Math.min(26,len*.12),
+    links=pairs.filter(p=>shownIds.has(p.a)&&shownIds.has(p.b)).map((p,i)=>{const [ax,ay]=pos.get(p.a),[bx,by]=pos.get(p.b),len=Math.hypot(bx-ax,by-ay)||1,near=Math.abs((bx-ax)*(ay-cy)-(ax-cx)*(by-ay))/len,bend=(p.a===focus.id||p.b===focus.id)?0:near<46?110:Math.min(26,len*.12),
       qx=(ax+bx)/2-(by-ay)/len*bend,qy=(ay+by)/2+(bx-ax)/len*bend,dd=`M${ax} ${ay} Q${qx} ${qy} ${bx} ${by}`,rel=p.relations.length>0;
       const e=mk('path',{class:'e '+(rel?'rel':'sp'),d:dd});e.style.setProperty('--len',Math.ceil(len*1.2));e.style.setProperty('--dl',(.25+Math.min(i,10)*.035)+'s');
       if(!rel)e.addEventListener('animationend',()=>e.classList.add('done'),{once:true});
@@ -23887,20 +23899,22 @@ diff:`<div class="m3-shell">
         const open=()=>{secretPair=p;paint(false);};g.onclick=open;g.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open();}};gL.append(g);o.lk=g;}
       return o;});
     const tw=s=>[...String(s)].reduce((w,ch)=>w+(/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af\u4e00-\u9fff]/.test(ch)?12.5:7.2),0);
-    const els=new Map();
-    nodes.forEach((n,i)=>{const [x,y]=pos.get(n.id),label=String(n.name||'?').length>8?String(n.name).slice(0,7)+'…':String(n.name||'?'),pc=n===center,h=pc?32:26,w=Math.max(h+8,tw(label)+(pc?30:24));
+    els=new Map();
+    [focus,...others].forEach((n,i)=>{const [x,y]=pos.get(n.id),label=String(n.name||'?').length>8?String(n.name).slice(0,7)+'…':String(n.name||'?'),pc=n===center,h=pc?32:26,w=Math.max(h+8,tw(label)+(pc?30:24));
       const g=mk('g',{class:'node'+(pc?' pc':''),tabindex:0,role:'button','aria-label':n.name+' 관계 보기'}),pp=mk('g',{class:'pp'});pp.style.setProperty('--dl',(pc?0:.08+Math.min(i,10)*.03)+'s');
       pp.append(mk('rect',{class:'halo',x:x-w/2,y:y-h/2,width:w,height:h,rx:h/2}),mk('rect',{class:'pill',x:x-w/2,y:y-h/2,width:w,height:h,rx:h/2}));
       const t=mk('text',{x,y});t.textContent=label;pp.append(t);g.append(pp);
-      const pick=()=>{secretPair=null;d.draft.sel=n.id;paint(true);};g.onclick=pick;g.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick();}};
+      const pick=()=>select(n.id);g.onclick=pick;g.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick();}};
       const ti=mk('title',{});ti.textContent=n.name;g.append(ti);els.set(n.id,g);gN.append(g);});
-    let secretPair=null;d.draft.sel=byId.has(d.draft.sel)?d.draft.sel:center.id;d.draft.f=d.draft.f||'all';
+    }
+    function select(id){secretPair=null;d.draft.sel=id;layout();paint(true);}
+    d.draft.f=d.draft.f||'all';
     const pass=p=>d.draft.f==='all'||(d.draft.f==='rel'?p.relations.length>0:p.secrets.length>0);
     q('[data-f]').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===d.draft.f)));
     q('[data-f]').onclick=e=>{const b=e.target.closest('button');if(!b)return;d.draft.f=b.dataset.v;secretPair=null;q('[data-f]').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));paint(false);};
     const qi=q('[data-q]');
     qi.oninput=()=>{const k=qi.value.trim().toLowerCase();els.forEach((g,id)=>g.classList.toggle('hit',!!k&&String(name(id)).toLowerCase().includes(k)));};
-    qi.onkeydown=e=>{if(e.key!=='Enter')return;const k=qi.value.trim().toLowerCase(),hit=nodes.find(n=>k&&String(n.name).toLowerCase().includes(k));if(hit){d.draft.sel=hit.id;secretPair=null;paint(true);}};
+    qi.onkeydown=e=>{if(e.key!=='Enter')return;const k=qi.value.trim().toLowerCase(),hit=nodes.find(n=>k&&String(n.name).toLowerCase().includes(k));if(hit)select(hit.id);};
     function paint(fx){
       const sel=d.draft.sel,live=new Set([sel]);
       links.forEach(o=>{const on=secretPair?o.p===secretPair:(pass(o.p)&&(o.p.a===sel||o.p.b===sel));
@@ -23931,9 +23945,9 @@ diff:`<div class="m3-shell">
           return `<details class="rc ${p.relations.length?'hasrel':''}" style="--i:${Math.min(i,10)}"><summary><span class="rc-n">${esc(name(o))}</span><span class="rc-tags">${spTag(out)}${out&&inn?'<span class="muted" style="font-size:10px">⇄</span>':''}${spTag(inn)}${p.secrets.length?`<span class="tg sec">비밀 ${p.secrets.length}</span>`:''}</span><span class="chev">${approvedIcon('chev')}</span><span class="rc-x">${esc(cur||'관계·감정선 기록 없음')}</span></summary><div class="rc-b">${pairBody(p,sel)}</div></details>`;}).join('')||'<p class="empty">이 조건에 맞는 연결이 없어요.</p>');
       const kn=facts.filter(f=>f.know?.[sel]&&f.know[sel]!=='unverified');
       if(kn.length)det.insertAdjacentHTML('beforeend',`<details class="box kn"><summary>${esc(me.name)}의 인지<span class="tg">알고 있음 ${kn.filter(f=>f.know[sel]==='aware').length}</span><span class="tg">모름 ${kn.filter(f=>f.know[sel]==='unaware').length}</span><span class="chev">${approvedIcon('chev')}</span></summary><div class="kn-in">${kn.map(f=>`<div class="kn-r"><span>${esc(f.label)}</span><small class="${f.know[sel]}">${esc(KN[f.know[sel]]||f.know[sel])}</small></div>`).join('')}</div></details>`);
-      det.querySelector('[data-back]')?.addEventListener('click',()=>{d.draft.sel=center.id;paint(true);});
+      det.querySelector('[data-back]')?.addEventListener('click',()=>select(center.id));
     }
-    paint(false);requestAnimationFrame(()=>svg.classList.add('go'));
+    layout();paint(false);requestAnimationFrame(()=>svg.classList.add('go'));
   }
 
   // Chromium starts at most 10 anchor downloads from one click; larger lists download in batches.
@@ -23997,7 +24011,7 @@ diff:`<div class="m3-shell">
       const limit=Number(d.draft.limit)||30,changed=fields.filter(f=>Object.hasOwn(d.draft.edit,f.key)&&d.draft.edit[f.key]!==f.value).length;
       // 자동 정리: format fixes are only counted; every note (name links, rows left out or kept, text taken out) is listed in full.
       const notes=d.j?.draft?.notices||[],fixes=Number(d.j?.draft?.formatFixes)||0;
-      const autoTidy=notes.length||fixes?`<section class="m3-panel" data-key="rv-auto"><b>자동 정리</b>${fixes?`<p class="m3-muted">형식 보정 ${fixes}건 · 대소문자·빈 값·감싼 키·코드 블록처럼 형식만 기억 앱 양식에 맞췄고 내용은 바꾸지 않았습니다.</p>`:''}${notes.length?`<p class="m3-muted">아래 ${notes.length}건은 이름을 맞추거나, 그대로 저장할 수 없는 부분을 빼거나 그대로 둔 내용입니다. 적용 전에 확인해 주세요.</p><ul class="m3-muted" style="margin:6px 0 0;padding-left:18px;max-height:220px;overflow:auto;overflow-wrap:anywhere">${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}</section>`:'';
+      const autoTidy=notes.length||fixes?`<section class="m3-panel" data-key="rv-auto"><b>자동 정리</b>${fixes?`<p class="m3-muted">형식 보정 ${fixes}건 · 대소문자·빈 값·감싼 키·코드 블록처럼 형식만 RP 도우미 양식에 맞췄고 내용은 바꾸지 않았습니다.</p>`:''}${notes.length?`<p class="m3-muted">아래 ${notes.length}건은 이름을 맞추거나, 그대로 저장할 수 없는 부분을 빼거나 그대로 둔 내용입니다. 적용 전에 확인해 주세요.</p><ul class="m3-muted" style="margin:6px 0 0;padding-left:18px;max-height:220px;overflow:auto;overflow-wrap:anywhere">${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}</section>`:'';
       const cards=groups.slice(0,limit).map((g,index)=>{
         const open=!!d.draft.open[g.key],editing=!!d.draft.editing?.[g.key];
         const contents=g.fields.map(f=>{
@@ -24095,7 +24109,7 @@ diff:`<div class="m3-shell">
       const firebasePanel = field('Firebase Config', ta(D(d, 'firebase'), a.firebase, 'const firebaseConfig = { apiKey:"…", projectId:"…", appId:"…" };', '100')) + field('App Check 디버그 토큰', secretInp(D(d, 'fbAppCheck'), a.fbAppCheck || '', sv.firebaseAppCheckDebugToken ? '저장됨 · 새 토큰을 넣으면 교체' : '예: 123a4567-b89c-12d3-e456-789012345678'), '2026년 11월 2일부터 Firebase AI Logic은 App Check가 필수입니다. Firebase 콘솔 > App Check > 앱 메뉴(⋮) > 디버그 토큰 관리 > 토큰 생성 후 붙여 넣고, App Check의 Firebase AI Logic을 적용(Enforce)으로 바꾸세요.');
       const vertexPanel = field('서비스 계정 JSON', ta(D(d, 'vx'), a.vx || '', sv.vertexServiceAccount ? '저장됨 · 새 JSON을 붙여 넣으면 교체' : '{ "type": "service_account", "project_id": "…", "private_key": "…", "client_email": "…" }', '100'), 'Google Cloud 콘솔 > IAM 및 관리자 > 서비스 계정 > 키 > JSON으로 받은 파일 내용 전체를 붙여 넣으세요.') + field('Vertex 위치', inp(D(d, 'vxLoc'), a.vxLoc || '', 'global'), 'global 권장 · 지역을 쓰려면 us-central1 · asia-northeast3처럼 입력합니다. 3.6~3.8 Flash는 항상 global로 보냅니다.');
       const selField = manual ? field('후보 선별만 API로 (선택)', selc(D(d, 'selectProvider'), a.selectProvider || '', d.selectChoices || [['', '쓰지 않음 · 키워드 순서']]), '기억이 5만 자를 넘을 때 보낼 것을 고르는 일만 이 API로 해요(턴마다 짧게 · 낮은 추론). 목록에는 키를 저장해 둔 API만 나와요. 키를 넣으려면 AI 서비스를 잠깐 그 API로 바꿔 저장한 뒤 다시 돌아오세요.') : '';
-      const manualPanel = gptWeb ? `<div class="m3-panel" data-key="gpt-web-intro"><b>API 키 없이 ChatGPT 웹으로 자동 정리합니다</b><p class="m3-muted">정리 차례가 되면 기억 앱이 ChatGPT 임시 채팅 탭을 뒤에서 열어 요청문을 보내고, 답을 받아 [답 붙여넣기]와 같은 검사를 거쳐 기억에 합친 뒤 탭을 닫아요. 실패하면 1분 뒤 새 임시 채팅으로 최대 3번 다시 보내요.</p><ul class="m3-muted"><li>이 PC에서 크랙 방 탭을 열어 두고 ChatGPT에 로그인해 두세요. 폰으로 RP해도 PC에서 정리돼요.</li><li>정리 주기는 설정의 자동 정리 칸에서 따로 정해요(기본 기억 10턴 · 인물 5턴).</li><li>웹 자동 입력은 ChatGPT 이용약관과 부딪칠 수 있어요.</li></ul></div>${field('추론 수준', selc(D(d, 'gptEffort'), a.gptEffort || 'low', [['low', '최저 · 가장 빠름'], ['mid', '중간'], ['high', '최대 · 가장 느림']]), 'ChatGPT 탭을 열 때마다 모델 메뉴의 추론 막대를 이 수준으로 맞춰요. 최대가 사용 한도로 잠겨 있으면 ChatGPT가 고른 대로 보내요.')}${selField}` : manual ? `<div class="m3-panel" data-key="manual-ai-intro"><b>API 키 없이 외부 AI로 진행합니다</b><p class="m3-muted">확인 탭의 [함께 정리]를 누르면 요청문이 TXT 파일 하나로 저장됩니다. ChatGPT·Gemini·Claude 같은 외부 AI 새 대화에 파일로 첨부해 보내고, 답을 복사한 뒤 [답 붙여넣기]를 누르면 API로 받을 때와 같은 검사를 거쳐 기존 기억에 합칩니다. 마지막 정리 이후의 새 대화만 보냅니다.</p><ul class="m3-muted"><li>답을 기다리는 동안 패널을 닫거나 새로고침하고, RP를 계속 진행해도 됩니다.</li><li>자동 정리는 차례가 되면 알림만 드립니다.</li><li>API를 쓰는 버튼·옵션(묶음 정리·다시 시도·텍스트 → 자료·API 전체 재구축·AI 재검토·API 사용량 절약·연결 테스트)은 회색으로 잠기고 [함께 정리]만 씁니다. 전체 재구축은 자료 관리의 [외부 AI로 재구축]을 쓰세요.</li><li>주입 후보는 최근·키워드 검색으로 고르며 에리 의미검색(임베딩)도 쓰지 않습니다.</li><li>저장된 API 키는 그대로 두므로 언제든 API 방식으로 돌아갈 수 있습니다.</li></ul><div class="m3-actions">${btn('복붙 안내 지침 편집', 'promptGuides', { arg: 'manualRelay', cls: 'mini', icon: 'doc' })}</div></div>${selField}` : '';
+      const manualPanel = gptWeb ? `<div class="m3-panel" data-key="gpt-web-intro"><b>API 키 없이 ChatGPT 웹으로 자동 정리합니다</b><p class="m3-muted">정리 차례가 되면 RP 도우미가 ChatGPT 임시 채팅 탭을 뒤에서 열어 요청문을 보내고, 답을 받아 [답 붙여넣기]와 같은 검사를 거쳐 기억에 합친 뒤 탭을 닫아요. 실패하면 1분 뒤 새 임시 채팅으로 최대 3번 다시 보내요.</p><ul class="m3-muted"><li>이 PC에서 크랙 방 탭을 열어 두고 ChatGPT에 로그인해 두세요. 폰으로 RP해도 PC에서 정리돼요.</li><li>정리 주기는 설정의 자동 정리 칸에서 따로 정해요(기본 기억 10턴 · 인물 5턴).</li><li>웹 자동 입력은 ChatGPT 이용약관과 부딪칠 수 있어요.</li></ul></div>${field('추론 수준', selc(D(d, 'gptEffort'), a.gptEffort || 'low', [['low', '최저 · 가장 빠름'], ['mid', '중간'], ['high', '최대 · 가장 느림']]), 'ChatGPT 탭을 열 때마다 모델 메뉴의 추론 막대를 이 수준으로 맞춰요. 최대가 사용 한도로 잠겨 있으면 ChatGPT가 고른 대로 보내요.')}${selField}` : manual ? `<div class="m3-panel" data-key="manual-ai-intro"><b>API 키 없이 외부 AI로 진행합니다</b><p class="m3-muted">확인 탭의 [함께 정리]를 누르면 요청문이 TXT 파일 하나로 저장됩니다. ChatGPT·Gemini·Claude 같은 외부 AI 새 대화에 파일로 첨부해 보내고, 답을 복사한 뒤 [답 붙여넣기]를 누르면 API로 받을 때와 같은 검사를 거쳐 기존 기억에 합칩니다. 마지막 정리 이후의 새 대화만 보냅니다.</p><ul class="m3-muted"><li>답을 기다리는 동안 패널을 닫거나 새로고침하고, RP를 계속 진행해도 됩니다.</li><li>자동 정리는 차례가 되면 알림만 드립니다.</li><li>API를 쓰는 버튼·옵션(묶음 정리·다시 시도·텍스트 → 자료·API 전체 재구축·AI 재검토·API 사용량 절약·연결 테스트)은 회색으로 잠기고 [함께 정리]만 씁니다. 전체 재구축은 자료 관리의 [외부 AI로 재구축]을 쓰세요.</li><li>주입 후보는 최근·키워드 검색으로 고르며 에리 의미검색(임베딩)도 쓰지 않습니다.</li><li>저장된 API 키는 그대로 두므로 언제든 API 방식으로 돌아갈 수 있습니다.</li></ul><div class="m3-actions">${btn('복붙 안내 지침 편집', 'promptGuides', { arg: 'manualRelay', cls: 'mini', icon: 'doc' })}</div></div>${selField}` : '';
       if(!ds&&!an&&!oa&&a.model&&!models.some(([id])=>id===a.model))models.unshift([a.model,a.model+' · 기존 설정']);
       return sheet(d, { title: '보조 AI 연결', desc: '인지 · 기억 갱신 · 날짜로그 정리 · 자료집 · 전체 재구축이 같은 연결을 씁니다', body: `
       <section class="m3-grp"><div class="m3-gt">${ic('key')}연결</div>${field('AI 서비스', selc(D(d, 'provider'), a.provider, d.providers || [['ai-studio', 'Google AI Studio'], ['firebase', 'Firebase AI Logic'], ['vertex', 'Vertex AI (JSON 키)'], ['deepseek', 'DeepSeek API'], ['anthropic', 'Claude'], ['openai', 'OpenAI API'], ['chatgpt-web', 'ChatGPT 웹 자동 (API 없이)'], ['manual', '외부 AI 복붙 (API 없이)']]))}
@@ -24136,7 +24150,7 @@ diff:`<div class="m3-shell">
     // Asked only when applying would leave out text the answer carried. Format fixes never come here.
     manualConfirm(d) {
       return sheet(d, { title: '이대로 적용할까요?', desc: d.relayId ? '외부 AI 답을 읽으며 빼야 하는 부분이 있습니다' : '형식만 맞춘 부분은 묻지 않고 적용합니다', body: `
-      <p class="m3-muted">답을 기억 앱 양식으로 읽으려면 아래 ${d.drops.length}건을 빼야 합니다. 나머지는 그대로 적용합니다.</p>
+      <p class="m3-muted">답을 RP 도우미 양식으로 읽으려면 아래 ${d.drops.length}건을 빼야 합니다. 나머지는 그대로 적용합니다.</p>
       <ul class="m3-muted" data-key="manual-confirm-list" style="margin:6px 0 0;padding-left:18px;max-height:240px;overflow:auto;overflow-wrap:anywhere">${d.drops.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       <p class="m3-muted m3-topgap">${d.relayId ? '빼면 안 되는 내용이면 [취소]를 누르고 외부 AI에 고친 답을 받아 다시 넣어 주세요.' : '빼면 안 되는 내용이면 [취소]를 누르세요. 기다리는 작업은 그대로 남고, [답 붙여넣기] 창의 [오류 문구 복사]로 외부 AI에 고친 답을 받을 수 있습니다.'}</p>`,
         foot: `${btn('취소', 'manualConfirmCancel', { arg: d.id, cls: 'quiet', dis: !!d.busy })}${SP}${btn(d.busy ? '적용 중…' : '적용', 'manualConfirmApply', { arg: d.id, cls: 'primary', icon: 'check', dis: !!d.busy })}` });
@@ -24144,7 +24158,7 @@ diff:`<div class="m3-shell">
     roomCopy:copyDialogView,
     roomName:roomNameDialogView,
     loreSplit:loreSplitDialogView,
-    kvSettings(d){const c=d.draft,busy=WishKoofr.view().busy;return sheet(d,{title:'Koofr 연결',body:`<section class="m3-grp"><div class="m3-gt">${ic('cloud')}개인 저장소</div>${field('이메일',inp(D(d,'email'),c.email,'Koofr 가입 이메일','text',NO_FILL))}${field('앱 비밀번호',secretInp(D(d,'password'),c.password,'저장된 비밀번호 유지'),'Koofr → Preferences → Password에서 기억 앱용 비밀번호를 만드세요. 로그인 비밀번호와 다릅니다.')}<p class="m3-muted">저장 위치: Koofr / Wish-Core-Backups<br>연결 정보는 이 확장 프로그램에만 저장하며 백업에 포함하지 않습니다.</p></section><div class="m3-status ${c.test==='ok'?'m3-ok':c.test==='err'?'m3-err':''}">${ic(c.test==='ok'?'check':'cloud')}<span>${esc(c.test==='busy'?'연결 확인 중…':c.testMsg||'버튼을 누를 때만 통신합니다. 백업은 암호화하지 않은 JSON 파일입니다.')}</span></div>`,foot:`${btn('연결 테스트','kvTest',{arg:d.id,cls:'mini',dis:busy})}${SP}${closeBtn(d,'취소')}${btn('저장','kvSave',{arg:d.id,cls:'primary',dis:busy})}`});},
+    kvSettings(d){const c=d.draft,busy=WishKoofr.view().busy;return sheet(d,{title:'Koofr 연결',body:`<section class="m3-grp"><div class="m3-gt">${ic('cloud')}개인 저장소</div>${field('이메일',inp(D(d,'email'),c.email,'Koofr 가입 이메일','text',NO_FILL))}${field('앱 비밀번호',secretInp(D(d,'password'),c.password,'저장된 비밀번호 유지'),'Koofr → Preferences → Password에서 RP 도우미용 비밀번호를 만드세요. 로그인 비밀번호와 다릅니다.')}<p class="m3-muted">저장 위치: Koofr / Wish-Core-Backups<br>연결 정보는 이 확장 프로그램에만 저장하며 백업에 포함하지 않습니다.</p></section><div class="m3-status ${c.test==='ok'?'m3-ok':c.test==='err'?'m3-err':''}">${ic(c.test==='ok'?'check':'cloud')}<span>${esc(c.test==='busy'?'연결 확인 중…':c.testMsg||'버튼을 누를 때만 통신합니다. 백업은 암호화하지 않은 JSON 파일입니다.')}</span></div>`,foot:`${btn('연결 테스트','kvTest',{arg:d.id,cls:'mini',dis:busy})}${SP}${closeBtn(d,'취소')}${btn('저장','kvSave',{arg:d.id,cls:'primary',dis:busy})}`});},
     kvRooms(d){const n=d.rows.filter(r=>d.draft.pick[r.key]).length;return sheet(d,{title:'백업할 방 선택',desc:'같은 이름이어도 방 ID로 구분합니다',body:`<div class="m3-row m3-bottomgap">${btn('현재 방만','kvRoomPick',{arg:d.id+'|current',cls:'mini'})}${btn('전체 선택','kvRoomPick',{arg:d.id+'|all',cls:'mini'})}${btn('선택 해제','kvRoomPick',{arg:d.id+'|none',cls:'quiet mini'})}</div>${d.rows.map(r=>`<label class="m3-cbx ${d.draft.pick[r.key]?'is-on':''}" data-key="kv-${r.key}"><input type="checkbox" data-bind="${D(d,'pick.'+r.key)}"${d.draft.pick[r.key]?' checked':''}><span class="m3-box"></span><span class="m3-t"><b>${esc(r.label)}${r.current?tag('현재 방','ok'):''}</b><small>${esc(r.detail)}</small></span></label>`).join('')||empty('저장된 방이 없습니다.')}<section class="m3-grp m3-topgap">${tog('공용 지침·설정도 함께 저장',D(d,'includeSettings'),d.draft.includeSettings,'선택한 방의 기억·인지·관계·연결 자료집은 항상 함께 저장합니다. API 키는 포함하지 않습니다.')}</section>`,foot:`<span class="m3-muted">${n}개 방 선택</span>${SP}${closeBtn(d,'취소')}${btn('선택한 방 백업','kvRoomAccept',{arg:d.id,cls:'primary',dis:!n})}`});},
     kvList(d){const c=WishKoofr.view(),groups=new Map();d.draft.pick||={};const selecting=!!d.draft.selecting,pick=d.draft.pick,n=c.list.filter(b=>pick[b.id]).length;
       for(const b of c.list){const key=b.deviceId||b.dev||'unknown';if(!groups.has(key))groups.set(key,{id:key,name:b.dev||'이름 없는 기기',mine:b.mine,rows:[]});groups.get(key).rows.push(b);}
@@ -24229,7 +24243,7 @@ nativeBundle(d) {
     },
     localRooms(d){const count=WishLocalRooms.selected(d).length,locked=!!d.busy;
       const items=d.rows.map(r=>`<label class="m3-cbx m3-local-room ${d.draft.pick[r.key]?'is-on':''}${r.current?' is-dis':''}" data-key="local-${esc(r.key)}"><input type="checkbox" data-bind="${D(d,'pick.'+r.key)}"${d.draft.pick[r.key]?' checked':''}${locked||r.current?' disabled':''}><span class="m3-box"></span><span class="m3-t"><b>${esc(r.label)}${r.current?tag('현재 방','ok'):r.pending?tag('주입 중','warn'):''}</b><small title="${esc(r.id)}">${esc(r.detail)}</small></span></label>`).join('');
-      return sheet(d,{title:'이 기기의 기억 데이터 정리',desc:'이 기기에 저장된 방 '+d.rows.length+'개',body:`<div class="m3-status m3-bottomgap">기억 앱의 로컬 방 기록을 고릅니다. Crack 대화는 그대로 남습니다. 현재 방은 기존 ‘현재 방 초기화’에서 관리하세요.</div><div class="m3-row m3-bottomgap">${btn('삭제 전 전체 백업 받기','fileBackup',{cls:'mini',dis:locked})}${btn('다른 방 전체 선택','localRoomPick',{arg:d.id+'|all',cls:'mini',dis:locked})}${btn('선택 해제','localRoomPick',{arg:d.id+'|none',cls:'quiet mini',dis:locked})}</div>${items||empty('저장된 로컬 방이 없습니다.')}${locked?'<p class="m3-muted" role="status">선택한 방 기록을 정리하는 중…</p>':''}`,foot:`<span class="m3-muted">${count}개 선택</span>${SP}${closeBtn(d)}${btn('선택한 로컬 방 삭제','localRoomRemove',{arg:d.id,cls:'danger mini',icon:'trash',dis:!count||locked})}`});
+      return sheet(d,{title:'이 기기의 RP 도우미 데이터 정리',desc:'이 기기에 저장된 방 '+d.rows.length+'개',body:`<div class="m3-status m3-bottomgap">RP 도우미의 로컬 방 기록을 고릅니다. Crack 대화는 그대로 남습니다. 현재 방은 기존 ‘현재 방 초기화’에서 관리하세요.</div><div class="m3-row m3-bottomgap">${btn('삭제 전 전체 백업 받기','fileBackup',{cls:'mini',dis:locked})}${btn('다른 방 전체 선택','localRoomPick',{arg:d.id+'|all',cls:'mini',dis:locked})}${btn('선택 해제','localRoomPick',{arg:d.id+'|none',cls:'quiet mini',dis:locked})}</div>${items||empty('저장된 로컬 방이 없습니다.')}${locked?'<p class="m3-muted" role="status">선택한 방 기록을 정리하는 중…</p>':''}`,foot:`<span class="m3-muted">${count}개 선택</span>${SP}${closeBtn(d)}${btn('선택한 로컬 방 삭제','localRoomRemove',{arg:d.id,cls:'danger mini',icon:'trash',dis:!count||locked})}`});
     },
 
     /* props: { draft:{ list:[{id,title,enabled,ret,content}] } } → act psLoad / psSave / psSaveApply(dlgId) */
@@ -24311,7 +24325,7 @@ nativeBundle(d) {
     const injDot = `<span class="w-sdot ${V.inj.armed ? (V.inj.error ? 'bad' : V.inj.verified ? 'ok' : 'warn') : ''}" aria-hidden="true"></span>`;
     const side = `<nav class="w-side" data-drag aria-label="주 메뉴">
       <div class="w-lights"><button type="button" class="w-light r" data-act="closePanel" aria-label="닫기" title="닫기"></button><span class="w-light y" aria-hidden="true"></span><span class="w-light g" aria-hidden="true"></span></div>
-      <div class="w-brand"><span class="w-mark" style="background:none;border-radius:0"><img src="${MEMORY_ICON}" width="22" height="22" alt="" style="display:block"></span><span class="w-bname">기억</span></div>
+      <div class="w-brand"><span class="w-mark" style="background:none;border-radius:0"><img src="${MEMORY_ICON}" width="22" height="22" alt="" style="display:block"></span><span class="w-bname">RP 도우미</span></div>
       <button type="button" class="w-room" data-act="roomName" title="채팅방 이름 바꾸기">${esc(V.room.name)}</button>
       ${tab(S.tab === 'check', 'nav', 'check', 'send', 'AI에게 보내는 기억', '', injDot)}
       ${tab(onMem && !thr, 'navMem', 'state', 'clock', '기억', cnt.log)}
@@ -24336,7 +24350,7 @@ nativeBundle(d) {
       <button type="button" class="w-ticon" data-act="api" title="정리해 줄 AI 연결" aria-label="정리해 줄 AI 연결">${ic('key')}</button>
     </header>${runMenu}`;
     const navMobile = () => [['check', '보내기', 'send', 'nav'], ['memory', '기억', 'clock', 'nav'], ...(has('lore') ? [['lore', '자료집', 'archive', 'nav']] : []), ['cognition', '인물', 'people', 'nav'], ['tools', '관리', 'tray', 'nav'], ['settings', '설정', 'sliders', 'nav']].map(([k, l, i, a]) => `<button type="button" data-act="${a}" data-arg="${k}" aria-current="${S.tab === k ? 'page' : 'false'}">${rpIc(i, 19)}<span>${l}</span>${k === 'cognition' && rv ? `<em class="m3-nb">${rv}</em>` : ''}</button>`).join('');
-    return `<div class="m3-overlay ${S.leaving ? 'leaving' : ''}" data-key="ov"><div class="m3-shell w-shell ${S.pos ? 'placed' : ''}" style="${st}" role="dialog" aria-label="기억">
+    return `<div class="m3-overlay ${S.leaving ? 'leaving' : ''}" data-key="ov"><div class="m3-shell w-shell ${S.pos ? 'placed' : ''}" style="${st}" role="dialog" aria-label="크랙 RP 도우미">
     <div data-key="shell-layout" class="w-win">${side}<div class="w-main">${top}
     ${jl ? `<div class="m3-jobbar" data-key="job">${ic('spark')}<span>${esc(jl)}</span>${dots}</div>` : ''}
     <main class="m3-main">${vPage()}</main></div></div>${S.tourSheet && !S.tourRun ? vTourSheet() : ''}
@@ -24460,7 +24474,7 @@ nativeBundle(d) {
     if (S.scrollTop) { S.scrollTop = false; const m = root.querySelector('.m3-main'); if (m) m.scrollTop = 0; }
     if (S.wantFocus) { S.wantFocus = false; const el = root.querySelector('.wish-dlg-layer>.m3-dialog:last-child [data-autofocus]'); if (el) el.focus({ preventScroll: true }); }
   }
-  // 2.3.49 맥OS 팝업: 스타일은 다른 기억 앱 스타일보다 뒤에 두고, 시트가 붙을 자리(창 제목 줄 밑 · 창 가운데)를 매번 맞춘다.
+  // 2.3.49 맥OS 팝업: 스타일은 다른 RP 도우미 스타일보다 뒤에 두고, 시트가 붙을 자리(창 제목 줄 밑 · 창 가운데)를 매번 맞춘다.
   const WISH_MACOS_CSS="/* 2.3.49 \ub9e5OS \ud31d\uc5c5 \uaddc\uce59: \uc2dc\ud2b8\ub294 \ucc3d \uc81c\ubaa9 \uc904 \ubc11\uc5d0 \ubd99\uc5b4 \ub0b4\ub824\uc624\uace0, \ube60\ub978 \ucc3d\uc740 Wish \ubc84\ud2bc\uc744 \uac00\ub9ac\ud0a4\ub294 \ud31d\uc624\ubc84, \uc54c\ub9bc\uc740 \uc624\ub978\ucabd \uc704 \ubc30\ub108. \ud1b5\ud1b5 \ud280\ub294 \ud6a8\uacfc \uc5c6\uc74c. */\n#wish-rp-root,#wish-rp-quick{--ws-bg:#ECECEE;--ws-edge:rgba(0,0,0,.22);--ws-push:#FFFFFF;--ws-pushedge:rgba(0,0,0,.18);--ws-fbg:#FFFFFF;--ws-fedge:rgba(0,0,0,.24);--ws-cb:rgba(0,0,0,.32);--ws-pop:rgba(246,246,248,.94);--ws-note:rgba(246,246,248,.94)}\nhtml[data-wtheme=dark] #wish-rp-root,html[data-wtheme=dark] #wish-rp-quick{--ws-bg:#2C2C2E;--ws-edge:rgba(255,255,255,.16);--ws-push:#5B5B5F;--ws-pushedge:rgba(255,255,255,.06);--ws-fbg:#1C1C1E;--ws-fedge:rgba(255,255,255,.2);--ws-cb:rgba(255,255,255,.34);--ws-pop:rgba(40,40,42,.94);--ws-note:rgba(40,40,42,.94)}\n@keyframes ws-in{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}\n@keyframes ws-out{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-12px)}}\n@keyframes wp-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}\n@keyframes wn-in{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}\n@keyframes wn-out{to{opacity:0;transform:translateX(16px)}}\n#wish-rp-root .wish-dlg-layer>.m3-dialog{display:block!important;padding:0!important;background:transparent!important;animation:none!important}\n#wish-rp-root .wish-dlg-layer>.m3-dialog>.m3-sheet,#wish-rp-root .wish-dlg-layer>.m3-dialog>[data-approved-view]{position:absolute!important;top:var(--ws-top,56px);left:var(--ws-cx,50%);width:min(520px,var(--ws-max,calc(100vw - 24px)))!important;max-height:calc(var(--rpcm-vvh,100dvh) - var(--ws-top,56px) - 14px)!important;margin:0!important;border:0!important;border-radius:0 0 12px 12px!important;box-shadow:0 0 0 .5px var(--ws-edge),0 24px 46px -14px rgba(0,0,0,.45)!important;animation:ws-in .2s cubic-bezier(.2,.8,.3,1) both!important;transform:translateX(-50%)}\n#wish-rp-root .wish-dlg-layer>.m3-dialog>.m3-sheet{background:var(--ws-bg)!important}\n#wish-rp-root .wish-dlg-layer:not([data-attached])>.m3-dialog>:is(.m3-sheet,[data-approved-view]){border-radius:12px!important}\n#wish-rp-root .wish-dlg-layer>.m3-dialog>.m3-sheet.wide{width:min(860px,var(--ws-max,calc(100vw - 24px)))!important}\n#wish-rp-root .wish-dlg-layer>.m3-dialog>.m3-sheet.wp-sheet-md{width:min(680px,var(--ws-max,calc(100vw - 24px)))!important}\n#wish-rp-root .wish-dlg-layer>.m3-dialog.m3-leaving>:is(.m3-sheet,[data-approved-view]){animation:ws-out .16s ease-in both!important}\n#wish-rp-root .wish-dlg-layer>.m3-dialog>.m3-sheet>header{border-bottom:0!important;padding:18px 20px 4px!important;border:0!important;background:transparent!important;align-items:flex-start}\n#wish-rp-root .m3-sheet>header b{font-size:13.5px!important;font-weight:700!important;line-height:1.35!important}\n#wish-rp-root .m3-sheet>header small{font-size:11.5px!important;color:var(--m3-fg2)!important;margin-top:3px!important}\n#wish-rp-root .m3-sheet:has(>footer [data-act=closeDlg])>header>[data-act=closeDlg]{display:none!important}\n#wish-rp-root .m3-sheet>header>[data-act=closeDlg]{width:22px;height:22px;border-radius:50%;opacity:.6}\n#wish-rp-root .m3-sheet>.m3-dialog-body{padding:12px 20px 6px!important}\n#wish-rp-root .m3-sheet>.m3-dialog-body>*{animation:none!important}\n#wish-rp-root .wish-dlg-layer>.m3-dialog>.m3-sheet>footer{border-top:0!important;padding:14px 20px 16px!important;border-top:0!important;background:transparent!important;gap:8px!important;column-gap:8px!important}\n#wish-rp-root .m3-sheet>footer .m3-btn{min-height:24px!important;padding:3px 14px!important;border:0!important;border-radius:6px!important;background:var(--ws-push)!important;color:var(--m3-fg)!important;font-size:13px!important;font-weight:400!important;box-shadow:0 0 0 .5px var(--ws-pushedge),0 .5px 1.5px rgba(0,0,0,.14)!important}\n#wish-rp-root .m3-sheet>footer .m3-btn .ic{display:none!important}\n#wish-rp-root .m3-sheet>footer .m3-btn.primary,#wish-rp-root .m3-sheet>footer:not(:has(.m3-btn.primary))>.m3-btn:not([data-act=closeDlg]):not(.danger):last-of-type{background:linear-gradient(#2a8cff,#0a72ef)!important;color:#fff!important;box-shadow:0 .5px 1.5px rgba(0,0,0,.28)!important}\n#wish-rp-root .m3-sheet>footer .m3-btn.primary:has(~.m3-btn.primary){background:var(--ws-push)!important;color:var(--m3-fg)!important;box-shadow:0 0 0 .5px var(--ws-pushedge),0 .5px 1.5px rgba(0,0,0,.14)!important}\n#wish-rp-root .m3-sheet>footer .m3-btn.danger{background:transparent!important;box-shadow:none!important;color:var(--m3-danger)!important;padding:3px 6px!important}\n#wish-rp-root .m3-sheet>footer .m3-btn:disabled{opacity:.45!important}\n#wish-rp-root .m3-dialog :is(input[type=text],input[type=number],input[type=search],input[type=password],input:not([type]),select){min-height:24px;padding:3px 8px!important;border:0!important;border-radius:5px!important;background:var(--ws-fbg)!important;font-size:13px!important;box-shadow:0 0 0 .5px var(--ws-fedge),inset 0 .5px 1px rgba(0,0,0,.06)!important}\n#wish-rp-root .m3-dialog textarea{padding:6px 8px!important;border:0!important;border-radius:5px!important;background:var(--ws-fbg)!important;font-size:13px!important;box-shadow:0 0 0 .5px var(--ws-fedge),inset 0 .5px 1px rgba(0,0,0,.06)!important}\n#wish-rp-root .m3-dialog :is(input,textarea,select):focus{box-shadow:0 0 0 .5px var(--m3-accent),0 0 0 3.5px color-mix(in srgb,var(--m3-accent) 38%,transparent)!important}\n#wish-rp-root .m3-dialog .m3-fld>span{font-size:12.5px!important;font-weight:500!important;color:var(--m3-fg)!important}\n#wish-rp-root .m3-dialog .m3-fld>small{font-size:11px!important;color:var(--m3-fg2)!important}\n@media (min-width:700px){\n#wish-rp-root .m3-sheet>.m3-dialog-body>.m3-fld:has(>input,>select){display:grid!important;grid-template-columns:140px minmax(0,1fr);column-gap:12px;row-gap:3px;align-items:center}\n#wish-rp-root .m3-sheet>.m3-dialog-body>.m3-fld:has(>input,>select)>span{text-align:right;margin:0!important}\n#wish-rp-root .m3-sheet>.m3-dialog-body>.m3-fld:has(>input,>select)>small{grid-column:2}}\n#wish-rp-root .m3-dialog .m3-toggle{flex-direction:row-reverse!important;justify-content:flex-end!important;align-items:flex-start!important;gap:8px!important}\n#wish-rp-root .m3-dialog .m3-toggle>span{flex:0 1 auto!important}\n#wish-rp-root .m3-dialog .m3-toggle>input{left:0!important;right:auto!important;top:1px;width:16px!important;height:16px!important}\n#wish-rp-root .m3-dialog .m3-toggle>i{width:14px!important;height:14px!important;margin-top:2px;border-radius:3.5px!important;background:var(--ws-fbg)!important;box-shadow:0 0 0 .5px var(--ws-cb)!important;transition:none!important}\n#wish-rp-root .m3-dialog .m3-toggle>i::after{display:none!important}\n#wish-rp-root .m3-dialog .m3-toggle>input:checked+i{background:var(--m3-accent)!important;box-shadow:none!important}\n#wish-rp-root .m3-dialog .m3-toggle>input:checked+i::after{display:block!important;content:\"\"!important;top:2px!important;left:4.6px!important;width:3.4px!important;height:7px!important;border:solid #fff!important;border-width:0 1.8px 1.8px 0!important;border-radius:0!important;background:none!important;box-shadow:none!important;transform:rotate(45deg)!important;transition:none!important}\n/* \ube60\ub978 \ucc3d \u2192 \ud31d\uc624\ubc84 */\n#wish-rp-quick{background:var(--ws-pop)!important;-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);border:0!important;border-radius:10px!important;box-shadow:0 0 0 .5px var(--ws-edge),0 14px 34px -8px rgba(0,0,0,.35)!important;overflow:visible!important;animation:wp-in .16s ease-out both!important}\n#wish-rp-quick.leaving{animation:none!important;opacity:0;transition:opacity .12s}\n#wish-rp-quick::after{content:\"\";position:absolute;bottom:-6px;left:calc(var(--qa-x,90%) - 7px);width:14px;height:14px;background:var(--ws-pop);transform:rotate(45deg);box-shadow:.5px .5px 0 var(--ws-edge);clip-path:polygon(100% 0,100% 100%,0 100%)}\n#wish-rp-quick>*{position:relative;z-index:1}\n#wish-rp-quick .wq-head .m3-ico[data-act=quickClose]{display:none!important}\n#wish-rp-quick .wq-list{overflow:auto;min-height:0}\n#wish-rp-quick .wq-foot .m3-btn,#wish-rp-quick .wq-alert .m3-btn{min-height:22px!important;padding:2px 11px!important;border-radius:6px!important;background:var(--ws-push)!important;font-size:12px!important;box-shadow:0 0 0 .5px var(--ws-pushedge),0 .5px 1.5px rgba(0,0,0,.14)!important}\n#wish-rp-quick .wq-foot .m3-btn .ic{display:none!important}\n@media (max-width:768px){html body #wish-rp-quick{left:8px!important;right:8px!important;width:auto!important;border-radius:12px!important}}\n/* \uc54c\ub9bc \u2192 \uc624\ub978\ucabd \uc704 \ubc30\ub108 */\n#wish-rp-root .wish-toast-wrap{left:auto!important;right:16px!important;top:calc(var(--rpcm-vv-top,0px) + 14px)!important;bottom:auto!important;transform:none!important;align-items:flex-end!important;width:min(360px,calc(100vw - 24px))!important}\n#wish-rp-root .wish-toast-wrap .m3-toast{width:100%;align-items:flex-start!important;gap:10px!important;padding:11px 12px!important;border-radius:14px!important;background:var(--ws-note)!important;color:var(--m3-fg)!important;-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);box-shadow:0 0 0 .5px var(--ws-edge),0 12px 30px -10px rgba(0,0,0,.35)!important;font-size:12.5px!important;font-weight:400!important;line-height:1.45;animation:wn-in .22s ease-out both!important;pointer-events:auto}\n#wish-rp-root .wish-toast-wrap .m3-toast.m3-out{animation:wn-out .18s ease-in both!important}\n#wish-rp-root .wish-toast-wrap .m3-toast>svg.ic{flex:none;width:28px!important;height:28px!important;padding:6px;border-radius:7px;background:var(--m3-accent);color:#fff;stroke:#fff}\n#wish-rp-root .wish-toast-wrap .m3-toast.error>svg.ic{background:var(--m3-danger)}\n#wish-rp-root .wish-toast-wrap .m3-toast.warn>svg.ic{background:var(--m3-warn)}\n#wish-rp-root .wish-toast-wrap .m3-toast>span{flex:1;padding-top:5px}\n#wish-rp-root .m3-toast-detail{min-height:22px!important;padding:2px 10px!important;border:0!important;border-radius:6px!important;background:var(--ws-push)!important;color:var(--m3-fg)!important;font-size:12px!important;box-shadow:0 0 0 .5px var(--ws-pushedge)!important;margin-left:38px}\n#wish-rp-root .m3-toast-detail .ic{display:none!important}\n@media (prefers-reduced-motion:reduce){#wish-rp-root .wish-dlg-layer>.m3-dialog>*,#wish-rp-quick,#wish-rp-root .m3-toast{animation-duration:.01s!important}}\n";
   function wishMacosPopups(){
     let st=document.getElementById('wish-2349-macos');
@@ -24775,8 +24789,13 @@ ${open ? `<div class="wp-err-body"><div class="wp-err-row"><span>원인</span><p
     // A help button inside an open popover (top layer) needs its tip in the top layer too, above that popover.
     const layer=POPOVER_OK?t.closest('[popover]'):null;
     if(layer&&layer.matches(':popover-open')){tipEl.popover='manual';tipEl.showPopover();}
-    const r=t.getBoundingClientRect(),w=tipEl.offsetWidth,h=tipEl.offsetHeight;
-    let x=r.left+r.width/2-w/2,y=r.top-h-8;if(y<8)y=r.bottom+8;
+    // 2.4.3 맥 팝오버처럼 ? 바로 아래에 붙이고, 패널(또는 열린 창)의 본문 영역 안에 머물게 한다. 전에는 화면 전체 기준이라 왼쪽 메뉴를 덮었다.
+    const r=t.getBoundingClientRect(),area=t.closest('.w-main,.m3-dialog .m3-shell,[role="dialog"]'),ar=area?area.getBoundingClientRect():{left:0,top:0,right:innerWidth,bottom:innerHeight};
+    const L0=Math.max(8,ar.left+8),R0=Math.min(innerWidth-8,ar.right-8);
+    if(R0-L0>=200)tipEl.style.maxWidth=Math.min(360,R0-L0)+'px';
+    const w=tipEl.offsetWidth,h=tipEl.offsetHeight;
+    let x=r.left+r.width/2-w/2;x=Math.max(L0,Math.min(R0-w,x));
+    let y=r.bottom+8;if(y+h>innerHeight-8&&r.top-h-8>=8)y=r.top-h-8;
     tipEl.style.left=Math.max(8,Math.min(innerWidth-w-8,x))+'px';tipEl.style.top=Math.max(8,Math.min(innerHeight-h-8,y))+'px';
   }
   function hideTip() { clearTimeout(tipHideTimer); if (!tipEl) return; const el = tipEl; tipEl = null; document.querySelectorAll('[aria-describedby="wish-ui-help-tip"]').forEach(el=>{el.setAttribute('aria-expanded','false');el.removeAttribute('aria-describedby');}); el.remove(); }
@@ -24809,7 +24828,7 @@ ${open ? `<div class="wp-err-body"><div class="wp-err-row"><span>원인</span><p
   function anchorFor(send) { const m = document.getElementById('crack-pure-send-left-group'); return (m && m.isConnected && m.parentNode === send.parentNode && m.nextElementSibling === send) ? m : send; }
   function buildMonitor() {
     const w = document.createElement('div'); w.id = MON_ID;
-    w.innerHTML = '<button type="button" class="wish-mon-core" title="탭: 현재 주입 · 길게: 전체 패널" aria-label="기억 — 탭: 현재 주입, 길게: 전체 패널"><svg class="wish-mon-hold" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18"/></svg><span class="wish-mon-spin"></span><svg class="wish-mon-gauge" viewBox="0 0 32 32"><circle class="trk" cx="16" cy="16" r="13"/><circle class="val" cx="16" cy="16" r="13"/></svg><b>–</b><span class="wish-mon-dot"></span><span class="wish-mon-badge" hidden></span></button>';
+    w.innerHTML = '<button type="button" class="wish-mon-core" title="탭: 현재 주입 · 길게: 전체 패널" aria-label="크랙 RP 도우미 — 탭: 현재 주입, 길게: 전체 패널"><svg class="wish-mon-hold" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18"/></svg><span class="wish-mon-spin"></span><svg class="wish-mon-gauge" viewBox="0 0 32 32"><circle class="trk" cx="16" cy="16" r="13"/><circle class="val" cx="16" cy="16" r="13"/></svg><b>–</b><span class="wish-mon-dot"></span><span class="wish-mon-badge" hidden></span></button>';
     const core = w.firstChild; let t1 = 0, t2 = 0, fired = false, sx = 0, sy = 0, pid = null;
     const clear = () => { clearTimeout(t1); clearTimeout(t2); if (S.monHold) { S.monHold = false; updateMonitor(); } try { if (pid != null && core.hasPointerCapture(pid)) core.releasePointerCapture(pid); } catch (_) {} pid = null; };
     core.addEventListener('contextmenu', e => e.preventDefault());
@@ -24838,7 +24857,7 @@ ${open ? `<div class="wp-err-body"><div class="wp-err-row"><span>원인</span><p
     else if (val && val.style.strokeDashoffset !== off) val.style.strokeDashoffset = off;
     const stopped=!!m.memory?.error||WLOG.ringOn(), num = w.querySelector('.wish-mon-core>b'), left = stopped ? '!' : !m.inj.armed ? 'off' : m.memory.enabled ? String(Math.max(0, (m.memory.target || 0) - (m.memory.committed || 0))) : '–'; if (num && num.textContent !== left) num.textContent = left;
     const alertNote=m.memory?.error?' · 자동 정리 멈춤: '+String(m.memory.error).replace(/\s+/g,' ').slice(0,80):''; // 2.7.1
-    const core=w.querySelector('.wish-mon-core'), status=(m.inj.armed?'주입 중':'주입 해제')+(m.inj.armed&&m.memory?.enabled&&tgt>0?' · 다음 기억 정리까지 '+Math.max(0,tgt-done)+'턴':'')+alertNote, hint=status+' · 탭: 현재 주입 · 길게: 전체 패널', label='기억 — '+status+' · 탭: 현재 주입, 길게: 전체 패널';
+    const core=w.querySelector('.wish-mon-core'), status=(m.inj.armed?'주입 중':'주입 해제')+(m.inj.armed&&m.memory?.enabled&&tgt>0?' · 다음 기억 정리까지 '+Math.max(0,tgt-done)+'턴':'')+alertNote, hint=status+' · 탭: 현재 주입 · 길게: 전체 패널', label='크랙 RP 도우미 — '+status+' · 탭: 현재 주입, 길게: 전체 패널';
     if(core){if(core.title!==hint)core.title=hint;if(core.getAttribute('aria-label')!==label)core.setAttribute('aria-label',label);}
     if(!needsFullView()){const title=m.inj.armed?'주입 유지 중 · 마지막 서버 기록 '+fmt(m.inj.total)+'자 · 현재 구성은 상세 보기에서 확인':'기억 주입 꺼짐';if(w.title!==title)w.title=title;}
     const bd = w.querySelector('.wish-mon-badge'), n = m.reviewCount||0; if (bd) { if(bd.hidden!==!n)bd.hidden = !n; if (n && bd.textContent !== String(n)) bd.textContent = String(n); }
