@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         기억
 // @namespace    local.rp.context.manager
-// @version      2.4.1
+// @version      2.4.2
+// @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @description  기억 — 크랙 RP용 장기기억·인지·자료집을 관리하고 AI에게 넣어 줍니다. (예전 이름 Wish RP Manager Core)
@@ -223,6 +224,8 @@
     return {start(label){const at=performance.now();return ()=>{const ms=performance.now()-at,m=metrics[label]||(metrics[label]={count:0,totalMs:0,maxMs:0,lastMs:0});m.count++;m.totalMs+=ms;m.maxMs=Math.max(m.maxMs,ms);m.lastMs=ms;};}};
   })();
 
+  // 2.4.2 앱 아이콘 (펄스·NAI 자동저장·툴박스와 같은 파란 둥근 사각형)
+  const MEMORY_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
   const APP = {
     name: '기억',
     version: SCRIPT_VERSION,
@@ -24308,7 +24311,7 @@ nativeBundle(d) {
     const injDot = `<span class="w-sdot ${V.inj.armed ? (V.inj.error ? 'bad' : V.inj.verified ? 'ok' : 'warn') : ''}" aria-hidden="true"></span>`;
     const side = `<nav class="w-side" data-drag aria-label="주 메뉴">
       <div class="w-lights"><button type="button" class="w-light r" data-act="closePanel" aria-label="닫기" title="닫기"></button><span class="w-light y" aria-hidden="true"></span><span class="w-light g" aria-hidden="true"></span></div>
-      <div class="w-brand"><span class="w-mark">${rpIc('wing', 14)}</span><span class="w-bname">기억</span></div>
+      <div class="w-brand"><span class="w-mark" style="background:none;border-radius:0"><img src="${MEMORY_ICON}" width="22" height="22" alt="" style="display:block"></span><span class="w-bname">기억</span></div>
       <button type="button" class="w-room" data-act="roomName" title="채팅방 이름 바꾸기">${esc(V.room.name)}</button>
       ${tab(S.tab === 'check', 'nav', 'check', 'send', 'AI에게 보내는 기억', '', injDot)}
       ${tab(onMem && !thr, 'navMem', 'state', 'clock', '기억', cnt.log)}

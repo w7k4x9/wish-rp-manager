@@ -11,6 +11,9 @@ https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 
 ## 수정 내역
 
+### 2.4.2
+- 아이콘을 바꿨습니다. 펄스·NAI 자동저장·툴박스와 같은 파란 둥근 사각형에 말풍선과 시계를 넣었습니다. Tampermonkey 목록과 패널 왼쪽 위 로고에 보입니다.
+
 ### 2.4.1
 - Tampermonkey 목록 이름(@name)도 **기억**으로 바꿨습니다. Tampermonkey가 새 스크립트로 여길 수 있어서, 업데이트 뒤 API 키·AI 설정을 다시 넣어야 할 수 있습니다. 기억·인물·자료집 같은 방 자료는 브라우저 저장소(WishRPManagerDB_v2)에 그대로 있어 사라지지 않습니다. 목록에 예전 이름(🪽 Wish RP Manager Core)이 남아 있으면 그것은 꺼 주세요. 둘이 같이 켜져 있으면 버전 충돌 안내가 뜹니다.
 
