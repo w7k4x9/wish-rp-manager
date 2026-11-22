@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.14
+// @version      2.5.15
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -18833,7 +18833,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     // ---------- 카드 ----------
     const CSS=`:host{all:initial}*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Pretendard","Malgun Gothic",system-ui,sans-serif;letter-spacing:-.01em}
 .card{--accent:#007AFF;--text:#1D1D1F;--text2:#6E6E73;--fill:rgba(120,120,128,.12);--glass:rgba(242,242,247,.94);--edge:rgba(255,255,255,.65);--ring:rgba(0,0,0,.1);--bad:#D70015;--ok:#1A7F37;width:340px;max-height:70vh;overflow:auto;background:var(--glass);color:var(--text);border:.5px solid var(--edge);border-radius:16px;padding:14px;font-size:13px;line-height:1.45;box-shadow:0 0 0 .5px var(--ring),0 22px 60px rgba(0,0,0,.22);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);word-break:keep-all}
-@media (prefers-color-scheme:dark){.card{--accent:#0A84FF;--text:#F5F5F7;--text2:#A1A1A6;--fill:rgba(120,120,128,.26);--glass:rgba(30,30,32,.86);--edge:rgba(255,255,255,.1);--ring:rgba(0,0,0,.5);--bad:#FF453A;--ok:#30D158}}
+.card.dark{--accent:#0A84FF;--text:#F5F5F7;--text2:#A1A1A6;--fill:rgba(120,120,128,.26);--glass:rgba(30,30,32,.86);--edge:rgba(255,255,255,.1);--ring:rgba(0,0,0,.5);--bad:#FF453A;--ok:#30D158}
 .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.hd b{font-size:15px}.x{width:24px;height:24px;border-radius:12px;border:0;background:var(--fill);color:var(--text2);cursor:pointer;font-size:14px;padding:0}
 .sub{color:var(--text2);font-size:12px;margin:0 0 8px}.row{display:flex;gap:8px;padding:8px 0;border-top:.5px solid var(--fill)}.row input{margin:3px 0 0;accent-color:var(--accent)}
 .q{color:var(--bad);text-decoration:line-through}.f{color:var(--ok)}.m{color:var(--text2);font-size:11.5px;margin-top:3px}
@@ -18842,7 +18842,9 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     function open(build){
       close();host=document.createElement('div');host.style.cssText='position:fixed;left:16px;bottom:16px;z-index:2147483600;';
       const root=host.attachShadow({mode:'open'}),style=document.createElement('style'),card=document.createElement('div');
-      style.textContent=CSS;card.className='card';root.append(style,card);
+      // 2.5.14 밝기는 OS가 아니라 패널과 같은 설정(설정 › 화면 모드)을 따른다. 크랙만 다크이고 OS는 라이트일 때 이 카드만 하얗게 떴다.
+      let dark=false;try{dark=wishUiThemeResolved()==='dark';}catch(_){dark=matchMedia('(prefers-color-scheme: dark)').matches;}
+      style.textContent=CSS;card.className='card'+(dark?' dark':'');root.append(style,card);
       const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;};
       const head=el('div','hd');head.append(el('b','','답변 검수'));const x=el('button','x','×');x.onclick=close;head.append(x);card.append(head);
       build(card,el);document.documentElement.appendChild(host);
