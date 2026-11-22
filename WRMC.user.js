@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.4
+// @version      2.5.5
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -9924,6 +9924,8 @@ const WishImportPeople=(()=>{
         scheduleMessageInjectionMagnifier(0);
         void WUIRefreshTurnCount(room,true);
         scheduleAutomaticMemoryMaintenance(room,900);
+        // 2.5.5 크랙 장기기억: 기억 주입이 꺼진 방도 답변마다 턴을 센다(주입 경로의 watch는 주입 중인 방에서만 돈다).
+        CrackLtm.onReply(room);
 
         // Memory and lore share U3; one schedule is sufficient.
       });
@@ -19090,12 +19092,17 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       const settings=selectionAiSettings();if(isManualAiProvider(settings)||!isAiProviderReady(settings))return;
       wishIdle(()=>{run(room).then(m=>notify(m,'success',6000)).catch(e=>{const x=tick(rid);x.failAt=Date.now();setTick(rid,x);notify('크랙 장기기억 정리 보류: '+String(e?.message||e),'warn',8000,{error:e});});});
     }
+    // 답변 완료 신호에서 부른다: 최근 메시지 몇 개만 읽어 watch와 같은 방법으로 센다(같은 USER면 다시 세지 않는다).
+    function onReply(room){
+      if(!config().on)return;const rid=String(apiChatIdOf(room)||'');if(!rid)return;
+      setTimeout(async()=>{try{if(generationPending(rid))return;const msgs=await fetchRecentMessages(rid,8),latest=msgs.find(m=>messageRoleOf(m)==='assistant');if(latest)watch(room,{latest,messages:msgs.slice(msgs.indexOf(latest))},'reply');}catch(error){console.debug('[Wish] crack ltm count skipped',error);}},2500);
+    }
     function view(room){
       const cfg=config(),rid=String(apiChatIdOf(room)||''),job=rid?running.get(rid):null,t=rid?tick(rid):{},last=room?.crackLtm?.last||null;
       return {cfg,job,last,turns:Number(t.turns)||0,left:Math.max(0,cfg.every-(Number(t.turns)||0)),backup:room?.crackLtm?.backup?.length||0};
     }
     function backupText(room){const b=room?.crackLtm?.backup||[];return b.length?JSON.stringify({room:String(apiChatIdOf(room)||''),note:'크랙 RP 도우미가 흡수한 뒤 지운 크랙 자동 장기기억 카드 원문',cards:b},null,2):'';}
-    return {config,setConfig,run,watch,view,backupText,busy:room=>running.has(String(apiChatIdOf(room)||''))};
+    return {config,setConfig,run,watch,onReply,view,backupText,busy:room=>running.has(String(apiChatIdOf(room)||''))};
   })();
 
   function reconcileStableCarrier(){const __t=performance.now();try{return reconcileStableCarrier__perf.apply(this,arguments);}finally{__wpfAdd('reconcileStableCarrier',performance.now()-__t);}}
