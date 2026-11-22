@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         🪽 Wish RP Manager Core
+// @name         기억
 // @namespace    local.rp.context.manager
-// @version      2.4.0
+// @version      2.4.1
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
-// @description  기억 — 크랙 RP용 장기기억·인지·자료집을 관리하고 AI에게 넣어 줍니다. (예전 이름 Wish RP Manager Core · 설정이 이어지도록 @name은 그대로 둠)
+// @description  기억 — 크랙 RP용 장기기억·인지·자료집을 관리하고 AI에게 넣어 줍니다. (예전 이름 Wish RP Manager Core)
 // @author       User
 // @license      All Rights Reserved
 // @match        https://crack.wrtn.ai/*
