@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.6
+// @version      2.5.7
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -19458,6 +19458,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
   // 2.5.6 기억이 생기면 켜기: 기억이 하나도 없을 때 「AI에게 기억 보내기」를 누르면 켜 둔 채(armWhenReady) 기다리다가,
   // 정리가 처음 기억을 만들거나 답변이 끝났을 때 보낼 게 생겼으면 그때 주입을 시작한다(시작 방법은 버튼과 같은 armInjection).
   const NO_MEMORY_YET=/^아직 주입할 기억이 없습니다/;
+  let pendingArmIntent=null; // 방을 읽기 전에 누른 「AI에게 기억 보내기」(이 탭에서 1시간)
   const armWaitRunning=new WeakSet();
   function armWhenReadyLater(room,delay=1500){if(!room?.armWhenReady||room.pending)return;setTimeout(()=>{void armWhenReadyNow(room).catch(error=>console.debug('[Wish] arm-when-ready held',error));},delay);}
   async function armWhenReadyNow(room){
@@ -20256,6 +20257,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       if (epoch !== state.routeEpoch || getRoomScopeKey(getChatIdFromPath(), location.href) !== roomKey) return;
       state.currentRoom = room;
       state.roomLoadFailure = null;
+      if(pendingArmIntent){const fresh=Date.now()-pendingArmIntent.at<3600000;pendingArmIntent=null;if(fresh&&!room.pending&&!room.armWhenReady){room.armWhenReady=true;void saveRoom(room).then(()=>armWhenReadyLater(room,2000)).catch(e=>console.warn('[Wish] 기억 보내기 대기 저장 실패',e));}}
     } catch (error) {
       if (epoch === state.routeEpoch && state.currentRoom === prevRoom) {
         state.currentChatId = prevRoom ? prevChatId : null;
@@ -24659,7 +24661,7 @@ nativeBundle(d) {
       <div class="w-grow"></div>
       <button type="button" class="w-tab" data-act="tourToggle" aria-expanded="${!!(S.tourSheet || S.tourRun)}">${rpIc('help')}<span class="w-lbl">사용법</span></button>
       ${tab(S.tab === 'settings', 'nav', 'settings', 'sliders', '설정')}
-      <div class="w-ver">Wish Core ${esc(V.version || '')}${sv.saving ? ' · 저장 중…' : sv.at ? ' · 저장됨 ' + esc(sv.at) : ''}</div>
+      <div class="w-ver">크랙 RP 도우미 ${esc(V.version || '')}${sv.saving ? ' · 저장 중…' : sv.at ? ' · 저장됨 ' + esc(sv.at) : ''}</div>
     </nav>`;
     const titles = { check: 'AI에게 보내는 기억', memory: thr ? '떡밥 · 약속' : '기억', lore: '자료집', cognition: '인물 · 관계', tools: '자료 관리', settings: '설정', guide: '사용법' };
     const subs = { check: (V.room.story && V.room.story !== V.room.name ? esc(V.room.story) + ' · ' : '') + (V.inj.armed ? fmt((Number(V.inj.total) || 0) + (Number(V.inj.overflow?.chars) || 0)) + '자 보내는 중' : '보내기 꺼짐'), memory: thr ? '아직 안 끝난 약속 · 비밀 · 떡밥' : '지금 상황 · 지난 사건 · 연표 · 진행 규칙', lore: '물건 · 장소 · 기억할 대사', cognition: rv ? '확인할 것 ' + rv + '개' : '관계 · 호칭 · 아는 것', tools: '백업 · 다시 만들기 · 기록', settings: '모든 방 공통', guide: '처음 쓰는 사람도 따라 할 수 있게 한 단계씩' };
@@ -25342,7 +25344,10 @@ async function WUIRefreshTurnCount__perf(room, force=false, knownHead=null) {
 }
 function WUIForm(values={}){const root=document.createElement('div');for(const [selector,value] of Object.entries(values)){const input=document.createElement(typeof value==='boolean'||!/[\r\n]/.test(String(value??''))?'input':'textarea');if(selector.startsWith('#'))input.id=selector.slice(1);else{const m=selector.match(/^\[([^=\]]+)(?:="([^"]*)")?\]$/);if(!m)throw Error('지원하지 않는 필드 선택자: '+selector);input.setAttribute(m[1],m[2]||'');}if(typeof value==='boolean'){input.type='checkbox';input.checked=value;}else input.value=String(value??'');root.append(input);}return root;}
 async function WUIInvoke(action,arg='',extra={},editor){
- const room=state.currentRoom;if(!room)throw Error('채팅방 데이터가 준비되지 않았습니다.');const values={...extra};
+ // 2.5.7 방을 아직 못 읽었으면(새 방 · 읽기 실패) 한 번 다시 읽는다. 그래도 없으면 기억 보내기 켜기만은 이 탭에 기억해 두었다가 방이 읽히면 켠다.
+ if(!state.currentRoom){const id=getChatIdFromPath();if(id){try{await ensureCurrentRoom(id,true);}catch(e){console.warn('[Wish] 방 다시 읽기 실패',e);}}}
+ if(!state.currentRoom&&action==='arm'){pendingArmIntent={at:Date.now()};notify('켜 뒀어요. 이 방을 아직 못 읽어서, 방이 읽히면(첫 메시지를 보내면) 그때부터 기억 보내기를 준비해요.','success',7000);return true;}
+ const room=state.currentRoom;if(!room)throw Error('이 채팅방을 아직 못 읽었어요. 첫 메시지를 보내거나 새로고침한 뒤 다시 눌러 주세요.');const values={...extra};
  const overlay=WUIForm(values),button=document.createElement('button');button.setAttribute('data-v2-'+action,String(arg??''));overlay.append(button);
  for(const k of ['file']){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.setAttribute('data-v2-'+k,'');overlay.append(input);}
  const listeners=new Map();for(const el of [overlay,...overlay.querySelectorAll('*')]){el.addEventListener=(type,fn)=>{let list=listeners.get(el);if(!list)listeners.set(el,list=[]);list.push([type,fn]);};if(el.type!=='file')el.click=()=>{const event={currentTarget:el,target:el,preventDefault(){},stopPropagation(){}};if(el.onclick)return el.onclick(event);for(const [type,fn] of listeners.get(el)||[])if(type==='click')return fn(event);};}
