@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.11
+// @version      2.5.12
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -97,7 +97,26 @@
         }
       } catch (e) { console.warn('[Wish GPT] 추론 수준 설정 건너뜀', e); }
       const text = String(job.text || '');
-      composer.focus();
+      // 2.5.12 글 넣기를 확인까지 한다. 뒤에서 열린 탭은 창에 포커스가 없어 커서가 입력창 밖에 있거나, 추론 메뉴를 여닫는 사이
+      // 입력창이 새로 그려져 예전 요소에 넣는 일이 있었다(그러면 보내기가 안 눌리거나 빈 채로 보내져 '됐다 안 됐다').
+      // 매번 입력창을 새로 찾고, 커서를 입력창 끝에 직접 두고 넣은 뒤 들어갔는지 본다. 안 들어가면 붙여넣기 이벤트로, 그래도 안 되면 값 직접 넣기.
+      const composerText = el => String(el ? ('value' in el && el.tagName === 'TEXTAREA' ? el.value : el.innerText) : '').replace(/\s+/g, ' ').trim();
+      const typeInto = async (want) => {
+        // 들어갔는지는 '비어 있지 않음'으로 본다(편집기가 머리글 같은 걸 바꿔 그대로 비교하면 틀리고, 두 번 넣게 된다).
+        const need = Math.min(20, Math.ceil(want.replace(/\s+/g, ' ').trim().length * 0.5));
+        const landed = () => { const el = findComposer(); return !!el && composerText(el).length >= need; };
+        for (let attempt = 0; attempt < 3 && !landed(); attempt++) {
+          const el = findComposer(); if (!el) { await sleep(800); continue; }
+          el.focus();
+          try { if (el.tagName !== 'TEXTAREA') { const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } } catch (_) {}
+          if (attempt === 0) document.execCommand('insertText', false, want);
+          else if (attempt === 1) { try { const DT_ = page.DataTransfer || DataTransfer, dt = new DT_(); dt.setData('text/plain', want); el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); } catch (e) { console.warn('[Wish GPT] 붙여넣기 이벤트 실패', e); } }
+          else if (el.tagName === 'TEXTAREA') { const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set; set.call(el, want); el.dispatchEvent(new Event('input', { bubbles: true })); }
+          else { el.textContent = want; el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: want })); }
+          await sleep(600);
+        }
+        if (!landed()) throw new Error('ChatGPT 입력창에 요청문을 넣지 못했어요(탭이 뒤에 있어 입력이 막혔을 수 있어요).');
+      };
       if (text.length > 18000) {
         const input = document.querySelector('input#upload-files[type="file"]') || [...document.querySelectorAll('input[type="file"]')].find(i => !i.disabled && !/image|video|audio/.test(String(i.accept || '')) ) || document.querySelector('input[type="file"]');
         if (!input) throw new Error('ChatGPT 파일 첨부 칸을 찾지 못했어요.');
@@ -105,10 +124,9 @@
         const dt = new DT_(); dt.items.add(new File_([text], 'wish-request-' + id.slice(0, 12) + '.txt', { type: 'text/plain', lastModified: Date.now() }));
         input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true }));
         await sleep(1500);
-        composer.focus();
-        document.execCommand('insertText', false, '첨부한 요청문 TXT를 처음부터 끝까지 읽고, 그 안의 [작업 지침]과 [출력 확인]을 그대로 따라 답해 줘. 답은 ```json 코드 블록 하나로만 써 줘.');
+        await typeInto('첨부한 요청문 TXT를 처음부터 끝까지 읽고, 그 안의 [작업 지침]과 [출력 확인]을 그대로 따라 답해 줘. 답은 ```json 코드 블록 하나로만 써 줘.');
       } else {
-        document.execCommand('insertText', false, text);
+        await typeInto(text);
       }
       // 첨부 올리는 동안 보내기가 잠겨 있을 수 있다.
       const send = await waitFor(() => { const b = findSend(); return b && !b.disabled && b.getAttribute('aria-disabled') !== 'true' ? b : null; }, 180000, 600);
@@ -3659,7 +3677,11 @@ const WLOG=(()=>{
     const setEvery = (m, o) => { try { localStorage.setItem('wish-gpt-every', JSON.stringify({ memoryEvery: m, observeEvery: o })); } catch (_) {} };
     function set(on) { try { if (on) localStorage.setItem('wish-gpt-auto', '1'); else localStorage.removeItem('wish-gpt-auto'); } catch (_) {} }
     let running = false, cancelCurrent = null, runSeq = 0;
-    function ask(text, code, opt = {}) {
+    // 2.5.12 ChatGPT 요청은 한 번에 하나만: 작업 칸(wish-gpt-job)이 하나라서, 정리 · 번역 · 신상 채우기가 겹치면 뒤에 연 탭이
+    // 앞 작업을 덮어써 앞 탭이 할 일을 잃었다. 앞 요청이 끝난 뒤에 다음 요청을 연다.
+    let askChain = Promise.resolve();
+    function ask(text, code, opt = {}) { const p = askChain.then(() => askNow(text, code, opt)); askChain = p.catch(() => {}); return p; }
+    function askNow(text, code, opt = {}) {
       const id = code + '-' + Date.now().toString(36);
       GM_setValue('wish-gpt-job', { id, text, at: Date.now(), effort: opt.effort || effort() });
       let tab = null;
