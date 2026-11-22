@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.1
+// @version      2.5.2
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -18007,8 +18007,8 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
   const overflowPools=new Map();
   const OVERFLOW_NOTE="※ 보조 참고: 아래는 더 최근 AI 답변 끝의 주 참고 주석에 다 담지 못한 추가 기억이다. 두 주석은 함께 하나의 참고 자료다. 겹치거나 어긋나면 최근 쪽 주석과 이후 RP에서 확정된 내용이 우선한다.\n\n";
   // 2.2.7(2.4.0에서 기본 꺼짐으로 바뀜): 서브(보조 주입) — 2026-10-29 암호 테스트로 크랙 AI가 메인 5만 자 + 서브(그 전 답변) 4만 자를 앞·중간·끝까지 모두 읽는 것을 확인했다. 켜려면 localStorage 'wish-overflow-carrier-on'='1'.
-  function overflowCarrierEnabled(){try{return localStorage.getItem('wish-overflow-carrier-on')==='1'||subCanaryOn();}catch(_){return false;}}
-  // 2.4.0 서브는 기본 꺼짐 · 설정 → 5만 자가 넘칠 때 고르는 법 → [서브 칸에도 넣기]로 켠다(이 브라우저의 크랙 전체에 적용).
+  function overflowCarrierEnabled(){try{return localStorage.getItem('wish-overflow-carrier-on')!=='0'||subCanaryOn();}catch(_){return true;}}
+  // 2.5.2 서브는 다시 기본 켜짐(2.4.0의 기본 꺼짐을 되돌림). 긴 방은 꼭 넣는 칸이 메인 5만 자를 거의 채워 관계·지난 사건이 모두 서브에 있다. 끄려면 설정 스위치.
   function setOverflowCarrier(on){try{localStorage.setItem('wish-overflow-carrier-on',on?'1':'0');}catch(_){}}
   // 2.2.6 서브 칸 읽기 테스트: 켜면 서브 칸 맨 앞에 암호 C1~C5가 든 더미 약 4만 자를 넣는다(실제 기억은 건드리지 않음).
   function subCanaryOn(){try{return localStorage.getItem('wish-sub-canary')==='1';}catch(_){return false;}}
@@ -20209,7 +20209,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     const footer = `### 인지 적용 규칙
 - 인물은 확인된 앎·믿음의 범위에서 말하고 행동한다. 이후 RP에서 실제로 전달받거나 확인하거나 기억해 내면, 그때 드러난 범위와 믿음으로 갱신한다.
 - 이 자료를 읽은 것 자체는 극중 정보 전달이 아니다.
-- '아는지 확인 안 됨'은 안다고도 모른다고도 정하지 않는다.
+- 정보마다 이름이 적히지 않은 인물은 아는지 정해지지 않았다. 안다고도 모른다고도 정하지 않는다. - '(제목만)'인 정보는 내용을 짐작해 채우지 않는다.
 - 소문을 들은 것과 그게 사실임을 아는 것은 다르다.`;
     const sections = [], suppressed=[];
     for (const f of facts) {
@@ -20268,7 +20268,7 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
       if (aware.length) parts.push('- ' + aware.map(a => a.name).join('·') + ': 알고 있음');
       parts.push(...detailRows);
       if (unaware.length) parts.push('- ' + unaware.map(a => a.name).join('·') + ': 아직 모름');
-      if (unverified.length) parts.push('- ' + unverified.map(a => a.name).join('·') + ': 아는지 확인 안 됨');
+      // 2.5.2 '아는지 확인 안 됨' 명단은 넣지 않는다: 정보가 없는데 인지 칸의 40%를 차지했다(1000턴 방 실측 19,747자 중 8,492자). 규칙 줄 하나로 대신한다.
       // The stored scope says what exactly is hidden and how; the blank-input default adds nothing, and a long scope is cut at 200.
       // The compact fallback (lite) keeps only the boundary line, so a tight budget still carries every concealment.
       const lite = [];
@@ -20276,10 +20276,10 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
         + (c.publicName ? '; 이 상황에서 ' + c.publicName + ' 사용' : ''); lite.push(line);
         parts.push(line + (scope && scope !== '지정 상대에게 비공개' ? '; 숨기는 범위: ' + (scope.length > 200 ? cutAtSentenceEnd(scope, 200) || scope.slice(0, 200).replace(/[\ud800-\udbff]$/, '') + '…' : scope) : '')); }
       const defaultScore=conceals.length*20+(unaware.length+detailCount)*8+unverified.length*3+(query.strong?18:0)+(includeThisTurn?300:0)+(permanentMode==='always'?220:0)+(recent?12:0)+(factReviews.length?16:0)+(split?18:0);
-      const compact=['정보: '+String(f.label||'제목 없음')+' (자세한 내용 생략, 제목만으로 짐작하지 않음)',...parts.slice(1,parts.length-lite.length),...lite].join('\n');
+      const compact=['정보: '+String(f.label||'제목 없음')+' (제목만)',...parts.slice(1,parts.length-lite.length),...lite].join('\n');
       const stuck=!!pick&&!reasons.length&&Number(pick.sticky?.[f.id])>0, brief=!!pick&&!reasons.length&&!stuck;
       if(stuck)reasons.push('최근 장면에서 자세히 넣음');
-      const text=brief?['정보: '+String(f.label||'제목 없음')+' (자세한 내용 생략, 제목만으로 짐작하지 않음)',...parts.slice(1,parts.length-lite.length),...lite].join('\n'):parts.join('\n');
+      const text=brief?['정보: '+String(f.label||'제목 없음')+' (제목만)',...parts.slice(1,parts.length-lite.length),...lite].join('\n'):parts.join('\n');
       sections.push({id:f.id,text,compact,score:mode==='all'?defaultScore:score,reason:reasons[0]||(brief?'지금 장면과 관련이 적음':'모든 인지 정보'),reasons,present:present.size,mentioned:mentioned.size,brief,fresh:!!pick&&!brief&&!stuck,keep:unaware.length>0||unverified.length>0||lite.length>0||forceInclude||detailCount>0,detail:detailCount>0});
     }
     sections.sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
@@ -23176,7 +23176,7 @@ function mRelationships() {
       W_SECH('AI 요금 아끼기 '+help(ecoHelp),savedTag('apiEconomy'))+
       `<div class="w-grp" data-key="economy-settings">${apiOnly(W_TG('현재상태 바뀐 부분만 고치기','apiEconomy.delta',!V.ai.manual&&V.apiEconomy?.delta,'','변경된 원문 구간만 수정하고 나머지 문구는 보존합니다. 수정·추가·종료에 신규 RP 근거와 요청 토큰을 검증합니다. 애매한 편집은 원본을 유지하고 오류를 표시합니다. 날짜별 사건·자료·인지는 기존 증분 방식을 유지합니다.'))}${selOnly(W_TG('색인으로 후보 고르기','apiEconomy.index',!(V.ai.manual&&!V.ai.hybrid)&&V.apiEconomy?.index,'','전체 후보가 50,000자를 초과할 때만 기존 선별 설정에 따라 사용합니다. 첫 선별에서 원문과 점수를 읽고 짧은 발췌 색인을 함께 준비하므로 첫 호출은 더 커질 수 있습니다. 다음 호출부터 같은 원문의 색인을 사용하며 실제 주입은 원문입니다. 자료 변경·색인 부적합·캐시 소실 때는 원문으로 돌아갑니다. 핵심 단서 누락 가능성은 실전 비교가 필요합니다.'))}${W_R('켜기 전 백업','아끼기를 켜기 전 기억 · 인물 · 자료를 파일로 받아요',btn('절약 적용 전 백업 받기','economyBackup',{cls:'mini',dis:!!V.ai.manual}))}</div>${W_FOOT(esc([V.ai.manual?manualOff:'모든 방 공통',V.apiEconomy?.status||''].filter(Boolean).join(' · ')))}`+
       W_SECH('5만 자가 넘칠 때 고르는 법 '+help(recallHelp),savedTag('recall'))+
-      `<div class="w-grp" data-key="recall-settings"><div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-recall-mode">고르는 방식</label></span><span class="w-sub">평소엔 최근 · 관련 기억을 검색해서 넣어요</span></span><span class="w-acts">${selc('recall.mode',V.ai.manual?'local':mode,[['local','에리·키워드 결과만 사용'],['priority','AI로 후보 순서 재검토'],['both','AI로 관련성·순서 재검토'],['semantic','AI로 관련성만 재검토']],'m3-select',' id="wish-recall-mode" aria-label="선택된 기억 AI 재검토"'+(V.ai.manual?' disabled':''))}</span></div>${selOnly(W_TG('AI로 관련성 재확인','recall.semantic',!(V.ai.manual&&!V.ai.hybrid)&&q.semantic,'','사용하도록 설정한 전체 후보가 원문·서식 포함 50,000자를 초과하면 AI 답이 도착한 뒤 보조 AI가 그 답과의 문맥 관련성을 미리 확인합니다. 제외 항목은 유지하며, 키워드가 일치하지 않는 후보도 상위 144개(색인으로 후보 선별을 켜면 384개)까지 평가할 수 있습니다. 이번 USER 입력으로 검색 점수가 오른 후보는 빼지 않습니다. 의미검색 색인이 있으면 전송 때 이번 입력의 검색 벡터를 요청하되 기다리지 않고, 미리 만든 직전 AI 답의 검색 벡터나 키워드로 순위를 정합니다.'))}${selOnly(W_TG('AI로 우선순위 정하기','recall.selector',!(V.ai.manual&&!V.ai.hybrid)&&q.selector,'','직전 AI 답·미해결 약속·위험과 직접 연결된 후보부터 50,000자 안전선 안에 배치합니다. 이번 USER 입력으로 검색 점수가 오른 후보는 에리·키워드 자리를 지킵니다. 점수가 준비되지 않았거나 실패하면 에리·키워드 순위를 그대로 사용합니다.'))}<div class="w-row">${W_RM('서브 칸에도 넣기','5만 자가 넘치면 그 전 AI 답변에 더 넣어요 · 기본은 꺼짐')}${W_SW(overflowCarrierEnabled(),'overflowToggle',null,'서브 칸에도 넣기')}</div></div>${W_FOOT((V.ai.manual?manualOff+' · 최근·키워드 검색만 사용':'모든 방 공통')+' · 넘칠 때만 AI가 골라요 · 보낼 때는 기다리지 않아요')}`+
+      `<div class="w-grp" data-key="recall-settings"><div class="w-row"><span class="w-rm"><span class="w-t"><label for="wish-recall-mode">고르는 방식</label></span><span class="w-sub">평소엔 최근 · 관련 기억을 검색해서 넣어요</span></span><span class="w-acts">${selc('recall.mode',V.ai.manual?'local':mode,[['local','에리·키워드 결과만 사용'],['priority','AI로 후보 순서 재검토'],['both','AI로 관련성·순서 재검토'],['semantic','AI로 관련성만 재검토']],'m3-select',' id="wish-recall-mode" aria-label="선택된 기억 AI 재검토"'+(V.ai.manual?' disabled':''))}</span></div>${selOnly(W_TG('AI로 관련성 재확인','recall.semantic',!(V.ai.manual&&!V.ai.hybrid)&&q.semantic,'','사용하도록 설정한 전체 후보가 원문·서식 포함 50,000자를 초과하면 AI 답이 도착한 뒤 보조 AI가 그 답과의 문맥 관련성을 미리 확인합니다. 제외 항목은 유지하며, 키워드가 일치하지 않는 후보도 상위 144개(색인으로 후보 선별을 켜면 384개)까지 평가할 수 있습니다. 이번 USER 입력으로 검색 점수가 오른 후보는 빼지 않습니다. 의미검색 색인이 있으면 전송 때 이번 입력의 검색 벡터를 요청하되 기다리지 않고, 미리 만든 직전 AI 답의 검색 벡터나 키워드로 순위를 정합니다.'))}${selOnly(W_TG('AI로 우선순위 정하기','recall.selector',!(V.ai.manual&&!V.ai.hybrid)&&q.selector,'','직전 AI 답·미해결 약속·위험과 직접 연결된 후보부터 50,000자 안전선 안에 배치합니다. 이번 USER 입력으로 검색 점수가 오른 후보는 에리·키워드 자리를 지킵니다. 점수가 준비되지 않았거나 실패하면 에리·키워드 순위를 그대로 사용합니다.'))}<div class="w-row">${W_RM('서브 칸에도 넣기','5만 자가 넘치면 그 전 AI 답변에 더 넣어요 · 긴 방은 켜 두세요')}${W_SW(overflowCarrierEnabled(),'overflowToggle',null,'서브 칸에도 넣기')}</div></div>${W_FOOT((V.ai.manual?manualOff+' · 최근·키워드 검색만 사용':'모든 방 공통')+' · 넘칠 때만 AI가 골라요 · 보낼 때는 기다리지 않아요')}`+
       (()=>{const z=WishZh.status(),eng=z.engine||'chrome';
         return W_SECH('중국어로 보내기 (선택) '+help('[무엇]\n저장은 한국어 그대로 두고, AI에게 보낼 때만 미리 번역해 둔 번체 중국어를 넣어요. 같은 자리에 기억이 더 많이 들어가요.\n\n[번역하지 않는 것]\n인물 이름 · 애칭 · 대사(따옴표 안) · 영어는 원문 그대로 끼워요. 호칭·말투 · 떡밥 목록 · 캐릭터 설정 · 진행 규칙은 번역하지 않아요.\n\n[안전장치]\n번역 뒤 숫자 · 끼운 말이 다 남았는지 검사해서, 하나라도 빠지면 그 기억은 한국어로 보내요. 보낼 때는 번역을 기다리지 않아요(아직 번역 안 된 건 한국어).\n\n[번역 방식]\nChatGPT 웹: API 없이 · ChatGPT 임시 채팅 탭에서 모아서 번역(정리가 먼저)\nDeepL: 무료 키 월 50만 자 · 글이 DeepL로 감\nDeepSeek: AI 설정의 DeepSeek 키 · 한 번 번역한 건 다시 안 해서 처음에만 조금 듦\nGemini: AI 설정의 Gemini 키 사용 · 무료 등급이면 무료 · 글이 구글로 감'))+
         `<div class="w-grp" data-key="zh-settings"><div class="w-row">${W_RM('중국어로 보내기','끄면 지금처럼 한국어로만 보내요 · 기본은 꺼짐')}${W_SW(!!z.on,'zhToggle',null,'중국어로 보내기')}</div>`+
