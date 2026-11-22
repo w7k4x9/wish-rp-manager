@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 RP 도우미
 // @namespace    local.rp.context.manager
-// @version      2.5.3
+// @version      2.5.4
 // @icon         data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='5.5' x2='0' y2='122.5' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232C9BFF'/%3E%3Cstop offset='1' stop-color='%23047CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M122.5 64.0 L122.4 68.9 L122.0 73.2 L121.5 77.2 L120.7 81.1 L119.7 84.8 L118.4 88.4 L117.0 91.9 L115.3 95.2 L113.5 98.3 L111.4 101.3 L109.1 104.1 L106.7 106.7 L104.1 109.1 L101.3 111.4 L98.3 113.5 L95.2 115.3 L91.9 117.0 L88.4 118.4 L84.8 119.7 L81.1 120.7 L77.2 121.5 L73.2 122.0 L68.9 122.4 L64.0 122.5 L59.1 122.4 L54.8 122.0 L50.8 121.5 L46.9 120.7 L43.2 119.7 L39.6 118.4 L36.1 117.0 L32.8 115.3 L29.7 113.5 L26.7 111.4 L23.9 109.1 L21.3 106.7 L18.9 104.1 L16.6 101.3 L14.5 98.3 L12.7 95.2 L11.0 91.9 L9.6 88.4 L8.3 84.8 L7.3 81.1 L6.5 77.2 L6.0 73.2 L5.6 68.9 L5.5 64.0 L5.6 59.1 L6.0 54.8 L6.5 50.8 L7.3 46.9 L8.3 43.2 L9.6 39.6 L11.0 36.1 L12.7 32.8 L14.5 29.7 L16.6 26.7 L18.9 23.9 L21.3 21.3 L23.9 18.9 L26.7 16.6 L29.7 14.5 L32.8 12.7 L36.1 11.0 L39.6 9.6 L43.2 8.3 L46.9 7.3 L50.8 6.5 L54.8 6.0 L59.1 5.6 L64.0 5.5 L68.9 5.6 L73.2 6.0 L77.2 6.5 L81.1 7.3 L84.8 8.3 L88.4 9.6 L91.9 11.0 L95.2 12.7 L98.3 14.5 L101.3 16.6 L104.1 18.9 L106.7 21.3 L109.1 23.9 L111.4 26.7 L113.5 29.7 L115.3 32.8 L117.0 36.1 L118.4 39.6 L119.7 43.2 L120.7 46.9 L121.5 50.8 L122.0 54.8 L122.4 59.1Z' fill='url%28%23g%29'/%3E%3Cpath d='M64 32c-19.9 0-36 13-36 29.3 0 9.2 5.1 17.4 13.1 22.8L38 96.5l14.9-7.6c3.5.9 7.2 1.3 11.1 1.3 19.9 0 36-13 36-29S83.9 32 64 32z' fill='%23fff'/%3E%3Cpath d='M64 46v16l10.5 6.5' fill='none' stroke='%231688FF' stroke-width='7.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E
 // @downloadURL  https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
 // @updateURL    https://raw.githubusercontent.com/w7k4x9/wish-rp-manager/main/WRMC.user.js
@@ -7208,8 +7208,13 @@ function wishApplyReferencesDelta(db,data,skip=null){if(!data||!Array.isArray(da
     const list=turns(frame),m=autoMemoryState(room),cfg=settings(room);
     // Only new installations start at the current frontier; existing cursors and
     // pending legacy memory work are retained. No old database is cleared.
-    const cursor=m.lastProcessedMessageId||((Number(m.committedTurns)||0)>0?'':list.at(-1)?.key||'');
-    const observe=cog.lastAnalysis||list.at(-1)?.key||'';
+    // 2.5.4 새 방: 기억이 하나도 없으면 지금부터가 아니라 지난 대화 최근 40턴부터 읽는다(40턴 이하면 처음부터). 전에는 켠 순간부터만
+    // 세서 이미 나눈 대화를 하나도 몰라, 밖에서 요약해 넣고 켜야 했다. 더 앞은 자료 관리 → 다시 만들기로 읽는다.
+    const START_BACK=40,emptyMemory=!String(room.slots?.find(s=>s.id==='currentState')?.content||'').trim()&&!String(room.slots?.find(s=>s.id==='logSummary')?.content||'').trim();
+    const backTo=list.length>START_BACK?list.at(-START_BACK-1)?.key||'':'',fresh=!m.lastProcessedMessageId&&!(Number(m.committedTurns)>0);
+    const cursor=m.lastProcessedMessageId||((Number(m.committedTurns)||0)>0?'':(emptyMemory?backTo:list.at(-1)?.key||''));
+    const observe=cog.lastAnalysis||(emptyMemory&&fresh?backTo:list.at(-1)?.key||'');
+    if(fresh&&emptyMemory&&list.length)try{notify(list.length>START_BACK?`처음 켠 방이라 지난 대화 최근 ${START_BACK}턴을 먼저 정리해요. 그보다 앞(${list.length-START_BACK}턴)은 자료 관리 → 다시 만들기로 읽을 수 있어요.`:`처음 켠 방이라 지난 대화 ${list.length}턴을 처음부터 정리해요.`,'info',9000);}catch(_){}
     const next=copy(room);
     next.unified={version:VERSION,settings:cfg,memoryCursor:cursor,observeCursor:observe,
       lastError:'',status:'통합 정리 준비됨',memoryManifest:copy(room.aiSourceManifests?.logSummary||room.aiSourceManifests?.currentState||[]),observeManifest:copy(cog.sourceManifest||[]),initializedAt:Date.now()};
@@ -18875,6 +18880,224 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     return {watch,valid,parse,swap,system,recentLine};
   })();
 
+  /* ───────── 크랙 장기기억 관리 (2.5.4) ─────────
+     크랙 「요약 메모리 › 장기 기억」을 이 스크립트가 쓴 카드로 정리한다. 크랙 화면이 쓰는 것과 같은 길만 쓴다:
+       읽기  GET    /v3/chats/{id}/summaries?type=longTerm&limit&orderBy&filter&cursor  → data.summaries[{_id,title,summary,createdBy,createdAt}], nextCursor
+       쓰기  POST   /v3/chats/{id}/summaries  {title(20자), summary(300자), type:'longTerm'}
+       지우기 DELETE /v3/chats/{id}/summaries  {summaryIds:[…]}
+     지우는 것은 둘뿐이다. ① createdBy가 'assistant'인 크랙 자동 카드 가운데, 그 내용을 넘긴 AI 답을 받아 새 카드를 다 올린 묶음
+     ② 이 스크립트가 만든 카드(방 기록에 id가 있는 것) 가운데, 고쳐 쓰거나 합쳐서 새 카드를 다 올린 것.
+     사람이 직접 쓴 카드(자동도 아니고 우리 기록에도 없는 카드)는 AI에게 보내지도, 지우지도 않는다. 우리 기록을 잃으면
+     우리 카드도 '직접 쓴 카드'로 보아 건드리지 않는다(안전한 쪽). 지우기 전에 자동 카드 원문을 방 데이터에 백업한다. */
+  const CrackLtm=(()=>{
+    const BASE='https://crack-api.wrtn.ai/crack-gen/v3/chats/',CFG_KEY='wish-crack-ltm',EVERY=[10,20,30,50];
+    const TITLE_MAX=20,BODY_MAX=300,CAP=15,AFTER_MERGE=12,RP_CHUNK=40000,AUTO_BATCH=120,AUTO_UNITS_PER_RUN=3,BACKUP_MAX=5000;
+    const running=new Map();
+    const sleep=ms=>new Promise(done=>setTimeout(done,ms));
+    const repaint=()=>{try{WUI.paint(false);}catch(_){/* 패널이 닫혀 있음 */}};
+    function config(){let c={};try{c=JSON.parse(localStorage.getItem(CFG_KEY)||'{}')||{};}catch(_){c={};}return {on:c.on===true,every:EVERY.includes(Number(c.every))?Number(c.every):20,absorbDelete:c.absorbDelete!==false};}
+    function setConfig(patch){const next={...config(),...patch};try{localStorage.setItem(CFG_KEY,JSON.stringify(next));}catch(_){/* 이 탭에서만 */}return next;}
+    // 턴 세기: 최신 AI 답 바로 앞 USER 메시지 id가 바뀔 때 1턴(리롤은 같은 턴). 이 브라우저에만.
+    const tickKey=rid=>'wish-crack-ltm-tick:'+rid,mineKey=rid=>'wish-crack-ltm-mine:'+rid;
+    function tick(rid){try{const v=JSON.parse(localStorage.getItem(tickKey(rid))||'{}');return v&&typeof v==='object'?v:{};}catch(_){return {};}}
+    function setTick(rid,v){try{localStorage.setItem(tickKey(rid),JSON.stringify(v));}catch(_){/* 다음 답에서 다시 */}}
+    function store(room){if(!room.crackLtm||typeof room.crackLtm!=='object')room.crackLtm={};const s=room.crackLtm;for(const k of ['mine','backup','absorbed'])if(!Array.isArray(s[k]))s[k]=[];return s;}
+    // 우리 카드 id(오래된 것부터). 방 데이터가 기준이고, 이 브라우저 localStorage에 같은 목록을 한 벌 더 둔다.
+    function mineOf(room,rid){const s=store(room);if(s.mine.length)return s.mine.map(String);try{const v=JSON.parse(localStorage.getItem(mineKey(rid))||'[]');return Array.isArray(v)?v.map(String):[];}catch(_){return [];}}
+    async function setMine(room,rid,ids){const s=store(room);s.mine=[...new Set(ids.map(String))];try{localStorage.setItem(mineKey(rid),JSON.stringify(s.mine));}catch(_){/* 방 데이터에는 남음 */}await saveRoom(room);}
+    const url=(rid,tail='')=>BASE+encodeURIComponent(rid)+'/summaries'+tail;
+    const ok=(res,what)=>{if(res&&res.result&&res.result!=='SUCCESS')throw Error('크랙이 '+what+'을 거절했어요.');return res;};
+
+    async function listAll(rid){
+      const out=[],seen=new Set();let cursor='',limit=100,meta=null,pages=0;
+      while(pages<200){
+        const q=new URLSearchParams({limit:String(limit),type:'longTerm',orderBy:'newest',filter:'all'});if(cursor)q.set('cursor',cursor);
+        let res;
+        try{res=await apiRequest('GET',url(rid,'?'+q));}
+        catch(e){if(limit>20&&!out.length&&/API 오류 4\d\d/.test(String(e?.message||''))){limit=20;continue;}throw e;}
+        pages++;
+        const d=res?.data||{},rows=Array.isArray(d.summaries)?d.summaries:null;
+        if(!rows)throw Error('크랙 장기기억 목록 모양을 알 수 없어 멈췄어요. 아무것도 바꾸지 않았어요.');
+        if(!meta)meta={total:Number(d.totalCount)||0,creatable:d.isCreatable!==false};
+        for(const r of rows){const id=String(r?._id||'');if(id&&!seen.has(id)){seen.add(id);out.push(r);}}
+        cursor=String(d.nextCursor||'');if(!cursor||!rows.length)break;
+        await sleep(120);
+      }
+      return {rows:out,meta:meta||{total:0,creatable:true}};
+    }
+    async function create(rid,card){
+      const res=ok(await apiRequest('POST',url(rid),{title:card.title,summary:card.summary,type:'longTerm'}),'카드 추가');
+      const d=res?.data;return String(d?._id||d?.summary?._id||d?.id||'');
+    }
+    async function remove(rid,ids){
+      for(let i=0;i<ids.length;i+=50){
+        const part=ids.slice(i,i+50);
+        try{ok(await apiRequest('DELETE',url(rid),{summaryIds:part}),'카드 지우기');}
+        catch(e){if(!/API 오류 (?:404|405)\b/.test(String(e?.message||'')))throw e;for(const id of part){ok(await apiRequest('DELETE',url(rid,'/'+encodeURIComponent(id))),'카드 지우기');await sleep(80);}}
+        await sleep(120);
+      }
+    }
+    function clip(text,max){
+      const s=String(text||'').replace(/\s+/g,' ').trim();if(s.length<=max)return s;
+      const cut=s.slice(0,max),end=Math.max(cut.lastIndexOf('. '),cut.lastIndexOf('다.'),cut.lastIndexOf('요.'),cut.lastIndexOf('.'));
+      return (end>=max*.6?cut.slice(0,end+(cut[end]==='.'?1:2)):cut).trim();
+    }
+    const card=c=>({title:clip(c?.title,TITLE_MAX),summary:clip(c?.summary,BODY_MAX)});
+    const usable=c=>c.title&&c.summary.length>=10;
+    function parse(text){
+      let s=String(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'');
+      try{return JSON.parse(s);}catch(_){const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a>=0&&b>a)return JSON.parse(s.slice(a,b+1));throw Error('AI 답을 JSON으로 읽지 못했어요.');}
+    }
+    const RULES=['- 담을 것: 인물 사이 관계와 그 변화, 약속 · 비밀 · 빚 · 갈등, 되풀이되는 놀이 · 별명 · 습관, 나이 · 사는 곳 · 직업 같은 고정 사실, 큰 사건과 그 결과.',
+      '- 뺄 것: 그 장면에서 끝난 사소한 동작, 분위기 묘사, 대사 통째로 옮기기(꼭 필요한 짧은 말만 따옴표로).',
+      '- 이야기 속 날짜가 있으면 summary 맨 앞에 적는다(예: "2029.03 · …"). 날짜를 모르면 쓰지 않는다.',
+      '- 카드 하나에 주제 하나. title은 20자 이내 명사구, summary는 300자 이내 한국어 평서문(…했다).',
+      '- 입력에 없는 내용은 지어내지 않는다. 인물 이름은 입력에 나온 그대로 쓴다.'].join('\n');
+    const SYS_UNIT='너는 긴 RP의 장기 기억 카드를 정리하는 편집자다. 이 카드는 크랙(캐릭터 채팅)의 장기 기억 칸에 들어가고, RP AI가 오래된 일을 떠올릴 때 읽는다.\n\n'+
+      '입력(JSON)\n- "지금 카드": 이미 있는 정리 카드 [{id,title,summary}] (오래된 것부터)\n- "새 RP": 지난 정리 뒤의 RP 원문 (있을 때)\n- "크랙 자동 카드": 크랙이 자동으로 만든 짧은 요약 카드 (있을 때, 오래된 것부터)\n\n'+
+      '할 일: 새 RP와 크랙 자동 카드에서 오래 기억할 만한 것을 카드에 담는다.\n'+RULES+'\n'+
+      '- 지금 카드에 이미 있는 내용은 다시 쓰지 않는다. 같은 주제에 보탤 것이 있으면 그 카드를 고쳐 쓴다(replace에 그 id, 고친 전체 글).\n'+
+      '- 새 카드는 적게: 새 RP 10턴이나 자동 카드 20장에 1장 정도, 한 번에 많아야 8장. 담을 게 없으면 빈 목록.\n\n'+
+      '출력은 JSON 하나만: {"replace":[{"id":"지금 카드 id","title":"","summary":""}],"add":[{"title":"","summary":""}]}';
+    const SYS_MERGE=n=>'너는 긴 RP의 장기 기억 카드를 정리하는 편집자다. 아래는 오래된 기억 카드들이다(오래된 것부터). 이것들을 합쳐 '+n+'장 이하로 줄인다.\n'+
+      '- 시기나 주제가 가까운 카드끼리 묶는다. 관계 · 약속 · 비밀 · 고정 사실은 남기고, 끝나서 다시 쓰일 일 없는 세부는 줄인다.\n'+RULES+'\n\n'+
+      '출력은 JSON 하나만: {"cards":[{"title":"","summary":""}]} (오래된 것부터)';
+    async function ask(system,payload,label){
+      const settings=selectionAiSettings();
+      const reply=await callAiProvider(settings,system,JSON.stringify(payload),{taskKind:'extract',responseMimeType:'application/json',operationLabel:label,maxOutputTokens:8192,timeoutMs:180000});
+      return parse(reply?.text??reply);
+    }
+    // 지난 정리 뒤의 RP(처음이면 최근 '주기'턴). 최근 목록은 최신 것부터 온다.
+    async function rpSince(rid,cfg){
+      const t=tick(rid),want=Math.min(120,Math.max(cfg.every,Number(t.turns)||0)*2+6);
+      const recent=await fetchRecentMessages(rid,want);
+      const latestAi=recent.find(m=>messageRoleOf(m)==='assistant');
+      let list=recent;const at=t.mark?list.findIndex(m=>String(messageIdOf(m))===String(t.mark)):-1;
+      list=at>=0?list.slice(0,at):list.slice(0,cfg.every*2);
+      const lines=list.filter(m=>['user','assistant'].includes(messageRoleOf(m))).reverse().map(m=>{
+        const text=stripDrawerBlock(messageOwnText(messageTextOf(m))).trim();return text?(messageRoleOf(m)==='user'?'[유저] ':'[AI] ')+text:'';}).filter(Boolean);
+      const chunks=[];let cur='';
+      for(const line of lines){const piece=line.length>RP_CHUNK?line.slice(0,RP_CHUNK):line;if(cur&&cur.length+piece.length+2>RP_CHUNK){chunks.push(cur);cur='';}cur+=(cur?'\n\n':'')+piece;}
+      if(cur)chunks.push(cur);
+      return {chunks,mark:String(messageIdOf(latestAi)||t.mark||'')};
+    }
+    // 새로 만든 카드 id를 응답에서 못 받았으면, 방금(시작 뒤) 생긴 사람 쓴 카드 가운데 제목 · 본문이 같은 것을 찾는다.
+    async function resolveIds(rid,made,since,known){
+      if(made.every(x=>x.id))return;
+      const {rows}=await listAll(rid);
+      for(const x of made){if(x.id)continue;const hit=rows.find(r=>r.createdBy!=='assistant'&&!known.has(String(r._id))&&String(r.title)===x.card.title&&String(r.summary)===x.card.summary&&(Date.parse(r.createdAt)||0)>=since-60000);if(hit){x.id=String(hit._id);known.add(x.id);}}
+      if(made.some(x=>!x.id))throw Error('새 카드는 올렸지만 크랙에서 다시 찾지 못해, 지우기는 하지 않았어요.');
+    }
+    // 카드 여러 장을 올리고 id를 받는다. 하나라도 실패하면 거기서 멈춘다(올린 것은 우리 카드로 남는다).
+    async function upload(room,rid,cards,mine){
+      const since=Date.now(),made=[],known=new Set(mine.map(c=>String(c._id)));
+      try{for(const c of cards){made.push({card:c,id:await create(rid,c),old:c.old||''});await sleep(150);}}
+      finally{if(made.length){try{await resolveIds(rid,made,since,known);}finally{const ids=made.filter(x=>x.id).map(x=>x.id);if(ids.length)await setMine(room,rid,[...mineOf(room,rid),...ids]);}}}
+      return made;
+    }
+    async function absorb(room,rid,cfg,unit,mine,job){
+      const payload={'지금 카드':mine.map(c=>({id:String(c._id),title:c.title,summary:c.summary}))};
+      if(unit.kind==='rp')payload['새 RP']=unit.text;else payload['크랙 자동 카드']=unit.rows.map(r=>({title:String(r.title||''),summary:String(r.summary||'')}));
+      const data=await ask(SYS_UNIT,payload,'크랙 장기기억 정리');
+      const mineIds=new Set(mine.map(c=>String(c._id)));
+      const repl=(Array.isArray(data?.replace)?data.replace:[]).filter(x=>mineIds.has(String(x?.id))).map(x=>({...card(x),old:String(x.id)})).filter(usable);
+      const adds=(Array.isArray(data?.add)?data.add:[]).map(card).filter(usable).slice(0,8);
+      const made=await upload(room,rid,[...repl,...adds],mine);
+      // 고쳐 쓴 카드: 새 카드가 같은 자리에 들어가고 옛 카드는 지운다.
+      const olds=made.filter(x=>x.old&&x.id).map(x=>x.old);
+      if(olds.length){await remove(rid,olds);const order=mineOf(room,rid).map(id=>{const m=made.find(x=>x.old===id);return m?m.id:id;}).filter((id,i,a)=>a.indexOf(id)===i&&!olds.includes(id));await setMine(room,rid,order);}
+      if(unit.kind==='auto'){
+        const s=store(room),ids=unit.rows.filter(r=>r.createdBy==='assistant').map(r=>String(r._id));
+        s.backup.push(...unit.rows.map(r=>({id:String(r._id),title:String(r.title||''),summary:String(r.summary||''),createdAt:String(r.createdAt||''),at:Date.now()})));
+        if(s.backup.length>BACKUP_MAX)s.backup.splice(0,s.backup.length-BACKUP_MAX);
+        if(cfg.absorbDelete){await saveRoom(room);await remove(rid,ids);job.deleted+=ids.length;}
+        else{s.absorbed.push(...ids);if(s.absorbed.length>20000)s.absorbed.splice(0,s.absorbed.length-20000);await saveRoom(room);}
+        job.absorbed+=ids.length;
+      }
+      job.added+=made.filter(x=>!x.old).length;job.rewritten+=olds.length;
+      // 다음 묶음이 볼 우리 카드(순서는 방 기록 순서).
+      const byId=new Map(mine.map(c=>[String(c._id),c]));for(const x of made)byId.set(x.id,{_id:x.id,title:x.card.title,summary:x.card.summary});
+      return mineOf(room,rid).map(id=>byId.get(id)).filter(Boolean);
+    }
+    async function merge(room,rid,mine,job){
+      let rounds=0;
+      while(mine.length>CAP&&rounds++<8){
+        let g=Math.min(mine.length,4);while(g<mine.length&&g<40&&mine.length-g+Math.ceil(g/3)>AFTER_MERGE)g++;
+        const group=mine.slice(0,g),want=Math.max(1,Math.ceil(g/3));
+        job.label='오래된 카드 합치는 중';repaint();
+        const data=await ask(SYS_MERGE(want),{'카드':group.map(c=>({title:c.title,summary:c.summary}))},'크랙 장기기억 합치기');
+        const cards=(Array.isArray(data?.cards)?data.cards:[]).map(card).filter(usable).slice(0,Math.max(want,g-1));
+        if(!cards.length)throw Error('오래된 카드를 합친 결과가 비어 있어 그대로 두었어요.');
+        const made=await upload(room,rid,cards,mine);
+        const newIds=made.map(x=>x.id),goneIds=group.map(c=>String(c._id));
+        await remove(rid,goneIds);
+        const rest=mineOf(room,rid).filter(id=>!goneIds.includes(id)&&!newIds.includes(id));
+        await setMine(room,rid,[...newIds,...rest]);
+        job.merged+=goneIds.length;
+        const byId=new Map(mine.map(c=>[String(c._id),c]));for(const x of made)byId.set(x.id,{_id:x.id,title:x.card.title,summary:x.card.summary});
+        mine=mineOf(room,rid).map(id=>byId.get(id)).filter(Boolean);
+      }
+      return mine;
+    }
+    async function run(room,{manual=false}={}){
+      const rid=String(apiChatIdOf(room)||'');if(!rid)throw Error('채팅방을 아직 찾지 못했어요.');
+      if(running.has(rid))throw Error('이 방은 이미 정리하고 있어요.');
+      const settings=selectionAiSettings();
+      if(isManualAiProvider(settings)||!isAiProviderReady(settings))throw Error('크랙 장기기억 정리에는 API 연결이 필요해요. 설정 › 정리해 줄 AI에서 연결하거나, 「후보 선별만 API로」에 API를 걸어 주세요.');
+      const cfg=config(),job={label:'장기기억 목록 읽는 중',done:0,total:0,added:0,rewritten:0,absorbed:0,deleted:0,merged:0};
+      running.set(rid,job);repaint();
+      try{
+        const {rows,meta}=await listAll(rid);
+        if(!meta.creatable)throw Error('크랙이 지금 이 방에는 장기기억 카드를 더 못 넣게 해 두었어요.');
+        const alive=new Set(rows.map(r=>String(r._id))),order=mineOf(room,rid).filter(id=>alive.has(id));
+        if(order.length!==mineOf(room,rid).length)await setMine(room,rid,order);
+        const byId=new Map(rows.map(r=>[String(r._id),r])),absorbed=new Set(store(room).absorbed.map(String));
+        let mine=order.map(id=>byId.get(id)).filter(Boolean);
+        const byOld=(a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0);
+        const auto=rows.filter(r=>r.createdBy==='assistant'&&!absorbed.has(String(r._id))).sort(byOld);
+        const hand=rows.filter(r=>r.createdBy!=='assistant'&&!order.includes(String(r._id))).length;
+        job.label='지난 정리 뒤의 RP 읽는 중';repaint();
+        const rp=await rpSince(rid,cfg);
+        const units=[...rp.chunks.map(text=>({kind:'rp',text}))];
+        for(let i=0;i<auto.length;i+=AUTO_BATCH)units.push({kind:'auto',rows:auto.slice(i,i+AUTO_BATCH)});
+        const todo=manual?units:units.slice(0,rp.chunks.length+AUTO_UNITS_PER_RUN);
+        job.total=todo.length;
+        for(const unit of todo){
+          job.label=unit.kind==='rp'?'새 RP를 카드로 정리하는 중':'크랙 자동 카드 '+unit.rows.length+'장 흡수하는 중';repaint();
+          mine=await absorb(room,rid,cfg,unit,mine,job);
+          job.done++;repaint();
+        }
+        mine=await merge(room,rid,mine,job);
+        const t=tick(rid);setTick(rid,{...t,turns:0,mark:rp.mark,at:Date.now(),failAt:0});
+        const left=Math.max(0,auto.length-todo.filter(u=>u.kind==='auto').reduce((n,u)=>n+u.rows.length,0));
+        const s=store(room);s.last={at:Date.now(),mine:mine.length,hand,left,job:{...job}};await saveRoom(room);
+        const parts=[job.added&&'새 카드 '+job.added+'장',job.rewritten&&'고쳐 쓴 카드 '+job.rewritten+'장',job.absorbed&&'자동 카드 '+job.absorbed+'장 흡수'+(job.deleted?'·삭제':''),job.merged&&'오래된 카드 '+job.merged+'장 합침'].filter(Boolean);
+        return '크랙 장기기억 정리 끝 · '+(parts.length?parts.join(' · '):'바꿀 것 없음')+' · 도우미 카드 '+mine.length+'/'+CAP+'장'+(left?' · 자동 카드 '+left+'장은 다음 정리 때':'');
+      }catch(e){const s=store(room);s.last={...(s.last||{}),error:String(e?.message||e),errorAt:Date.now()};try{await saveRoom(room);}catch(_){/* 오류 표시만 못 남김 */}throw e;}
+      finally{running.delete(rid);repaint();}
+    }
+    function watch(room,frame,reason){
+      const cfg=config();if(!cfg.on||reason==='before-send'||reason==='before-reroll')return;
+      const rid=String(apiChatIdOf(room)||''),latest=frame?.latest;
+      if(!rid||!latest||messageRoleOf(latest)!=='assistant'||generationPending(rid))return;
+      const list=frame.messages||[],at=list.indexOf(latest),user=list.slice(Math.max(0,at+1)).find(m=>messageRoleOf(m)==='user'),uid=String(messageIdOf(user)||'');
+      if(!uid)return;
+      const t=tick(rid);
+      if(!t.user){setTick(rid,{...t,user:uid,turns:Number(t.turns)||0});return;}
+      if(t.user===uid)return;
+      t.user=uid;t.turns=(Number(t.turns)||0)+1;setTick(rid,t);repaint();
+      if(t.turns<cfg.every||running.has(rid)||(t.failAt&&Date.now()-t.failAt<15*60000))return;
+      const settings=selectionAiSettings();if(isManualAiProvider(settings)||!isAiProviderReady(settings))return;
+      wishIdle(()=>{run(room).then(m=>notify(m,'success',6000)).catch(e=>{const x=tick(rid);x.failAt=Date.now();setTick(rid,x);notify('크랙 장기기억 정리 보류: '+String(e?.message||e),'warn',8000,{error:e});});});
+    }
+    function view(room){
+      const cfg=config(),rid=String(apiChatIdOf(room)||''),job=rid?running.get(rid):null,t=rid?tick(rid):{},last=room?.crackLtm?.last||null;
+      return {cfg,job,last,turns:Number(t.turns)||0,left:Math.max(0,cfg.every-(Number(t.turns)||0)),backup:room?.crackLtm?.backup?.length||0};
+    }
+    function backupText(room){const b=room?.crackLtm?.backup||[];return b.length?JSON.stringify({room:String(apiChatIdOf(room)||''),note:'크랙 RP 도우미가 흡수한 뒤 지운 크랙 자동 장기기억 카드 원문',cards:b},null,2):'';}
+    return {config,setConfig,run,watch,view,backupText,busy:room=>running.has(String(apiChatIdOf(room)||''))};
+  })();
+
   function reconcileStableCarrier(){const __t=performance.now();try{return reconcileStableCarrier__perf.apply(this,arguments);}finally{__wpfAdd('reconcileStableCarrier',performance.now()-__t);}}
   async function reconcileStableCarrier__perf(room,reason='update',knownFrame=null,control=null) {
     control?.assertActive?.();
@@ -18997,6 +19220,8 @@ async function convertTextToLoreEntries(sourceText) {return await WLOG.run("텍�
     const latestId=String(messageIdOf(frame.latest)||'');
     // 답변 검수: 새 답변이 끝난 걸 여기서 본다. 기다리지 않고, 실패해도 주입과 무관하다.
     try{WishProof.watch(room,frame,reason);}catch(error){console.debug('[Wish] proof watch skipped',error);}
+    // 크랙 장기기억: 턴을 세다가 주기가 되면 뒤에서 정리한다. 기다리지 않고, 실패해도 주입과 무관하다.
+    try{CrackLtm.watch(room,frame,reason);}catch(error){console.debug('[Wish] crack ltm watch skipped',error);}
     // 기억 서랍 · 뜻으로 찾기: 전송 직전에는 이 글의 임베딩을 길어야 5.5초 기다리고, 그 밖에는 뒤에서 색인을 조금씩 만든다. 실패해도 주입과 무관하다.
     try{const on=rpMemoSettings();if(on.drawer&&on.drawerDeep){if(reason==='before-send'&&recallUser)await Promise.race([WishDrawer.prepare(room,recallUser).catch(error=>console.debug('[Wish] drawer deep skipped',error)),new Promise(done=>setTimeout(done,5500))]);else WishDrawer.tend(room,reason);}}catch(error){console.debug('[Wish] drawer deep skipped',error);}
     if(reason==='before-reroll')RecallPrefetch.drop(latestId);
@@ -22530,11 +22755,18 @@ function createWishUI(AD) {
     const pctV=n=>totV>0?Math.round(n/totV*100)+'%':'0%';
     const segs=rank.filter(k=>amt(k)>0).map(k=>[k,W_CATS.find(c=>c[0]===k)[1],amt(k)]).sort((a,b)=>b[2]-a[2]);
     const bar=`<div class="w-bar w-sbar" role="img" aria-label="${esc(segs.map(([,l,n])=>l+' '+fmt(n)+'자').concat(overV?['기억 아님 '+fmt(overV)+'자']:[]).join(', '))}">${segs.map(([k,l,n])=>`<span data-cat="${k}" style="width:${Math.min(100,n/capV*100)}%;background:${colorOf(k)}"><em>${esc(l)} · ${fmt(n)}자 · ${pctV(n)}</em></span>`).join('')}${overV?`<span data-cat="over" class="w-hatch" style="width:${Math.min(100,overV/capV*100)}%"><em>기억 아님 · ${fmt(overV)}자</em></span>`:''}</div>`;
-    const ownTxt=Number(I.overflow?.own)>0?` · 서브 자리 ${fmt(subCap)}자(그 전 답변 본문 ${fmt(Number(I.overflow.own))}자 제외)`:'';const capLine=view==='all'?`① 메인 ${fmt(tot)}자 + ② 서브 ${fmt(ovc)}자${ownTxt}`:view==='main'?'직전 AI 답변 끝에 숨김 · '+(I.verified?'서버에서 확인했어요':I.matchesSaved?'서버 확인 중':'아직 보내기 전'):ovc?'그 전 AI 답변 끝에 숨김 · ①에 못 들어간 다음 순위 기억 '+fmt(I.overflow.count)+'개':I.overflowError?'이번엔 붙이지 못했어요 · '+esc(String(I.overflowError).slice(0,100)):'비어 있어요 · ①이 5만 자를 넘으면 여기에 더 넣어요';
+    const ownTxt=Number(I.overflow?.own)>0?` · 서브 자리 ${fmt(subCap)}자(그 전 답변 본문 ${fmt(Number(I.overflow.own))}자 제외)`:'';const dLast3=(()=>{try{return rpMemoSettings().drawer?WishDrawer.last(state.currentRoom):null;}catch(_){return null;}})(),dChars3=(dLast3?.rows||[]).reduce((n,r)=>n+String(r.text||'').length,0),drawerTxt=dChars3?` + ③ 내 메시지 ${fmt(dChars3)}자`:'';const capLine=view==='all'?`① 메인 ${fmt(tot)}자 + ② 서브 ${fmt(ovc)}자${drawerTxt}${ownTxt}`:view==='main'?(drawerTxt?'③ 기억 서랍 '+fmt(dChars3)+'자는 내 메시지 끝에 따로 · ':'')+'직전 AI 답변 끝에 숨김 · '+(I.verified?'서버에서 확인했어요':I.matchesSaved?'서버 확인 중':'아직 보내기 전'):ovc?'그 전 AI 답변 끝에 숨김 · ①에 못 들어간 다음 순위 기억 '+fmt(I.overflow.count)+'개':I.overflowError?'이번엔 붙이지 못했어요 · '+esc(String(I.overflowError).slice(0,100)):'비어 있어요 · ①이 5만 자를 넘으면 여기에 더 넣어요';
     const catOrder=[...W_CATS].sort((a,b)=>{const on=c=>c[3]?!!c[4]():true;return (on(b)&&amt(b[0])>0)-(on(a)&&amt(a[0])>0)||amt(b[0])-amt(a[0])||on(b)-on(a);});
     // 줄을 누르면 그 분류에 실제로 무엇이 들어갔는지 펼쳐 봐요(메인 · 서브 · 빠짐과 이유). 스위치는 따로.
     const itemPlace=i=>!i.off?'main':String(i.offReason||'').startsWith('보조 주입')?'sub':'out';
     const PLACE={main:'메인',sub:'서브',out:'빠짐'};
+    // 2.5.4 인지 칸을 펼치면 정보별로 무엇이 자세히·제목만·빠짐으로 들어갔는지 보여 준다(전에는 '인물별 인지 상태' 한 줄뿐이었다).
+    const cogBreak=()=>{const fs=(V.cog?.facts||[]);if(!fs.length)return '';
+      const full=fs.filter(f=>f.sel&&!f.brief),brief=fs.filter(f=>f.sel&&f.brief),out=fs.filter(f=>!f.sel);
+      const row=(f,tag,cls,why)=>`<div class="w-ci is-${cls}"><span class="w-ci-t"><b>${esc(f.label||'제목 없음')}</b>${why?`<small>${esc(why)}</small>`:''}</span><span class="w-ci-p">${tag}</span></div>`;
+      const outWhy=f=>f.mode==='off'||f.mode==='exclude'?'직접 끔':'이번 장면에 나온 인물과 상관없음';
+      return `<p class="w-sub" style="margin:8px 0 4px">인지 정보 ${fmt(fs.length)}개 · 자세히 ${fmt(full.length)} · 제목만 ${fmt(brief.length)} · 안 넣음 ${fmt(out.length)}</p>`+
+        full.map(f=>row(f,'자세히','main',f.why||'지금 장면과 관련 있음')).join('')+brief.map(f=>row(f,'제목만','main','제목과 누가 아는지만')).join('')+out.slice(0,150).map(f=>row(f,'빠짐','out',outWhy(f))).join('');};
     const catItems=k=>(I.items||[]).filter(i=>(W_CATS.some(c=>c[0]===i.kind)?i.kind:'misc')===k).filter(i=>view==='all'||itemPlace(i)===view);
     // 0 대신 이유: 보내기 전 · 저장된 것 없음 · 서브에 들어감 · 자리 부족 · 이번엔 관련 없음
     const storedOf=k=>({log:(V.logs?.blocks||[]).length,relationship:(V.relationships?.rows||[]).length,lore:(V.lore?.packs||[]).reduce((s,p)=>s+(p.active?(p.entries||[]).filter(e=>e.on!==false).length:0),0),state:(V.state?.sections||[]).length||(String(V.state?.raw||'').trim()?1:0),speech:(V.speech?.rows||[]).length,threads:Number(V.threads?.open)||0,cog:(V.cog?.facts||[]).length,timeline:(V.timeline?.rows||[]).length,char:(V.chars?.rows||[]).length,extra:(V.extras?.rows||[]).length,roster:(V.cog?.actors||[]).length}[k]||0);
@@ -22545,7 +22777,7 @@ function createWishUI(AD) {
     const catRows=catOrder.map(([k,l,d,key,get])=>{const n=amt(k),on=key?!!get():n>0;if((k==='misc'&&!n)||(k==='lore'&&!has('lore')))return '';if(view==='sub'&&!n)return '';
       const open=S.usageCat===k,list=open?catItems(k):[];
       return `<div class="w-row w-catrow${on?'':' is-off'}" data-cat="${k}"><button type="button" class="w-catbtn" data-act="usageCat" data-arg="${k}" aria-expanded="${open}"><span class="w-dot" style="background:${on&&n?colorOf(k):'var(--w-track)'}"></span>${W_RM(l,d)}<span class="w-val${on&&!n?' w-zero':''}">${on&&n?fmt(n)+'자 · '+pctV(n):on?zeroWhy(k):'꺼짐'}</span><span class="w-chev${open?' open':''}" aria-hidden="true">›</span></button>${key?W_SW(on,'flipSw',key,l+' 보내기'):'<span class="w-sw-gap"></span>'}</div>`+
-        (open?`<div class="w-row w-block w-catitems" data-key="catitems-${k}">${list.length?list.map(i=>{const p=itemPlace(i);return `<div class="w-ci is-${p}"><span class="w-ci-t"><b>${esc(i.title)}</b>${p==='out'?`<small>${esc(i.offReason||'')}</small>`:i.why&&i.why!=='켜져 있으면 계속 포함'?`<small>${esc(i.why)}</small>`:''}</span><span class="w-ci-p">${PLACE[p]}</span><em>${fmt(i.size)}자</em></div>`;}).join(''):`<p class="w-sub">${on?'이 칸에 들어간 항목이 없어요.':'꺼져 있어서 보내지 않아요.'}</p>`}</div>`:'');}).join('');
+        (open?`<div class="w-row w-block w-catitems" data-key="catitems-${k}">${list.length?list.map(i=>{const p=itemPlace(i);return `<div class="w-ci is-${p}"><span class="w-ci-t"><b>${esc(i.title)}</b>${p==='out'?`<small>${esc(i.offReason||'')}</small>`:i.why&&i.why!=='켜져 있으면 계속 포함'?`<small>${esc(i.why)}</small>`:''}</span><span class="w-ci-p">${PLACE[p]}</span><em>${fmt(i.size)}자</em></div>`;}).join(''):`<p class="w-sub">${on?'이 칸에 들어간 항목이 없어요.':'꺼져 있어서 보내지 않아요.'}</p>`}${k==='cog'?cogBreak():''}</div>`:'');}).join('');
     const overRow=overV?`<div class="w-row" data-cat="over"><span class="w-dot w-hatch"></span>${W_RM('기억 아님',view==='sub'?'제목 · 구분 서식':'직전 AI 답변 원문 · AI에게 주는 읽는 법 안내')}<span class="w-val">${fmt(overV)}자 · ${pctV(overV)}</span><span class="w-sw-gap"></span></div>`:'';
     const listOpen=!!(S.macMore||{}).subList;
     const subList=view==='sub'&&subItems.length?`<button type="button" class="w-row w-rowbtn" data-act="macMore" data-arg="subList" aria-expanded="${listOpen}">${W_RM('들어간 기억 '+fmt(subItems.length)+'개','제목 보기')}<span class="w-chev${listOpen?' open':''}" aria-hidden="true">›</span></button>${listOpen?`<div class="w-row w-block w-sublist">${subItems.map(i=>`<div class="w-subitem"><span>${esc(i.title)}</span><em>${fmt(i.size)}자</em></div>`).join('')}</div>`:''}`:'';
@@ -23232,8 +23464,24 @@ function mRelationships() {
           W_R('번역해 둔 기억',`${(()=>{try{const r=state.currentRoom,items=r?.pending?.items||[],p=SecondaryRebuild.projector(r,{contextNotation:true}),rs=WishZh.roomStatus(items.map(p.item));return rs.all?'이 방 '+fmt(rs.ok)+' / '+fmt(rs.all)+'개 · ':'';}catch(_){return '';}})()}전체 ${fmt(z.cached)}개 · 실패 ${fmt(z.failed)} · 대기 ${fmt(z.pending)}${z.last?' · 마지막 '+esc(z.last):''}${z.why?' · 지금: '+esc(z.why):''}${z.error?' · 문제: '+esc(z.error):''}`,btn('지금 번역','zhNow',{cls:'mini primary'})+btn('번역 지우기','zhClear',{cls:'quiet mini'})):'')+`</div>`;})()+
       W_SECH('RP 메모 '+help('전송할 때 RP AI에게 짧은 참고 표시를 덧붙이고(묵은 떡밥·퇴장한 인물·기억 서랍), 답변이 끝나면 보조 AI가 사소한 장면을 모으거나 답변을 기억과 맞춰 봅니다(사소한 장면 모으기·답변 검수). 끄면 지금과 같습니다. 바꾸면 다음 전송·다음 답변부터 적용됩니다.'),savedTag('rpMemo'))+
       `<div class="w-grp" data-key="rp-memo-settings">${W_TG('묵은 떡밥 살리기','rpMemo.staleThreads',m.staleThreads,'오래된 떡밥 중 지금 장면과 이어질 만한 걸 하나 짚어 줘요','제목만 보이는 오래된 서사 고리 가운데 지금 장면과 낱말이 겹치는 하나에 "(지금 장면과 이어질 수 있음)"을 붙입니다. 꺼내라는 지시가 아니라 참고 표시이며, 자리가 모자라면 표시가 먼저 빠집니다.')}${W_TG('퇴장한 인물 챙기기','rpMemo.awayPeople',m.awayPeople,'한동안 안 나온 인물 1~2명을 떠올리게 해 줘요','인물 목록에 있지만 최근 사건 15개와 지금 장면에 나오지 않는 인물 1~2명을 현재상태 끝에 "이름(마지막 기록 머리줄)"로 덧붙입니다. 현재상태에 이미 있는 인물과 숨겨진 사실에 가까운 기록은 뺍니다. 등장시키라는 지시가 아닙니다.')}${W_TG('기억 서랍','rpMemo.drawer',m.drawer,'보내는 글과 이어지는 예전 장면을 그 메시지에 숨겨 붙여요','보내는 글의 낱말로 예전 장면을 찾아 한두 줄(줄마다 220자까지) 발췌를 보내는 메시지 끝에 마크다운 주석([//]: # (…))으로 붙입니다. 말풍선에는 보이지 않습니다. 5만 자 주입과는 별개라 그 자리를 쓰지 않고, 로어 인젝터처럼 그 메시지에 남아 대화와 함께 흘러갑니다. 먼저 아래 사소한 장면 목록(제목·낱말)에서 찾고, 목록에 없을 때만 예전 원문에서 찾습니다(이번 주입에도 최근 대화 40개에도 없고, 예전 대화의 한 대목에 3번 이상 몰려 나온 낱말만). 한 번 붙인 장면은 그 뒤 전송 15번 동안 다시 붙이지 않고, 붙일 때마다 짧은 알림이 뜹니다. 주입 유지 중인 방에서만 동작하며, 전체 대화를 아직 읽지 못한 첫 전송에는 붙지 않습니다.')}${W_TG('사소한 장면 모으기','rpMemo.drawerNotes',m.drawerNotes,'놀이·농담·별명 같은 장면에 한 줄 제목을 붙여 모아 둬요','AI 답변이 끝날 때마다 보조 AI에게 물어, 줄거리 요약에는 안 남을 사소한 장면(둘만의 놀이·장난·별명·작은 내기 등)에 한 줄 제목과 낱말을 붙여 방마다 모아 둡니다(이 브라우저에만, 2,000줄까지). 기억 서랍이 켜져 있으면 원문보다 이 목록에서 먼저 찾아서, "그때 그 놀이"처럼 종류만 말해도 찾을 수 있습니다. 켠 뒤의 답변부터 모이고, 그 전 대화는 아래 「지난 대화에서 모으기」로 채웁니다. 답변 검수와 같은 호출에 얹으므로 둘 다 켜도 답변마다 API는 한 번입니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 하고, 그것도 없으면 쉽니다.')}${(()=>{try{const s=WishDrawer.fillStatus(state.currentRoom);return W_R('지난 대화에서 모으기 '+help('예전 턴을 15턴씩 묶어 보조 AI에게 읽혀, 사소한 장면 목록을 채웁니다(15턴에 API 한 번). 기억·날짜로그는 건드리지 않고 재구축과도 무관합니다. 범위를 골라 일부만 할 수 있고, 뒤에서 돌아가므로 그동안 RP를 계속해도 됩니다. 멈춰도 읽은 데까지는 남고 다시 누르면 이어서 합니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 합니다.'),s.running?'모으는 중 · '+fmt(s.running.done)+' / '+fmt(s.running.total)+'묶음 · 지금까지 '+fmt(s.running.added)+'줄':'지금 '+fmt(s.notes)+'줄 모여 있어요 · 범위를 골라 누르세요',s.running?btn('멈추기','drawerFillStop',{cls:'mini',icon:'pause'}):btn('최근 200턴','drawerFill',{cls:'mini',arg:200,dis:s.busy})+btn('최근 500턴','drawerFill',{cls:'mini',arg:500,dis:s.busy})+btn('전체','drawerFill',{cls:'mini',arg:0,dis:s.busy})+btn('목록 보기','drawerList',{cls:'mini',icon:'doc'}),'','drawer-fill');}catch(_){return '';}})()}${W_TG('서랍: 뜻으로 찾기','rpMemo.drawerDeep',m.drawerDeep,'낱말이 안 겹쳐도 뜻이 가까운 예전 장면을 찾아요','예전 대화를 턴 단위로 임베딩해 이 브라우저에 모아 두고(뒤에서 조금씩, 한 번에 48턴), 보내는 글이 "그때·저번에·또 하자"처럼 예전 일을 꺼내는 말투인데 낱말과 장면 목록으로는 못 찾았을 때만 뜻이 가장 가까운 턴 하나를 찾아 같은 마크다운 주석으로 붙입니다. 다른 턴들보다 뚜렷이 가까울 때만 붙고, 애매하면 붙이지 않습니다. 기억 서랍이 켜져 있어야 하며 AI 설정의 Gemini API Key를 씁니다(의미 검색과 같은 모델). 주 AI가 복붙·ChatGPT 웹인 동안에는 의미 검색과 마찬가지로 쉽니다. 색인을 만드는 동안 임베딩 비용이 들고, 그 뒤로는 새 턴과 해당 전송에만 듭니다. 전송은 길어야 5초 기다립니다.')}${W_TG('답변 검수','rpMemo.proof',m.proof,'새 답변이 기억과 다른 곳을 찾아 고칠지 물어봐요','주입 유지 중인 방에서 AI 답변이 끝날 때마다 보조 AI에게 한 번 물어, 그 답변이 읽은 기억(이름·가족·직업·재산·외모·호칭·지난 사건)과 정면으로 어긋나는 구절을 찾습니다. 찾으면 화면 왼쪽 아래 카드에 「답변 구절 → 고친 글」을 보여 주고, 고른 것만 답변 글에서 고칩니다. 기억이 기준이고 기억은 바꾸지 않습니다. 이야기 속에서 새로 바뀐 일·거짓말·농담은 고치지 않게 했습니다. 답변마다 API를 한 번 씁니다. 주 AI가 복붙·ChatGPT 웹이면 AI 설정의 「후보 선별만 API로」에 건 API로 하고, 그것도 없으면 쉽니다.')}${W_TG('묻지 않고 고치기','rpMemo.proofAuto',m.proofAuto,'답변 검수가 찾은 곳을 바로 고치고 되돌리기를 남겨요','답변 검수가 켜져 있을 때만 쓰입니다. 찾은 구절을 묻지 않고 답변 글에서 바로 고친 뒤, 무엇을 고쳤는지와 [되돌리기]를 카드로 보여 줍니다. 고치지 못하면 물어보는 카드로 바뀝니다.')}</div>`+
+      crackLtmSection()+
       W_SECH('문제 해결')+
       `<div class="w-grp" data-key="error-log-settings">${W_R('실패 · 주의 기록','최근 오류를 봐요 · API 키는 가려요 · 남에게 보내기 전에 내용을 한 번 확인해 주세요',btn('실패 기록 보기','errorLogs',{cls:'mini',icon:'doc'}))}${W_R('자동 시작점 '+help('아직 정리하지 않은 과거 대화를 건너뛰고 이후 새 대화부터 셉니다. 저장된 기억·인지·자료는 유지합니다. 과거 내용을 다시 읽으려면 전체 재구축을 사용하세요.'),'아직 정리 안 한 지난 대화는 건너뛰고 지금부터 세요 · 저장된 기억은 그대로',btn('지금으로 맞추기','memoryBase',{cls:'mini',icon:'clock'}),'','automation-baseline')}</div>`;
+  }
+  // 크랙 장기기억 관리: 모든 방 공통 설정(켜기 · 주기 · 흡수 후 지우기) + 이 방의 상태와 「지금 정리하기」.
+  function crackLtmSection(){
+    const room=state.currentRoom;if(!room)return '';
+    const v=CrackLtm.view(room),c=v.cfg,j=v.job,l=v.last,when=t=>new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const hlp=help('[무엇]\nRP를 장기기억 카드로 정리해서 크랙 「요약 메모리 › 장기 기억」에 넣어요. 크랙이 자동으로 만든 짧은 카드는 그 내용을 정리 카드에 담은 뒤 지워요.\n\n[주기]\n1턴은 USER 메시지와 AI 답변 한 쌍이고, 리롤은 같은 턴이에요. 정한 턴이 지나면 다음 답변 뒤에 알아서 정리해요. 한 번에 자동 카드는 360장까지 흡수하고, 남은 건 다음 정리 때 이어서 해요. 「지금 정리하기」는 남은 걸 다 해요.\n\n[건드리는 것]\n· 크랙 자동 카드: 정리 카드를 다 올린 뒤에만 지워요. 지우기 전에 원문을 이 방 데이터에 백업해요.\n· 이 도우미가 만든 카드: 고쳐 쓰거나 합칠 때 새 카드를 먼저 올리고 옛 카드를 지워요.\n· 내가 직접 쓴 카드: 읽지도, 지우지도 않아요.\n\n[15장]\n도우미 카드가 15장을 넘으면 오래된 카드끼리 합쳐서 12장 안팎으로 줄여요.\n\n[AI]\n정리해 줄 AI(복붙 모드면 「후보 선별만 API로」에 건 API)를 써요. 정리 한 번에 AI 호출은 묶음 수만큼이에요.');
+    const seg='<span class="w-seg" role="radiogroup" aria-label="장기기억 정리 주기">'+[10,20,30,50].map(n=>`<button type="button" role="radio" aria-checked="${c.every===n}" data-act="ltmEvery" data-arg="${n}">${n}턴</button>`).join('')+'</span>';
+    const stat=j?`${esc(j.label)}${j.total?' · '+fmt(j.done)+' / '+fmt(j.total)+'묶음':''}`
+      :[l?.at?'도우미 카드 '+fmt(l.mine)+' / 15장':'아직 정리 전이에요',l?.hand?'직접 쓴 카드 '+fmt(l.hand)+'장(안 건드림)':'',l?.left?'남은 자동 카드 '+fmt(l.left)+'장':'','다음 정리까지 '+fmt(v.left)+'턴',l?.at?'마지막 '+when(l.at):'',l?.error&&(!l.at||l.errorAt>l.at)?'문제: '+esc(l.error):''].filter(Boolean).join(' · ');
+    return W_SECH('크랙 장기기억 '+hlp)+
+      `<div class="w-grp" data-key="crack-ltm-settings"><div class="w-row">${W_RM('크랙 장기기억 관리하기','RP를 장기기억 카드로 정리해서 크랙 장기기억에 넣어 줘요')}${W_SW(c.on,'ltmToggle',null,'크랙 장기기억 관리하기')}</div>`+
+      (c.on?`<div class="w-row">${W_RM('장기기억 정리 주기','정한 턴마다 알아서 정리해요')}<span class="w-acts">${seg}</span></div>`+
+        `<div class="w-row">${W_RM('흡수 후 지우기','크랙이 자동으로 만든 카드는 내용을 흡수한 뒤 지워요 · 내가 직접 쓴 카드는 건드리지 않아요')}${W_SW(c.absorbDelete,'ltmDelete',null,'흡수 후 지우기')}</div>`+
+        W_R('지금 정리하기',stat,j?btn('정리 중…','ltmNow',{cls:'mini',dis:true}):btn('지금 정리하기','ltmNow',{cls:'mini primary'})+(v.backup?btn('지운 카드 백업','ltmBackup',{cls:'quiet mini',icon:'doc'}):''),'','crack-ltm-now'):'')+
+      `</div>${W_FOOT(c.on?'모든 방 공통 · 카드가 15장을 넘으면 오래된 카드끼리 합쳐서 정리해요':'모든 방 공통 · 켜면 아래 항목이 나타나요')}`;
   }
   function wThemePanel(){const t=wishUiTheme();return `<div class="w-sec">화면</div><div class="w-grp" data-key="theme-settings"><div class="w-row"><span class="w-rm"><span class="w-t">화면 모드</span><span class="w-sub">시스템은 크랙 화면 설정을 따라가요</span></span><span class="w-seg" role="radiogroup" aria-label="화면 모드">${[['system','시스템'],['light','라이트'],['dark','다크']].map(([k,l])=>`<button type="button" role="radio" aria-checked="${t===k}" data-act="macTheme" data-arg="${k}">${l}</button>`).join('')}</span></div><button type="button" class="w-row w-rowbtn" data-act="tourToggle"><span class="w-rm"><span class="w-t">사용법</span><span class="w-sub">지금 화면에서 한 단계씩 따라 하기</span></span><span class="w-chev" aria-hidden="true">›</span></button></div>`;}
   const NAV = [['check', '홈', 'inbox'], ['memory', '기억', 'memory'], ['lore', '자료집', 'book'], ['cognition', '인물', 'people'], ['tools', '자료 관리', 'tools'], ['settings', '설정', 'set']];
@@ -25718,6 +25966,15 @@ for(const name of ['staleThreads','awayPeople','drawer','drawerNotes','drawerDee
  };
 Object.assign(WUI_ADAPTER.act,{drawerFill:arg=>{void WishDrawer.backfill(state.currentRoom,Number(arg)||0);},drawerFillStop:()=>WishDrawer.stopFill(),drawerList:()=>{const text=WishDrawer.listText(state.currentRoom);if(!text){notify('아직 모아 둔 장면이 없어요.','info',3200);return;}WUI.openSheet('viewer',{title:'모아 둔 사소한 장면',desc:'기억 서랍이 먼저 찾아보는 목록 · 최근 장면부터',text,plain:true});}});
 Object.assign(WUI_ADAPTER.act,{errorDetail:id=>(WLOG.viewed(),WUI.openSheet('errorDetail',{errorId:id,errorRow:WLOG.find(id)})),errorDetailCopy:async id=>{const d=WUI.ui.dlg(id),row=d&&(WLOG.find(d.errorId)||d.errorRow);if(!row)return;const ok=await copyPlainText(JSON.stringify({...row,...WLOG.describe(row)},null,2));notify(ok?'오류 내용을 복사했습니다.':'복사하지 못했습니다.',ok?'success':'error',3000,{kind:'COPY_FAIL_LOG'});},errorLogs:()=>(WLOG.viewed(),WUI.openSheet('errorLogs')),errorLogsCopy:async()=>{const ok=await copyPlainText(WLOG.exportText());notify(ok?'실패·주의 기록을 복사했습니다.':'복사하지 못했습니다.',ok?'success':'error',3000,{kind:'COPY_FAIL_LOG'});},errorLogsClear:()=>{if(confirm('이 브라우저에 저장된 실패 기록만 비울까요?'))WLOG.clear();}});
+Object.assign(WUI_ADAPTER.act,{
+ ltmToggle:()=>{const c=CrackLtm.setConfig({on:!CrackLtm.config().on});notify(c.on?'크랙 장기기억 관리를 켰어요 · '+c.every+'턴마다 정리해요 · 바로 하려면 「지금 정리하기」':'크랙 장기기억 관리를 껐어요 · 이미 만든 카드는 그대로예요',c.on?'success':'info',5000);},
+ ltmEvery:a=>{const n=Number(a);if([10,20,30,50].includes(n))CrackLtm.setConfig({every:n});},
+ ltmDelete:()=>{CrackLtm.setConfig({absorbDelete:!CrackLtm.config().absorbDelete});},
+ ltmNow:async()=>{const room=state.currentRoom;if(!room)return;const s=room.crackLtm||{};
+  if(CrackLtm.config().absorbDelete&&!s.confirmed){if(!confirm('크랙이 자동으로 만든 장기기억 카드를 정리 카드에 담은 뒤 지워요.\n\n· 지우기 전에 원문을 이 방 데이터에 백업해요(설정의 「지운 카드 백업」으로 받을 수 있어요).\n· 내가 직접 쓴 카드는 건드리지 않아요.\n· 자동 카드가 많으면 AI 호출이 여러 번 들어요.\n\n지금 정리할까요?'))return;room.crackLtm={...s,confirmed:true};}
+  try{const m=await CrackLtm.run(room,{manual:true});notify(m,'success',8000);}catch(e){notify('크랙 장기기억 정리: '+String(e?.message||e),'warn',9000,{error:e});}},
+ ltmBackup:()=>{const room=state.currentRoom,text=CrackLtm.backupText(room);if(!text){notify('백업해 둔 카드가 없어요.','info',3000);return;}downloadText(text,'crack-ltm-backup-'+String(apiChatIdOf(room)||'room')+'.json');}
+});
 const WUIAutoSave=(()=>{
  const records=new Map();let tail=Promise.resolve();
  const fields={unified:['memoryEnabled','observeEnabled','memoryEvery','observeEvery',...U3.AREAS.map(r=>r[2])],apiEconomy:['delta','index'],recall:['semantic','selector'],rpMemo:['staleThreads','awayPeople','drawer','drawerNotes','drawerDeep','proof','proofAuto']};
